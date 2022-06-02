@@ -409,7 +409,6 @@ def compute_itc_recall(pl_module):
             {
                 "image": [_b["image"][0].to(pl_module.device)],
                 "img_index": _b["img_index"],
-                "text_masks": None
             }
         )
     iids = list()
@@ -436,7 +435,6 @@ def compute_itc_recall(pl_module):
             cls_feats = pl_module.infer(
                     {
                         "image": img_batch["image"],
-                        "text_masks": img_batch["text_masks"],
                     }, image_only=True
                 )["cls_feats"]
         cls_feats = cls_feats
@@ -445,6 +443,18 @@ def compute_itc_recall(pl_module):
     txt_cls_feats = torch.cat(txt_cls_feats)
     img_cls_feats = torch.cat(img_cls_feats)
 
+    torch.distributed.barrier()
+    device = txt_cls_feats.device
+
+    def gather_feats(y, device):
+        gather_y = all_gather(y)
+        gather_y = [x.to(device) for x in gather_y]
+        return torch.cat(gather_y)
+
+    txt_cls_feats = gather_feats(txt_cls_feats, device)
+    img_cls_feats = gather_feats(img_cls_feats, device)
+    iids = gather_feats(iids, device)
+    tiids = gather_feats(tiids, device)
 
     scores = img_cls_feats @ txt_cls_feats.t()
 
