@@ -479,7 +479,6 @@ class RobertaLayer(nn.Module):
                 encoder_attention_mask,
                 cross_attn_past_key_value,
                 output_attentions,
-                cross=True,
             )
             attention_output = self.alpha_t2i*cross_attention_outputs[0] + attention_output
 
