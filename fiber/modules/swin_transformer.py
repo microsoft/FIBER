@@ -9,6 +9,10 @@ Code/weights from https://github.com/microsoft/Swin-Transformer, original copyri
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Ze Liu
 # --------------------------------------------------------
+
+DIM_TEXT=768
+NUM_FUSE_BLOCK=6
+
 import logging
 import math
 from copy import deepcopy
@@ -422,7 +426,7 @@ class BasicLayer(nn.Module):
                 dim=dim, input_resolution=input_resolution, num_heads=num_heads, window_size=window_size,
                 shift_size=0 if (i % 2 == 0) else window_size // 2, mlp_ratio=mlp_ratio,
                 qkv_bias=qkv_bias, drop=drop, attn_drop=attn_drop,
-                drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path, norm_layer=norm_layer, dim_text=None if layer_index==2 and i < 14 else dim_text)
+                drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path, norm_layer=norm_layer, dim_text=None if layer_index==2 and i < 20-NUM_FUSE_BLOCK else dim_text)
             for i in range(depth)])
 
         # patch merging layer
@@ -524,7 +528,7 @@ class SwinTransformer(nn.Module):
                 norm_layer=norm_layer,
                 downsample=PatchMerging if (i_layer < self.num_layers - 1) else None,
                 use_checkpoint=use_checkpoint,
-                dim_text=768 if i_layer >= 2 else None,
+                dim_text=DIM_TEXT if i_layer >= 2 else None,
                 layer_index=i_layer)
             ]
         self.layers = nn.Sequential(*layers)

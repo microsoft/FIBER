@@ -50,7 +50,7 @@ def config():
     num_layers = 6
     mlp_ratio = 4
     drop_rate = 0.1
-    num_fuse_block = 6 # setting it to >6 may require changes in modules/swin_transformer.py and modules/roberta.py
+    num_fuse_block = 6
     itc_pooler = True # does not make a difference
 
     # Optimizer Setting

@@ -3,7 +3,7 @@ import torch.nn as nn
 import pytorch_lightning as pl
 import numpy as np
 
-from . import swin_transformer as swin
+from . import swin_transformer, roberta
 from . import heads, objectives, fiber_utils
 from .swin_helpers import swin_adapt_position_encoding
 from transformers import RobertaConfig
@@ -27,6 +27,9 @@ class FIBERTransformerSS(pl.LightningModule):
 
         resolution_after=config['image_size']
         self.num_fuse_block = config['num_fuse_block']
+        roberta.NUM_FUSE_BLOCK = swin_transformer.NUM_FUSE_BLOCK = self.num_fuse_block
+        roberta.DIM_IMG = config['input_image_embed_size']
+        swin_transformer.DIM_TXT = config['input_text_embed_size']
 
         self.cross_modal_text_transform = nn.Linear(config['input_text_embed_size'], config['hidden_size'])
         self.cross_modal_text_transform.apply(objectives.init_weights)
@@ -42,14 +45,14 @@ class FIBERTransformerSS(pl.LightningModule):
 
         if torch.distributed.is_initialized():
             if torch.distributed.get_rank() == 0:
-                getattr(swin, self.hparams.config["vit"])(
+                getattr(swin_transformer, self.hparams.config["vit"])(
                     pretrained=True, config=self.hparams.config,
                 )
                 RobertaModel.from_pretrained(config['tokenizer'])
 
             torch.distributed.barrier()
 
-        self.vit_model = getattr(swin, self.hparams.config["vit"])(
+        self.vit_model = getattr(swin_transformer, self.hparams.config["vit"])(
             pretrained=True, config=self.hparams.config,
         )
         self.avgpool = nn.AdaptiveAvgPool1d(1)

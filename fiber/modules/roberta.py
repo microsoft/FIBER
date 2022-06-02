@@ -15,6 +15,9 @@
 # limitations under the License.
 """PyTorch RoBERTa model. """
 
+NUM_FUSE_BLOCK=6
+DIM_IMG=1024
+
 import math
 import inspect
 from typing import Callable, List, Optional, Set, Tuple, Union
@@ -228,11 +231,11 @@ class RobertaSelfAttention(nn.Module):
             self.value = nn.Linear(config.hidden_size, self.all_head_size)
         else:
             if layer_index < 10:
-                self.key = nn.Linear(512, self.all_head_size)
-                self.value = nn.Linear(512, self.all_head_size)
+                self.key = nn.Linear(int(DIM_IMG/2), self.all_head_size)
+                self.value = nn.Linear(int(DIM_IMG/2), self.all_head_size)
             else:
-                self.key = nn.Linear(1024, self.all_head_size)
-                self.value = nn.Linear(1024, self.all_head_size)
+                self.key = nn.Linear(DIM_IMG, self.all_head_size)
+                self.value = nn.Linear(DIM_IMG, self.all_head_size)
                 
                 
 
@@ -428,7 +431,7 @@ class RobertaLayer(nn.Module):
         self.attention = RobertaAttention(config)
         self.is_decoder = config.is_decoder
         self.add_cross_attention = config.add_cross_attention
-        if layer_index >= 6:
+        if layer_index >= 12 - NUM_FUSE_BLOCK:
             self.crossattention_t2i = RobertaAttention(config, layer_index=layer_index)
         self.intermediate = RobertaIntermediate(config)
         self.output = RobertaOutput(config)
