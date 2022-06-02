@@ -18,7 +18,6 @@ def _loss_names(d):
 
 @ex.config
 def config():
-    resolution_before = 384
     exp_name = "fiber"
     seed = 0
     datasets = ["coco", "vg", "sbu", "gcc"]
@@ -87,7 +86,7 @@ def config():
     precision = 32
 
 @ex.named_config
-def task_mlm_itm_itc():
+def task_pretrain_mlm_itm_itc():
     exp_name = "mlm_itm_itc"
     datasets = ["coco", "vg", "sbu", "gcc"]
     loss_names = _loss_names({"itm": 1, "mlm": 1, "itc": 1})
@@ -140,7 +139,7 @@ def task_finetune_vqa():
     image_size = 576
 
 @ex.named_config
-def task_finetune_irtr_coco():
+def task_finetune_irtr_itc_coco():
     exp_name = "finetune_irtr_coco"
     datasets = ["coco"]
     loss_names = _loss_names({"itc": 1})
@@ -157,7 +156,7 @@ def task_finetune_irtr_coco():
     image_size = 576
 
 @ex.named_config
-def task_finetune_irtr_f30k():
+def task_finetune_irtr_itc_f30k():
     exp_name = "finetune_irtr_f30k"
     datasets = ["f30k"]
     loss_names = _loss_names({"itc": 1})
@@ -172,3 +171,39 @@ def task_finetune_irtr_f30k():
     train_transform_keys = ["square_randaug"]
     val_transform_keys = ["square"]
     image_size = 576
+
+@ex.named_config
+def task_finetune_irtr_itm_coco():
+    exp_name = "finetune_irtr_coco"
+    datasets = ["coco"]
+    loss_names = _loss_names({"itm": 1})
+    batch_size = 1024
+    max_epoch = 10
+    max_steps = None
+    warmup_steps = 0.1
+    learning_rate = 2e-5
+    lr_mult_cross_modal = 5
+    lr_mult_head = 5
+    max_text_len = 50
+    train_transform_keys = ["square_randaug"]
+    val_transform_keys = ["square"]
+    image_size = 384
+    get_recall_metric_itc = False
+
+@ex.named_config
+def task_finetune_irtr_itm_f30k():
+    exp_name = "finetune_irtr_f30k"
+    datasets = ["f30k"]
+    loss_names = _loss_names({"itm": 1})
+    batch_size = 1024
+    max_epoch = 10
+    max_steps = None
+    warmup_steps = 0.1
+    learning_rate = 2e-5
+    lr_mult_cross_modal = 5
+    lr_mult_head = 5
+    max_text_len = 50
+    train_transform_keys = ["square_randaug"]
+    val_transform_keys = ["square"]
+    image_size = 384
+    get_recall_metric_itc = False
