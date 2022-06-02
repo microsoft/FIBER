@@ -233,7 +233,7 @@ def compute_itc(pl_module, batch):
 
 
     ret = {
-        "itc_loss": ifm_loss,
+        "itc_loss": itc_loss,
         "itc_i2t_logits": logits_per_image,
         "itc_t2i_logits": logits_per_text,
         "itc_labels": ground_truth,

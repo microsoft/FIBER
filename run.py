@@ -5,7 +5,7 @@ import os
 os.environ["NCCL_DEBUG"] = "INFO"
 
 from fiber.config import ex
-from fiber.modules import METERTransformerSS
+from fiber.modules import FIBERTransformerSS
 from fiber.datamodules.multitask_datamodule import MTDataModule
 
 import resource
@@ -19,7 +19,7 @@ def main(_config):
 
     dm = MTDataModule(_config, dist=True)
 
-    model = METERTransformerSS(_config)
+    model = FIBERTransformerSS(_config)
     exp_name = f'{_config["exp_name"]}'
 
     os.makedirs(_config["log_dir"], exist_ok=True)
