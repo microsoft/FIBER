@@ -230,7 +230,7 @@ def task_finetune_caption_mle_coco():
     max_epoch = 10
     max_steps = None
     warmup_steps = 0.1
-    learning_rate = 2e-5
+    learning_rate = 5e-5
     lr_mult_cross_modal = 5
     lr_mult_head = 5
     max_text_len = 50
@@ -248,7 +248,7 @@ def task_finetune_caption_gold_coco():
     max_epoch = 10
     max_steps = None
     warmup_steps = 0.1
-    learning_rate = 2e-5
+    learning_rate = 1e-5
     lr_mult_cross_modal = 5
     lr_mult_head = 5
     max_text_len = 50
@@ -267,7 +267,7 @@ def task_finetune_caption_cider_coco():
     max_epoch = 10
     max_steps = None
     warmup_steps = 0.1
-    learning_rate = 2e-5
+    learning_rate = 1e-6
     lr_mult_cross_modal = 5
     lr_mult_head = 5
     max_text_len = 50

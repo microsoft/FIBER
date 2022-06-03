@@ -812,3 +812,444 @@ def compute_caption_mle(pl_module, batch):
     pl_module.log(f"caption_mle/{phase}/accuracy", acc)
 
     return ret
+
+device=mlm_logits.device)[:, None, None] * beam_size
+
+
+                top_prev_idx = top_prev_idx.permute(0, 2, 1)
+                top_prev_idx = top_prev_idx.contiguous().view(search_size, 1)
+                top_logp = top_logp.permute(0, 2, 1)
+                head_logp = top_logp.contiguous().view(search_size, 1)
+                top_lengths = decoder_lengths.permute(0, 2, 1)
+                head_lengths = top_lengths.contiguous().view(search_size, 1)
+                # print('head_logp', head_logp)
+                top_tokens = top_tokens.permute(0, 2, 1)
+                top_tokens = top_tokens.contiguous().view(search_size, 1)
+                # zero out ended tokens
+                prev_ended = end_seq.gather(dim=0, index=top_prev_idx)
+                tgt_prev_tokens = ((1 - prev_ended.to(torch.long)) * top_tokens +
+                                   prev_ended.to(torch.long) * padded)
+                t_size = text_ids.size(1)
+                top_decoded_idx = top_prev_idx.repeat(1, t_size)
+                text_ids = text_ids.gather(dim=0, index=top_decoded_idx)
+                text_ids[:, i+1] = tgt_prev_tokens.view(-1)
+                end_seq = ((tgt_prev_tokens == 1) | (tgt_prev_tokens == 2))
+                if torch.sum(end_seq) == len(end_seq):
+                    break
+        
+        text_ids = text_ids.view(bs, beam_size, -1)[:, 0, :]
+        text_ids = text_ids.contiguous()
+        text_ids[text_ids==0] = 1
+        text_ids[text_ids==2] = 1
+        for text_id in text_ids:
+            captions.append(tokenizer.decode(text_id).replace('<pad>', ''))
+        #print(text_ids)
+        #print(captions)
+        #1/0
+    #print(batch.keys())
+    #dict_keys(['cap_index', 'text', 'domain_index', 'iid', 'image', 'raw_index', 'false_image_0', 'img_index', 'replica', 'text_ids', 'text_labels', 'text_ids_mlm', 'text_labels_mlm', 'text_masks'])
+    #print(batch['iid'])
+    #[0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3]
+    #1/0
+    
+    return {"raw_index": batch['raw_index'], "img_index": batch['img_index'], "iid": batch['iid'], 'refs': batch['text'], 'hyps': captions}
+
+def caption_test_step(pl_module, batch, output, beam_size=5):
+    captions = []
+    tokenizer = pl_module.trainer.datamodule.dms[0].tokenizer
+    if not pl_module.training:
+        bs = batch['text_ids'].size(0)
+        text_ids = torch.ones((bs, 50), device=batch['text_ids'].device, dtype=batch['text_ids'].dtype) # torch.ones_like(batch['text_ids'])#batch['text_ids'].clone()
+        text_ids[:, 0] = tokenizer.cls_token_id
+        search_size = bs*beam_size
+        end_seq = torch.zeros_like(text_ids[:, 0])
+        end_seq = (end_seq>0)
+        caption_labels = batch['text_ids'].clone()
+        caption_labels = caption_labels[:, 1:]
+        q_start = torch.zeros_like(text_ids[:, 0])
+        q_start = (q_start>0)
+        ret = pl_module.infer_caption(batch, mask_text=False, mask_image=False) #, return_image_embeds=True)
+        image_embeds = ret['image_embeds']
+        batch['text_masks'] = None
+        for i in range(50 - 1):
+            batch['text_ids'] = text_ids
+            if i != 0:
+                infer = pl_module.infer_caption(batch, mask_text=False, mask_image=False, image_embeds=image_embeds)
+            else:
+                infer = ret
+            mlm_logits = pl_module.mlm_score(infer["text_feats"][:, i:i+1])
+            mlm_logits[:, 0, 50264] = -10000
+            mlm_logits = torch.log_softmax(mlm_logits, dim=-1)
+            if i == 0:
+                #tgt_prev_tokens = mlm_logits.argsort(descending=True, dim=-1)[:, :, :beam_size]
+                tgt_prev_tokens = caption_labels[:, 0:1].view(bs, 1, 1).repeat(1, 1, beam_size)
+                head_logp = mlm_logits.gather(dim=-1, index=tgt_prev_tokens)
+                
+                tgt_prev_tokens = tgt_prev_tokens.permute(0, 2, 1).reshape(search_size, 1).contiguous()
+                head_logp = head_logp.view(search_size, 1)
+                head_lengths = torch.ones_like(head_logp)
+                text_ids = text_ids.view(bs, 1, -1).repeat(1, beam_size, 1).view(search_size, -1)
+                end_seq = end_seq.view(bs, 1, -1).repeat(1, beam_size, 1).view(search_size, 1)
+                q_start = q_start.view(bs, 1) #.repeat(1, beam_size, 1).view(search_size, 1)
+                scores = torch.zeros_like(end_seq)
+                padded = torch.full(
+                    (search_size, 1),
+                    1,
+                    dtype=torch.long,
+                    device=text_ids.device)
+
+                hs = image_embeds.size(-1)
+                image_embeds = image_embeds.view(bs, 1, -1, hs).repeat(1, beam_size, 1, 1).view(search_size, -1, hs)
+                text_ids[:, i+1] = tgt_prev_tokens.view(-1)
+                end_seq = ((tgt_prev_tokens == 1) | (tgt_prev_tokens == 2))
+                #q_start = ((caption_labels[:, 0:1] == tokenizer.cls_token_id))
+            else:
+                decoder_lengths = (1. - end_seq.to(mlm_logits.dtype)) #.view(search_size, 1)
+                mlm_logits = mlm_logits*decoder_lengths[:, :, None]
+                mlm_logits = mlm_logits + head_logp[:, :, None]
+                mlm_logits = mlm_logits.view(bs, beam_size, 1, -1).permute(0, 2, 1, 3)
+                vocab_size = mlm_logits.size(3)
+                decoder_lengths = decoder_lengths + head_lengths
+                decoder_lengths = decoder_lengths.view(bs, beam_size, 1).permute(0, 2, 1)
+                decoder_normed_logp = (mlm_logits / (decoder_lengths[:, :, :, None]+1e-9)).contiguous().view(bs, 1, -1)
+                decoder_logp = mlm_logits.contiguous().view(bs, 1, -1)
+                top_idx = decoder_normed_logp.argsort(
+                        descending=True, dim=-1)[:, :, :beam_size]
+                gt_tokens = caption_labels[:, i:i+1].view(bs, 1, 1).repeat(1, 1, beam_size) #.view(search_size, 1)
+                #print(top_idx.size())
+                #print(q_start.size())
+                #print( (q_start.to(torch.long).unsqueeze(-1) * top_idx).size())
+                #exit()
+                top_idx = (1- q_start.to(torch.long).unsqueeze(-1)) * gt_tokens  + q_start.to(torch.long).unsqueeze(-1) * top_idx
+                q_start = ((caption_labels[:, i:i+1] == tokenizer.cls_token_id) | q_start)
+                
+                top_logp = decoder_logp.gather(dim=-1, index=top_idx)
+                top_tokens = top_idx % vocab_size
+                top_prev_idx = top_idx // vocab_size
+                top_prev_idx += torch.arange(
+                    bs,
+                    dtype=torch.long,
+                    device=mlm_logits.device)[:, None, None] * beam_size
+
+
+                top_prev_idx = top_prev_idx.permute(0, 2, 1)
+                top_prev_idx = top_prev_idx.contiguous().view(search_size, 1)
+                top_logp = top_logp.permute(0, 2, 1)
+                head_logp = top_logp.contiguous().view(search_size, 1)
+                top_lengths = decoder_lengths.permute(0, 2, 1)
+                head_lengths = top_lengths.contiguous().view(search_size, 1)
+                # print('head_logp', head_logp)
+                top_tokens = top_tokens.permute(0, 2, 1)
+                top_tokens = top_tokens.contiguous().view(search_size, 1)
+
+                # zero out ended tokens
+                prev_ended = end_seq.gather(dim=0, index=top_prev_idx)
+                tgt_prev_tokens = ((1 - prev_ended.to(torch.long)) * top_tokens +
+                                   prev_ended.to(torch.long) * padded)
+                t_size = text_ids.size(1)
+                top_decoded_idx = top_prev_idx.repeat(1, t_size)
+                text_ids = text_ids.gather(dim=0, index=top_decoded_idx)
+                text_ids[:, i+1] = tgt_prev_tokens.view(-1)
+                end_seq = ((tgt_prev_tokens == 1) | (tgt_prev_tokens == 2))
+                if torch.sum(end_seq) == len(end_seq):
+                    break
+        
+        text_ids = text_ids.view(bs, beam_size, -1)[:, 0, :]
+        text_ids = text_ids.contiguous()
+        #text_ids[text_ids==0] = 1
+        text_ids[text_ids==2] = 1
+        for text_id in text_ids:
+            captions.append(tokenizer.decode(text_id).replace('<pad>', ''))
+        #print(text_ids)
+        #print(captions)
+        #1/0
+    #print(batch.keys())
+    #dict_keys(['cap_index', 'text', 'domain_index', 'iid', 'image', 'raw_index', 'false_image_0', 'img_index', 'replica', 'text_ids', 'text_labels', 'text_ids_mlm', 'text_labels_mlm', 'text_masks'])
+    #print(batch['iid'])
+    #[0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3]
+    #1/0
+    
+    return {"raw_index": batch['iid'], "img_index": batch['iid'], "iid": batch['iid'], 'refs': batch['text'], 'hyps': captions}
+
+def caption_test_wrapup(outs, model_name):
+    rank = torch.distributed.get_rank()
+    raw_index, img_index, refs, hyps, iids = list(), list(), list(), list(), list()
+    for out in outs:
+        raw_index += out["raw_index"]
+        img_index += out["img_index"]
+        refs += out["refs"]
+        hyps += out["hyps"]
+        iids += out['iid']
+
+    rets = list()
+    for i, rid in enumerate(raw_index):
+        rets.append({"raw_index": rid, "img_index": img_index[i], "ref": refs[i], "hyp": hyps[i], 'iid': iids[i]})
+    with open(f"caption_{rank}.json", "w") as fp:
+        json.dump(rets, fp, indent=4)
+
+    torch.distributed.barrier()
+
+    if rank == 0:
+        jsons = list()
+        paths = list(glob.glob("caption_*.json"))
+        for path in paths:
+            with open(path, "r") as fp:
+                jsons += json.load(fp)
+        os.makedirs("result", exist_ok=True)
+        with open(f"result/caption.json", "w") as fp:
+            json.dump(jsons, fp, indent=4)
+
+    torch.distributed.barrier()
+    os.remove(f"caption_{rank}.json")
+
+def compute_caption_gold(pl_module, batch, update_freq=1000, min_prob=0.1):
+    tokenizer = pl_module.trainer.datamodule.dms[0].tokenizer
+    infer = pl_module.infer_caption(batch, mask_text=False, mask_image=False)
+    mlm_logits = pl_module.mlm_score(infer["text_feats"])
+
+    mlm_labels = infer["text_ids"]
+    mlm_labels = torch.cat([mlm_labels[:, 1:], torch.ones_like(mlm_labels[:, :1])*tokenizer.pad_token_id], 1)
+    pad_mask = (mlm_labels==tokenizer.pad_token_id)
+
+    if pl_module.training:
+        if pl_module.global_step % update_freq == 0:
+            if not hasattr(pl_module, 'copy_step') or getattr(pl_module, 'copy_step') < pl_module.global_step:
+                from .copy_module import FIBERTransformerSS
+                setattr(pl_module, 'copy_step', pl_module.global_step)
+                if hasattr(pl_module, 'copy_module'):
+                    delattr(pl_module, 'copy_module')
+                setattr(pl_module, 'copy_module', FIBERTransformerSS(pl_module.config))
+                pl_module.copy_module.load_state_dict(pl_module.state_dict(), strict=False)
+                pl_module.copy_module.to(pl_module.device)
+                pl_module.copy_module.eval()
+
+            torch.distributed.barrier()
+
+        with torch.no_grad():
+            pl_module.copy_module.eval()
+            off_infer = pl_module.copy_module.infer_caption(batch, mask_text=False, mask_image=False)
+            off_logits = pl_module.copy_module.mlm_score(off_infer['text_feats'])
+            off_logits = torch.log(torch.nn.functional.softmax(off_logits, dim=-1)+1e-9)
+
+            bs, seq_len, vocab_size = off_logits.size()
+            off_labels = mlm_labels.view(-1, 1)
+
+            off_logits = off_logits.view(-1, vocab_size)
+            off_probs = off_logits.gather(dim=-1, index=off_labels)
+            off_probs = off_probs.view(bs, seq_len)
+            off_probs = off_probs.exp()
+            off_probs[pad_mask] = 0
+
+            cur_sum = torch.zeros(bs, device=off_logits.device)
+            cur_len = torch.zeros(bs, device=off_logits.device)
+            denom = torch.ones(bs, device=off_logits.device)
+            
+            cum_prob = []
+            for i in range(seq_len):
+                cur_sum = cur_sum + off_probs[:, -i-1]
+                cur_len = cur_len + (mlm_labels[:, -i-1] != tokenizer.pad_token_id).float()
+                cur_prob = cur_sum / torch.max(cur_len, denom)
+                cum_prob.append(cur_prob)
+
+            cum_prob = torch.flip(torch.stack(cum_prob), [0]).transpose(0, 1)
+            weights = cum_prob.detach() * off_probs.detach()
+            weights = torch.max(weights, torch.ones_like(weights)*min_prob)
+            weights = weights.contiguous().view(-1)
+     
+    mlm_labels[pad_mask] = -100
+    
+    mlm_loss = F.cross_entropy(
+        mlm_logits.view(-1, pl_module.hparams.config["vocab_size"]),
+        mlm_labels.view(-1),
+        ignore_index=-100,
+        reduction='none',
+    )
+
+    if pl_module.training:
+        weights = weights.view(bs, -1)
+        mlm_loss = mlm_loss.view(bs, -1)
+        mlm_loss = torch.sum(weights * mlm_loss, -1)
+        mlm_loss = mlm_loss / (torch.sum(pad_mask, -1) + 1e-9)
+        mlm_loss = torch.mean(mlm_loss)
+    else:
+        mlm_loss = torch.mean(mlm_loss)
+
+    ret = {
+        "caption_gold_loss": mlm_loss,
+        "caption_gold_logits": mlm_logits,
+        "caption_gold_labels": mlm_labels,
+        "caption_gold_ids": infer["text_ids"],
+    }
+
+    phase = "train" if pl_module.training else "val"
+    loss = getattr(pl_module, f"{phase}_caption_gold_loss")(ret["caption_gold_loss"])
+    acc = getattr(pl_module, f"{phase}_caption_gold_accuracy")(
+        ret["caption_gold_logits"], ret["caption_gold_labels"]
+    )
+    pl_module.log(f"caption_gold/{phase}/loss", loss)
+    pl_module.log(f"caption_gold/{phase}/accuracy", acc)
+
+    return ret
+
+def compute_caption_cider(pl_module, batch, beam_size=5, alpha=0.3):
+    CiderD_scorer = pl_module.cider_scorer
+    tokenizer = pl_module.trainer.datamodule.dms[0].tokenizer
+    rl_loss = 0
+    max_len = pl_module.hparams.config["max_text_len"]
+    if pl_module.training:
+        from collections import OrderedDict
+        def _wrap_sentence(s):
+            # ensure the sentence ends with <eos> token
+            # in order to keep consisitent with cider_cached_tokens
+            r = s.strip()
+            if r.endswith('.'):
+                r = r[:-1]
+            r += ' <eos>'
+            return r
+
+        with torch.no_grad():
+            captions = []
+            bs = batch['text_ids'].size(0)
+            text_ids = torch.ones((bs, max_len), device=batch['text_ids'].device, dtype=batch['text_ids'].dtype)
+            text_ids[:, 0] = tokenizer.cls_token_id
+            text_ids[:, 1:] = tokenizer.pad_token_id
+            search_size = bs*beam_size
+            end_seq = torch.zeros_like(text_ids[:, 0])
+            end_seq = (end_seq>0)
+            
+            batch_detok = {"image": [batch['image'][0]], "text_ids": text_ids[:, :2], "text_labels": None , "text_masks": (text_ids[:, :2] != tokenizer.pad_token_id) }
+            ret = pl_module.infer_caption(batch_detok, mask_text=False, mask_image=False)
+            image_embeds = ret['image_embeds']
+            batch_detok['text_masks'] = None
+            for i in range(max_len - 1):
+                batch_detok['text_ids'] = text_ids
+                infer = pl_module.infer_caption(batch_detok, mask_text=False, mask_image=False, image_embeds=image_embeds) if i != 0 else ret
+                mlm_logits = pl_module.mlm_score(infer["text_feats"][:, i:i+1])
+                mlm_logits[:, 0, tokenizer.mask_token_id] = -10000
+                mlm_logits = torch.log_softmax(mlm_logits, dim=-1)
+                if i == 0:
+                    probs = mlm_logits.exp_()
+                    tgt_prev_tokens = torch.multinomial(
+                        probs.view(bs, -1),
+                        beam_size,
+                        replacement=True,
+                    ).view(bs, 1, beam_size)
+                    head_logp = mlm_logits.gather(dim=-1, index=tgt_prev_tokens)
+                    
+                    tgt_prev_tokens = tgt_prev_tokens.permute(0, 2, 1).reshape(search_size, 1).contiguous()
+                    head_logp = head_logp.view(search_size, 1)
+                    head_lengths = torch.ones_like(head_logp)
+                    text_ids = text_ids.view(bs, 1, -1).repeat(1, beam_size, 1).view(search_size, -1)
+                    end_seq = end_seq.view(bs, 1, -1).repeat(1, beam_size, 1).view(search_size, 1)
+                    scores = torch.zeros_like(end_seq)
+                    padded = torch.full(
+                        (search_size, 1),
+                        1,
+                        dtype=torch.long,
+                        device=text_ids.device)
+
+                    hs = image_embeds.size(-1)
+                    image_embeds = image_embeds.view(bs, 1, -1, hs).repeat(1, beam_size, 1, 1).view(search_size, -1, hs)
+                    text_ids[:, i+1] = tgt_prev_tokens.view(-1)
+                    end_seq = ((tgt_prev_tokens == tokenizer.pad_token_id) | (tgt_prev_tokens == tokenizer.sep_token_id))
+                else:
+                    probs = mlm_logits.exp_()
+                    top_tokens = torch.multinomial(
+                        probs.view(bs * beam_size, -1),
+                        1,
+                        replacement=True,
+                    ).view(bs*beam_size, 1)
+
+                    decoder_lengths = (1. - end_seq.to(mlm_logits.dtype))
+                    decoder_lengths = decoder_lengths + head_lengths
+                    head_lengths = decoder_lengths
+                    prev_ended = end_seq
+                    tgt_prev_tokens = ((1 - prev_ended.to(torch.long)) * top_tokens +
+                                       prev_ended.to(torch.long) * padded)
+                    text_ids[:, i+1] = tgt_prev_tokens.view(-1)
+                    end_seq = ((tgt_prev_tokens == tokenizer.pad_token_id) | (tgt_prev_tokens == tokenizer.sep_token_id))
+                    if torch.sum(end_seq) == len(end_seq):
+                        break
+
+        text_ids = text_ids.view(bs*beam_size, -1)
+        text_ids = text_ids.contiguous()
+        pl_module.train()
+        img_sz = batch['image'][0].size(2)
+        batch_rl = {"image": [batch['image'][0].view(bs, 1, 3, img_sz, img_sz).repeat(1, beam_size, 1, 1, 1).view(bs*beam_size, 3, img_sz, img_sz) ], "text_ids": text_ids, "text_labels": None , "text_masks": (text_ids != tokenizer.pad_token_id) }
+        infer_rl = pl_module.infer_caption(batch_rl, mask_text=False, mask_image=False)
+        rl_labels = infer_rl["text_ids"]
+        rl_labels = torch.cat([rl_labels[:, 1:], torch.ones_like(rl_labels[:, :1])*tokenizer.pad_token_id], 1)
+        pad_mask = (rl_labels==tokenizer.pad_token_id)
+        rl_logits = pl_module.mlm_score(infer_rl["text_feats"])
+        rl_logits = torch.log(torch.nn.functional.softmax(rl_logits, dim=-1)+1e-9)
+        rl_bs, rl_seq_len, vocab_size = rl_logits.size()
+        rl_labels = rl_labels.view(-1, 1)
+        rl_logits = rl_logits.view(-1, vocab_size)
+        rl_probs = rl_logits.gather(dim=-1, index=rl_labels)
+        rl_probs = rl_probs.view(rl_bs, rl_seq_len)
+        rl_probs[pad_mask] = 0
+        rl_len = torch.sum( 1-pad_mask.float(), dim=-1)
+        rl_probs = torch.sum(rl_probs, dim=-1)
+        rl_probs = rl_probs/ (rl_len+1e-9)
+        rl_probs = rl_probs.view(bs, -1)
+
+        gen_res = []
+        for text_id in text_ids:
+            gen_res.append((tokenizer.decode(text_id).replace(tokenizer.cls_token, '').replace(tokenizer.sep_token, '').replace(tokenizer.pad_token, '')))
+        gen_res_size = len(gen_res)
+
+        res = OrderedDict()
+        for i in range(gen_res_size):
+            res[i] = [_wrap_sentence(gen_res[i])]
+
+        gt_res = []
+        for gt in batch['gt_txt']:
+            for _ in range(beam_size):
+                gt_res.append(gt)
+        gts = OrderedDict()
+        gt_res_ = [
+            [_wrap_sentence(gt_res[i][j]) for j in range(len(gt_res[i]))]
+                for i in range(len(gt_res))
+        ]
+        for i in range(gen_res_size):
+            gts[i] = gt_res_[i]
+
+        res_ = [{'image_id':i, 'caption': res[i]} for i in range(len(res))]
+        _, batch_cider_scores = CiderD_scorer.compute_score(gts, res_)
+
+
+        rl_loss = rl_probs.view(-1) * (100.0 - 100.0*torch.tensor(batch_cider_scores, device= rl_probs.device).view(-1))
+        rl_loss = torch.sum(rl_loss)/bs
+     
+    caption_infer = pl_module.infer_caption(batch, mask_text=False, mask_image=False)
+    caption_logits = pl_module.mlm_score(caption_infer["text_feats"])
+
+    caption_labels = caption_infer["text_ids"]
+    caption_labels = torch.cat([caption_labels[:, 1:], torch.ones_like(caption_labels[:, :1])*tokenizer.pad_token_id], 1)
+    pad_mask = (caption_labels==tokenizer.pad_token_id)
+
+    caption_labels[pad_mask] = -100
+    caption_loss = F.cross_entropy(
+        caption_logits.view(-1, pl_module.hparams.config["vocab_size"]),
+        caption_labels.view(-1),
+        ignore_index=-100,
+    )
+    mlm_loss = alpha*caption_loss + (1-alpha)*rl_loss
+    caption_ids = caption_infer["text_ids"]
+
+    ret = {
+        "caption_cider_loss": mlm_loss,
+        "caption_cider_logits": caption_logits,
+        "caption_cider_labels": caption_labels,
+        "caption_cider_ids": caption_ids,
+    }
+
+    phase = "train" if pl_module.training else "val"
+    loss = getattr(pl_module, f"{phase}_caption_cider_loss")(ret["caption_cider_loss"])
+    acc = getattr(pl_module, f"{phase}_caption_cider_accuracy")(
+        ret["caption_cider_logits"], ret["caption_cider_labels"]
+    )
+    pl_module.log(f"caption_cider/{phase}/loss", loss)
+    pl_module.log(f"caption_cider/{phase}/accuracy", acc)
+
+    return ret

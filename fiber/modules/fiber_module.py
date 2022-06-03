@@ -369,6 +369,12 @@ class FIBERTransformerSS(pl.LightningModule):
         if "caption_mle" in self.current_tasks:
             ret.update(objectives.compute_caption_mle(self, batch))
 
+        if "caption_gold" in self.current_tasks:
+            ret.update(compute_caption_gold(self, batch))
+
+        if "caption_cider" in self.current_tasks:
+            ret.update(compute_caption_cider(self, batch))
+
         return ret
 
     def training_step(self, batch, batch_idx):
@@ -414,3 +420,91 @@ class FIBERTransformerSS(pl.LightningModule):
 
     def configure_optimizers(self):
         return fiber_utils.set_schedule(self)
+
+def compute_caption_gold(pl_module, batch, update_freq=1000, min_prob=0.1):
+    tokenizer = pl_module.trainer.datamodule.dms[0].tokenizer
+    infer = pl_module.infer_caption(batch, mask_text=False, mask_image=False)
+    mlm_logits = pl_module.mlm_score(infer["text_feats"])
+
+    mlm_labels = infer["text_ids"]
+    mlm_labels = torch.cat([mlm_labels[:, 1:], torch.ones_like(mlm_labels[:, :1])*tokenizer.pad_token_id], 1)
+    pad_mask = (mlm_labels==tokenizer.pad_token_id)
+
+    if pl_module.training:
+        if pl_module.global_step % update_freq == 0:
+            if not hasattr(pl_module, 'copy_step') or getattr(pl_module, 'copy_step') < pl_module.global_step:
+                setattr(pl_module, 'copy_step', pl_module.global_step)
+                if hasattr(pl_module, 'copy_module'):
+                    delattr(pl_module, 'copy_module')
+                setattr(pl_module, 'copy_module', FIBERTransformerSS(pl_module.config))
+                pl_module.copy_module.load_state_dict(pl_module.state_dict(), strict=False)
+                pl_module.copy_module.to(pl_module.device)
+                pl_module.copy_module.eval()
+
+            torch.distributed.barrier()
+
+        with torch.no_grad():
+            pl_module.copy_module.eval()
+            off_infer = pl_module.copy_module.infer_caption(batch, mask_text=False, mask_image=False)
+            off_logits = pl_module.copy_module.mlm_score(off_infer['text_feats'])
+            off_logits = torch.log(torch.nn.functional.softmax(off_logits, dim=-1)+1e-9)
+
+            bs, seq_len, vocab_size = off_logits.size()
+            off_labels = mlm_labels.view(-1, 1)
+
+            off_logits = off_logits.view(-1, vocab_size)
+            off_probs = off_logits.gather(dim=-1, index=off_labels)
+            off_probs = off_probs.view(bs, seq_len)
+            off_probs = off_probs.exp()
+            off_probs[pad_mask] = 0
+
+            cur_sum = torch.zeros(bs, device=off_logits.device)
+            cur_len = torch.zeros(bs, device=off_logits.device)
+            denom = torch.ones(bs, device=off_logits.device)
+            
+            cum_prob = []
+            for i in range(seq_len):
+                cur_sum = cur_sum + off_probs[:, -i-1]
+                cur_len = cur_len + (mlm_labels[:, -i-1] != tokenizer.pad_token_id).float()
+                cur_prob = cur_sum / torch.max(cur_len, denom)
+                cum_prob.append(cur_prob)
+
+            cum_prob = torch.flip(torch.stack(cum_prob), [0]).transpose(0, 1)
+            weights = cum_prob.detach() * off_probs.detach()
+            weights = torch.max(weights, torch.ones_like(weights)*min_prob)
+            weights = weights.contiguous().view(-1)
+     
+    mlm_labels[pad_mask] = -100
+    
+    mlm_loss = F.cross_entropy(
+        mlm_logits.view(-1, pl_module.hparams.config["vocab_size"]),
+        mlm_labels.view(-1),
+        ignore_index=-100,
+        reduction='none',
+    )
+
+    if pl_module.training:
+        weights = weights.view(bs, -1)
+        mlm_loss = mlm_loss.view(bs, -1)
+        mlm_loss = torch.sum(weights * mlm_loss, -1)
+        mlm_loss = mlm_loss / (torch.sum(pad_mask, -1) + 1e-9)
+        mlm_loss = torch.mean(mlm_loss)
+    else:
+        mlm_loss = torch.mean(mlm_loss)
+
+    ret = {
+        "caption_gold_loss": mlm_loss,
+        "caption_gold_logits": mlm_logits,
+        "caption_gold_labels": mlm_labels,
+        "caption_gold_ids": infer["text_ids"],
+    }
+
+    phase = "train" if pl_module.training else "val"
+    loss = getattr(pl_module, f"{phase}_caption_gold_loss")(ret["caption_gold_loss"])
+    acc = getattr(pl_module, f"{phase}_caption_gold_accuracy")(
+        ret["caption_gold_logits"], ret["caption_gold_labels"]
+    )
+    pl_module.log(f"caption_gold/{phase}/loss", loss)
+    pl_module.log(f"caption_gold/{phase}/accuracy", acc)
+
+    return ret
