@@ -172,7 +172,7 @@ class WindowAttention(nn.Module):
             self.alpha_i2t = nn.Parameter(torch.Tensor([0]))
             self.norm_i2t_i = norm_layer(dim)
 
-    def forward(self, x, mask: Optional[torch.Tensor] = None, y=None, y_mask=None, norm_q=True):
+    def forward(self, x, mask: Optional[torch.Tensor] = None, y=None, y_mask=None):
         """
         Args:
             x: input features with shape of (num_windows*B, N, C)
@@ -212,7 +212,7 @@ class WindowAttention(nn.Module):
             k_text = torch.repeat_interleave(k_text, nW, dim=0)
             v_text = torch.repeat_interleave(v_text, nW, dim=0)
 
-            q_i2t = self.qkv_i2t(self.norm_i2t_i(x)) if norm_q else self.qkv_i2t(x)
+            q_i2t = self.qkv_i2t(self.norm_i2t_i(x))
             q_i2t = q_i2t.reshape(B_, N, 1, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
             q_i2t = q_i2t[0]
 
@@ -304,7 +304,7 @@ class SwinTransformerBlock(nn.Module):
 
         self.register_buffer("attn_mask", attn_mask)
 
-    def forward(self, x, y=None, y_mask=None, norm_q=True):
+    def forward(self, x, y=None, y_mask=None):
         H, W = self.input_resolution
         B, L, C = x.shape
         assert L == H * W, "input feature has wrong size"
@@ -324,7 +324,7 @@ class SwinTransformerBlock(nn.Module):
         x_windows = x_windows.view(-1, self.window_size * self.window_size, C)  # nW*B, window_size*window_size, C
 
         # W-MSA/SW-MSA
-        attn_windows = self.attn(x_windows, mask=self.attn_mask, y=y, y_mask=y_mask, norm_q=norm_q)  # nW*B, window_size*window_size, C
+        attn_windows = self.attn(x_windows, mask=self.attn_mask, y=y, y_mask=y_mask)  # nW*B, window_size*window_size, C
 
         # merge windows
         attn_windows = attn_windows.view(-1, self.window_size, self.window_size, C)
@@ -435,12 +435,12 @@ class BasicLayer(nn.Module):
         else:
             self.downsample = None
 
-    def forward(self, x, y=None, y_mask=None, norm_q=True):
+    def forward(self, x, y=None, y_mask=None):
         for blk in self.blocks:
             if not torch.jit.is_scripting() and self.use_checkpoint:
-                x = checkpoint.checkpoint(blk, x, y, y_mask, norm_q=norm_q)
+                x = checkpoint.checkpoint(blk, x, y, y_mask)
             else:
-                x = blk(x, y, y_mask, norm_q=norm_q)
+                x = blk(x, y, y_mask)
         if self.downsample is not None:
             x = self.downsample(x)
         return x

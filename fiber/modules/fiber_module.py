@@ -7,12 +7,13 @@ from . import swin_transformer, roberta
 from . import heads, objectives, fiber_utils
 from .swin_helpers import swin_adapt_position_encoding
 from transformers import RobertaConfig
-from .roberta import RobertaModel
+from .roberta import RobertaModel, _prepare_decoder_attention_mask
 
 class FIBERTransformerSS(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.save_hyperparameters()
+        self.config = config
 
         bert_config = RobertaConfig(
             vocab_size=config["vocab_size"],
@@ -27,6 +28,7 @@ class FIBERTransformerSS(pl.LightningModule):
 
         resolution_after=config['image_size']
         self.num_fuse_block = config['num_fuse_block']
+        self.num_text_layer = config["num_layers"]
         roberta.NUM_FUSE_BLOCK = swin_transformer.NUM_FUSE_BLOCK = self.num_fuse_block
         roberta.DIM_IMG = config['input_image_embed_size']
         swin_transformer.DIM_TXT = config['input_text_embed_size']
@@ -46,14 +48,14 @@ class FIBERTransformerSS(pl.LightningModule):
         if torch.distributed.is_initialized():
             if torch.distributed.get_rank() == 0:
                 getattr(swin_transformer, self.hparams.config["vit"])(
-                    pretrained=True, config=self.hparams.config,
+                    pretrained=config['pretrained_vit'], config=self.hparams.config,
                 )
                 RobertaModel.from_pretrained(config['tokenizer'])
 
             torch.distributed.barrier()
 
         self.vit_model = getattr(swin_transformer, self.hparams.config["vit"])(
-            pretrained=True, config=self.hparams.config,
+            pretrained=config['pretrained_vit'], config=self.hparams.config,
         )
         self.avgpool = nn.AdaptiveAvgPool1d(1)
         self.text_transformer = RobertaModel.from_pretrained(config['tokenizer'])
@@ -70,13 +72,26 @@ class FIBERTransformerSS(pl.LightningModule):
             self.cross_modal_text_pooler_itc = heads.Pooler(config["hidden_size"])
             self.cross_modal_text_pooler_itc.apply(objectives.init_weights)
 
-        if config["loss_names"]["mlm"] > 0:
+        if config["loss_names"]["mlm"] > 0 or config["loss_names"]["caption_mle"] > 0 or config["loss_names"]["caption_gold"] > 0 or config["loss_names"]["caption_cider"] > 0:
             self.mlm_score = heads.MLMHead(bert_config)
             self.mlm_score.apply(objectives.init_weights)
 
         if config["loss_names"]["itm"] > 0:
             self.itm_score = heads.ITMHead(config["hidden_size"]*2)
             self.itm_score.apply(objectives.init_weights)
+    
+        if config["loss_names"]["caption_mle"] > 0 or config["loss_names"]["caption_gold"] > 0 or config["loss_names"]["caption_cider"] > 0:
+            self.cross_modal_att_layers = []
+            for _ in range(self.num_text_layer-2): # the bottom layers will not be used
+                linear_transform = nn.Linear(config['input_image_embed_size'], int(config['input_image_embed_size']/2))
+                linear_transform.apply(objectives.init_weights)
+                self.cross_modal_att_layers.append(linear_transform)
+            self.cross_modal_att_layers = nn.ModuleList(self.cross_modal_att_layers)
+
+            if config["loss_names"]["caption_cider"] > 0:
+                from .cider.ciderD import CiderD
+                self.cider_scorer = CiderD(df=config['cider_path'])
+
 
         hs = self.hparams.config["hidden_size"]
 
@@ -217,7 +232,7 @@ class FIBERTransformerSS(pl.LightningModule):
         device = text_embeds.device
         input_shape = text_masks.size()
         extend_text_masks = self.text_transformer.get_extended_attention_mask(text_masks, input_shape, device)
-        num_pre_text = 12 - self.num_fuse_block
+        num_pre_text = self.num_text_layer - self.num_fuse_block
         for layer_i, layer in enumerate(self.text_transformer.encoder.layer[:num_pre_text]):
             text_embeds = layer(text_embeds, extend_text_masks)[0]
 
@@ -263,6 +278,64 @@ class FIBERTransformerSS(pl.LightningModule):
 
         return ret
 
+    def infer_caption(
+        self,
+        batch,
+        mask_text=False,
+        mask_image=False,
+        image_token_type_idx=1,
+        img=None,
+        text_only=False,
+        image_only=False,
+        image_embeds=None,
+    ):
+        
+        if image_embeds is None:
+            if img is None:
+                if f"image_{image_token_type_idx - 1}" in batch:
+                    imgkey = f"image_{image_token_type_idx - 1}"
+                else:
+                    imgkey = "image"
+                img = batch[imgkey][0]
+            image_embeds = self.vit_model.patch_embed(img)
+            if self.vit_model.absolute_pos_embed is not None:
+                image_embeds = image_embeds + self.vit_model.absolute_pos_embed
+            image_embeds = self.vit_model.pos_drop(image_embeds)
+            for layer_i, layer in enumerate(self.vit_model.layers):
+                image_embeds = layer(image_embeds)
+
+        do_mlm = "_mlm" if mask_text else ""
+        text_ids = batch[f"text_ids{do_mlm}"]
+        text_labels = batch[f"text_labels{do_mlm}"]
+        text_masks = batch[f"text_masks"]
+
+        text_embeds = self.text_transformer.embeddings(input_ids=text_ids)
+        device = text_embeds.device
+        input_shape = text_ids.size()
+        extend_text_masks = _prepare_decoder_attention_mask(text_masks, input_shape, text_embeds, device)
+        for layer_i, layer in enumerate(self.text_transformer.encoder.layer):
+            if layer_i < self.num_text_layer - self.num_fuse_block:
+                text_embeds = layer(text_embeds, extend_text_masks)[0]
+            elif layer_i < self.num_text_layer - 2:
+                text_embeds = layer(text_embeds, extend_text_masks, encoder_hidden_states=self.cross_modal_att_layers[layer_i](image_embeds))[0]
+            else:
+                text_embeds = layer(text_embeds, extend_text_masks, encoder_hidden_states=image_embeds)[0]
+
+        text_embeds = self.cross_modal_text_transform(text_embeds)
+        cls_feats_text = self.cross_modal_text_pooler(text_embeds)
+        cls_feats_image = cls_feats = cls_feats_text
+
+        ret = {
+            "text_feats": text_embeds,
+            "image_embeds": image_embeds,
+            "cls_feats": cls_feats,
+            "text_labels": text_labels,
+            "text_ids": text_ids,
+            "text_masks": text_masks,
+            "image": img, 
+        }
+        return ret
+
     def forward(self, batch):
         ret = dict()
         if len(self.current_tasks) == 0:
@@ -292,6 +365,10 @@ class FIBERTransformerSS(pl.LightningModule):
         if "nlvr2" in self.current_tasks:
             ret.update(objectives.compute_nlvr2(self, batch))
 
+        # Image Captioning
+        if "caption_mle" in self.current_tasks:
+            ret.update(objectives.compute_caption_mle(self, batch))
+
         return ret
 
     def training_step(self, batch, batch_idx):
@@ -319,6 +396,9 @@ class FIBERTransformerSS(pl.LightningModule):
         if self.hparams.config["loss_names"]["vqa"] > 0:
             ret.update(objectives.vqa_test_step(self, batch, output))
 
+        if self.hparams.config["loss_names"]["caption_mle"] > 0 or self.hparams.config["loss_names"]["caption_gold"] > 0 or self.hparams.config["loss_names"]["caption_cider"] > 0:
+            ret.update(objectives.caption_test_step(self, batch, output))
+
         return ret
 
     def test_epoch_end(self, outs):
@@ -326,6 +406,10 @@ class FIBERTransformerSS(pl.LightningModule):
 
         if self.hparams.config["loss_names"]["vqa"] > 0:
             objectives.vqa_test_wrapup(outs, model_name)
+
+        if self.hparams.config["loss_names"]["caption_mle"] > 0 or self.hparams.config["loss_names"]["caption_gold"] > 0 or self.hparams.config["loss_names"]["caption_cider"] > 0:
+            objectives.caption_test_wrapup(outs, model_name)
+
         fiber_utils.epoch_wrapup(self)
 
     def configure_optimizers(self):

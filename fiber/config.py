@@ -10,7 +10,9 @@ def _loss_names(d):
         "mlm": 0,
         "vqa": 0,
         "nlvr2": 0,
-        "caption": 0,
+        "caption_mle": 0,
+        "caption_gold": 0,
+        "caption_cider": 0,
     }
     ret.update(d)
     return ret
@@ -33,6 +35,7 @@ def config():
     draw_false_image = 0
     input_image_embed_size = 1024
     resolution_before = 384
+    pretrained_vit = True
 
     # Text Setting
     vqav2_label_size = 3129
@@ -47,7 +50,7 @@ def config():
     # Transformer Setting
     hidden_size = 768
     num_heads = 12
-    num_layers = 6
+    num_layers = 12
     mlp_ratio = 4
     drop_rate = 0.1
     num_fuse_block = 6
@@ -68,6 +71,7 @@ def config():
     # Downstream Setting
     get_recall_metric = False
     get_recall_metric_itc = True
+    cider_path = None
 
     # PL Trainer Setting
     resume_from = None
@@ -119,6 +123,7 @@ def task_finetune_nlvr2():
     train_transform_keys = ["square_randaug"]
     val_transform_keys = ["square"]
     image_size = 384
+    pretrained_vit = False
 
 @ex.named_config
 def task_finetune_vqa():
@@ -137,10 +142,11 @@ def task_finetune_vqa():
     train_transform_keys = ["square_randaug"]
     val_transform_keys = ["square"]
     image_size = 576
+    pretrained_vit = False
 
 @ex.named_config
 def task_finetune_irtr_itc_coco():
-    exp_name = "finetune_irtr_coco"
+    exp_name = "finetune_irtr_itc_coco"
     datasets = ["coco"]
     loss_names = _loss_names({"itc": 1})
     batch_size = 1024
@@ -154,10 +160,11 @@ def task_finetune_irtr_itc_coco():
     train_transform_keys = ["square_randaug"]
     val_transform_keys = ["square"]
     image_size = 576
+    pretrained_vit = False
 
 @ex.named_config
 def task_finetune_irtr_itc_f30k():
-    exp_name = "finetune_irtr_f30k"
+    exp_name = "finetune_irtr_itc_f30k"
     datasets = ["f30k"]
     loss_names = _loss_names({"itc": 1})
     batch_size = 1024
@@ -171,12 +178,15 @@ def task_finetune_irtr_itc_f30k():
     train_transform_keys = ["square_randaug"]
     val_transform_keys = ["square"]
     image_size = 576
+    pretrained_vit = False
+    resolution_before = 576
 
 @ex.named_config
 def task_finetune_irtr_itm_coco():
-    exp_name = "finetune_irtr_coco"
+    exp_name = "finetune_irtr_itm_coco"
     datasets = ["coco"]
     loss_names = _loss_names({"itm": 1})
+    draw_false_image = 1
     batch_size = 1024
     max_epoch = 10
     max_steps = None
@@ -189,12 +199,14 @@ def task_finetune_irtr_itm_coco():
     val_transform_keys = ["square"]
     image_size = 384
     get_recall_metric_itc = False
+    pretrained_vit = False
 
 @ex.named_config
 def task_finetune_irtr_itm_f30k():
-    exp_name = "finetune_irtr_f30k"
+    exp_name = "finetune_irtr_itm_f30k"
     datasets = ["f30k"]
     loss_names = _loss_names({"itm": 1})
+    draw_false_image = 1
     batch_size = 1024
     max_epoch = 10
     max_steps = None
@@ -207,3 +219,61 @@ def task_finetune_irtr_itm_f30k():
     val_transform_keys = ["square"]
     image_size = 384
     get_recall_metric_itc = False
+    pretrained_vit = False
+
+@ex.named_config
+def task_finetune_caption_mle_coco():
+    exp_name = "finetune_caption_mle_coco"
+    datasets = ["coco"]
+    loss_names = _loss_names({"caption_mle": 1})
+    batch_size = 512
+    max_epoch = 10
+    max_steps = None
+    warmup_steps = 0.1
+    learning_rate = 2e-5
+    lr_mult_cross_modal = 5
+    lr_mult_head = 5
+    max_text_len = 50
+    train_transform_keys = ["square_randaug"]
+    val_transform_keys = ["square"]
+    image_size = 576
+    pretrained_vit = False
+
+@ex.named_config
+def task_finetune_caption_gold_coco():
+    exp_name = "finetune_caption_gold_coco"
+    datasets = ["coco"]
+    loss_names = _loss_names({"caption_gold": 1})
+    batch_size = 512
+    max_epoch = 10
+    max_steps = None
+    warmup_steps = 0.1
+    learning_rate = 2e-5
+    lr_mult_cross_modal = 5
+    lr_mult_head = 5
+    max_text_len = 50
+    train_transform_keys = ["square_randaug"]
+    val_transform_keys = ["square"]
+    image_size = 576
+    resolution_before = 576
+    pretrained_vit = False
+
+@ex.named_config
+def task_finetune_caption_cider_coco():
+    exp_name = "finetune_caption_cider_coco"
+    datasets = ["coco"]
+    loss_names = _loss_names({"caption_cider": 1})
+    batch_size = 512
+    max_epoch = 10
+    max_steps = None
+    warmup_steps = 0.1
+    learning_rate = 2e-5
+    lr_mult_cross_modal = 5
+    lr_mult_head = 5
+    max_text_len = 50
+    train_transform_keys = ["square_randaug"]
+    val_transform_keys = ["square"]
+    image_size = 576
+    resolution_before = 576
+    pretrained_vit = False
+    cider_path = 'coco-train-words.p'
