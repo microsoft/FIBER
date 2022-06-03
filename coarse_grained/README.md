@@ -30,7 +30,6 @@ We follow [ViLT](https://github.com/dandelin/ViLT) and [METER](https://github.co
 export MASTER_ADDR=$DIST_0_IP
 export MASTER_PORT=$DIST_0_PORT
 export NODE_RANK=$DIST_RANK
-python run.py with data_root=<ARROW_ROOT> num_gpus=<NUM_GPUS> num_nodes=<NUM_NODES> task_pretrain_mlm_itm_itc per_gpu_batchsize=<BS_FITS_YOUR_GPU>
 
 # single-node example
 python run.py with data_root=/data2/dsets/dataset num_gpus=64 num_nodes=1 task_mlm_itm_itc per_gpu_batchsize=8
