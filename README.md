@@ -11,16 +11,18 @@ pip install -e .
 
 Here are the pre-trained models:
 1. FIBER pre-trained on GCC+SBU+COCO+VG [link]()
-2. FIBER fine-tuned on COCO IR/TR [link]()
-3. FIBER fine-tuned on Flickr30k IR/TR [link]()
-4. FIBER fine-tuned on VQAv2 [link]()
-5. FIBER fine-tuned on NLVR2 [link]()
-6. FIBER fine-tuned on COCO Captioning [link]()
+2. FIBER fine-tuned on COCO IR/TR with ITC [link]()
+3. FIBER fine-tuned on COCO IR/TR with ITM [link]()
+4. FIBER fine-tuned on Flickr30k IR/TR with ITC [link]()
+5. FIBER fine-tuned on Flickr30k IR/TR with ITM [link]()
+6. FIBER fine-tuned on VQAv2 [link]()
+7. FIBER fine-tuned on NLVR2 [link]()
+8. FIBER fine-tuned on COCO Captioning [link]()
 
 
 ## Dataset Preparation
 
-We follow [ViLT](https://github.com/dandelin/ViLT) and use `pyarrow` to serialize the datasets. See [this link](https://github.com/dandelin/ViLT/blob/master/DATA.md) for details.
+We follow [ViLT](https://github.com/dandelin/ViLT) and [METER](https://github.com/zdou0830/METER) to prepare the datasets. See [this link](https://github.com/dandelin/ViLT/blob/master/DATA.md) for details.
 
 ## Pre-training
 
@@ -28,12 +30,13 @@ We follow [ViLT](https://github.com/dandelin/ViLT) and use `pyarrow` to serializ
 export MASTER_ADDR=$DIST_0_IP
 export MASTER_PORT=$DIST_0_PORT
 export NODE_RANK=$DIST_RANK
-python run.py with data_root=<ARROW_ROOT> num_gpus=<NUM_GPUS> num_nodes=<NUM_NODES> task_pretrain_mlm_itm_itc per_gpu_batchsize=<BS_FITS_YOUR_GPU> image_size=<IMAGE_SIZE>
-```
+python run.py with data_root=<ARROW_ROOT> num_gpus=<NUM_GPUS> num_nodes=<NUM_NODES> task_pretrain_mlm_itm_itc per_gpu_batchsize=<BS_FITS_YOUR_GPU>
 
-Here is an example:
-```bash
-python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=8 task_mlm_itm_itc per_gpu_batchsize=8 image_size=384
+# single-node example
+python run.py with data_root=/data2/dsets/dataset num_gpus=64 num_nodes=1 task_mlm_itm_itc per_gpu_batchsize=8
+
+# multi-node on Azure clusters example
+python azure_distributed_run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=8 task_mlm_itm_itc per_gpu_batchsize=8
 ``` 
 
 ## Fine-tuning on Downstream Tasks
@@ -44,12 +47,27 @@ python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=8 task_ml
 export MASTER_ADDR=$DIST_0_IP
 export MASTER_PORT=$DIST_0_PORT
 export NODE_RANK=$DIST_RANK
-python run.py with data_root=<ARROW_ROOT> num_gpus=<NUM_GPUS> num_nodes=<NUM_NODES> task_finetune_vqa per_gpu_batchsize=<BS_FITS_YOUR_GPU> load_path=<PRETRAINED_MODEL> image_size=<IMAGE_SIZE>
+
+# training example
+python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_vqa per_gpu_batchsize=8 load_path=fiber_pretrain.ckpt
+
+# evaluation example
+python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_vqa per_gpu_batchsize=32 load_path=fiber_vqa.ckpt test_only=True
+# submit the json file in the `result` directory to [eval.ai](https://eval.ai/web/challenges/challenge-page/830/overview) evaluation server to get the test-dev and/or test-std scores.
 ```
 
-Here is an example:
+### NLVR2
+
 ```bash
-python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_vqa per_gpu_batchsize=8 load_path=fiber_pretrain.ckpt image_size=576
+export MASTER_ADDR=$DIST_0_IP
+export MASTER_PORT=$DIST_0_PORT
+export NODE_RANK=$DIST_RANK
+
+# training example
+python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1  task_finetune_nlvr2 per_gpu_batchsize=8 load_path=fiber_pretrain.ckpt
+
+# evaluation example
+python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1  task_finetune_nlvr2 per_gpu_batchsize=32 load_path=fiber_nlvr2.ckpt test_only=True
 ``` 
 
 ### COCO IR/TR
@@ -58,12 +76,18 @@ python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_fi
 export MASTER_ADDR=$DIST_0_IP
 export MASTER_PORT=$DIST_0_PORT
 export NODE_RANK=$DIST_RANK
-python run.py with data_root=<ARROW_ROOT> num_gpus=<NUM_GPUS> num_nodes=<NUM_NODES> task_finetune_irtr_coco get_recall_metric=False per_gpu_batchsize=<BS_FITS_YOUR_GPU> load_path=<PRETRAINED_MODEL> image_size=<IMAGE_SIZE>
-```
 
-Here is an example:
-```bash
-python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=16 task_finetune_irtr_coco get_recall_metric=False per_gpu_batchsize=8 load_path=fiber_pretrain.ckpt image_size=576
+# itc training example
+python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_irtr_itc_coco per_gpu_batchsize=128 load_path=fiber_pretrain.ckpt
+
+# itc evaluation example
+python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_irtr_itc_coco per_gpu_batchsize=32 load_path=fiber_coco_irtr_itc.ckpt get_recall_metric=True test_only=True
+
+# itm training example
+python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_irtr_itm_coco per_gpu_batchsize=8 load_path=fiber_pretrain.ckpt
+
+# itm evaluation example
+python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_irtr_itm_coco per_gpu_batchsize=32 load_path=fiber_coco_irtr_itc.ckpt get_recall_metric=True get_recall_metric_itc=False test_only=True
 ``` 
 
 ### Flickr30k IR/TR
@@ -72,104 +96,41 @@ python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=16 task_f
 export MASTER_ADDR=$DIST_0_IP
 export MASTER_PORT=$DIST_0_PORT
 export NODE_RANK=$DIST_RANK
-python run.py with data_root=<ARROW_ROOT> num_gpus=<NUM_GPUS> num_nodes=<NUM_NODES> task_finetune_irtr_f30k get_recall_metric=False per_gpu_batchsize=<BS_FITS_YOUR_GPU> load_path=<PRETRAINED_MODEL> image_size=<IMAGE_SIZE>
+
+# itc training example
+python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_irtr_itc_f30k per_gpu_batchsize=128 load_path=fiber_coco_irtr_itc.ckpt
+
+# itc evaluation example
+python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_irtr_itc_f30k per_gpu_batchsize=32 load_path=fiber_f30k_irtr_itc.ckpt get_recall_metric=True test_only=True
+
+# itm training example
+python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_irtr_itm_f30k per_gpu_batchsize=8 load_path=fiber_coco_irtr_itm.ckpt
+
+# itm evaluation example
+python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_irtr_itm_f30k per_gpu_batchsize=32 load_path=fiber_f30k_irtr_itm.ckpt get_recall_metric=True get_recall_metric_itc=False
 ```
-
-Here is an example:
-```bash
-python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=16 task_finetune_irtr_f30k get_recall_metric=False per_gpu_batchsize=8 load_path=fiber_coco_irtr.ckpt image_size=576
-``` 
-
-### NLVR2
-
-```bash
-export MASTER_ADDR=$DIST_0_IP
-export MASTER_PORT=$DIST_0_PORT
-export NODE_RANK=$DIST_RANK
-python run.py with data_root=<ARROW_ROOT> num_gpus=<NUM_GPUS> num_nodes=<NUM_NODES>  task_finetune_nlvr2 per_gpu_batchsize=<BS_FITS_YOUR_GPU> load_path=<PRETRAINED_MODEL> image_size=<IMAGE_SIZE>
-```
-
-Here is an example:
-```bash
-python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1  task_finetune_nlvr2 per_gpu_batchsize=8 load_path=fiber_pretrain.ckpt image_size=384
-``` 
 
 ### COCO Captioning
 
 ```bash
-TODO
-```
-
-## Evaluation on Downstream Tasks
-
-### VQAv2
-
-```bash
 export MASTER_ADDR=$DIST_0_IP
 export MASTER_PORT=$DIST_0_PORT
 export NODE_RANK=$DIST_RANK
-python run.py with data_root=<ARROW_ROOT> num_gpus=<NUM_GPUS> num_nodes=<NUM_NODES> task_finetune_vqa per_gpu_batchsize=<BS_FITS_YOUR_GPU> load_path=<PRETRAINED_MODEL> image_size=<IMAGE_SIZE> test_only=True
+
+# mle training example
+python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_caption_mle_coco per_gpu_batchsize=8 load_path=fiber_pretrain.ckpt
+
+# gold training example
+python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_caption_gold_coco per_gpu_batchsize=8 load_path=fiber_coco_caption_mle.ckpt
+
+# cider optimizationd training example
+python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_caption_cider_coco per_gpu_batchsize=8 load_path=fiber_coco_caption_gold.ckpt
+
+# evaluation example
+python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_caption_mle_coco per_gpu_batchsize=32 load_path=fiber_coco_caption.ckpt
+# the generated results will be in `result/caption.json`
 ```
 
-Here is an example:
-```bash
-python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_vqa per_gpu_batchsize=32 load_path=fiber_vqa.ckpt image_size=576 test_only=True
-``` 
-
-Then, submit the json file in the `result` directory to [eval.ai](https://eval.ai/web/challenges/challenge-page/830/overview) evaluation server to get the test-dev and/or test-std scores.
-
-### COCO IR/TR
-
-```bash
-export MASTER_ADDR=$DIST_0_IP
-export MASTER_PORT=$DIST_0_PORT
-export NODE_RANK=$DIST_RANK
-python run.py with data_root=<ARROW_ROOT> num_gpus=<NUM_GPUS> num_nodes=<NUM_NODES> task_finetune_irtr_coco get_recall_metric=True per_gpu_batchsize=<BS_FITS_YOUR_GPU> load_path=<PRETRAINED_MODEL> image_size=<IMAGE_SIZE> test_only=True
-```
-
-Here is an example:
-```bash
-python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_irtr_coco get_recall_metric=True per_gpu_batchsize=32 load_path=fiber_coco_irtr.ckpt image_size=576 test_only=True
-``` 
-
-The returned values are IR R@1, R@5, R@10 and TR R@1, R@5, R@10.
-
-
-### Flickr30k IR/TR
-
-```bash
-export MASTER_ADDR=$DIST_0_IP
-export MASTER_PORT=$DIST_0_PORT
-export NODE_RANK=$DIST_RANK
-python run.py with data_root=<ARROW_ROOT> num_gpus=<NUM_GPUS> num_nodes=<NUM_NODES> task_finetune_irtr_f30k get_recall_metric=True per_gpu_batchsize=<BS_FITS_YOUR_GPU> load_path=<PRETRAINED_MODEL> image_size=<IMAGE_SIZE> test_only=True
-```
-
-Here is an example:
-```bash
-python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_irtr_f30k get_recall_metric=True per_gpu_batchsize=32 load_path=fiber_f30k_irtr.ckpt image_size=576 test_only=True
-``` 
-
-The returned values are IR R@1, R@5, R@10 and TR R@1, R@5, R@10.
-
-### NLVR2
-
-```bash
-export MASTER_ADDR=$DIST_0_IP
-export MASTER_PORT=$DIST_0_PORT
-export NODE_RANK=$DIST_RANK
-python run.py with data_root=<ARROW_ROOT> num_gpus=<NUM_GPUS> num_nodes=<NUM_NODES>  task_finetune_nlvr2 per_gpu_batchsize=<BS_FITS_YOUR_GPU> load_path=<PRETRAINED_MODEL> image_size=<IMAGE_SIZE> test_only=True
-```
-
-Here is an example:
-```bash
-python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1  task_finetune_nlvr2 per_gpu_batchsize=32 load_path=fiber_nlvr2.ckpt image_size=384 test_only=True
-``` 
-
-### COCO Captioning
-
-```bash
-TODO
-```
 
 ## Acknowledgements
 
