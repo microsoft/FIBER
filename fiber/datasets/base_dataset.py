@@ -132,11 +132,13 @@ class BaseDataset(torch.utils.data.Dataset):
             max_length=self.max_text_len,
             return_special_tokens_mask=True,
         )
+        gt_text = self.all_texts[index]
         return {
             "text": (text, encoding),
             "img_index": index,
             "cap_index": caption_index,
             "raw_index": raw_index,
+            "gt_txt": gt_text,
         }
 
     def get_false_text(self, rep):

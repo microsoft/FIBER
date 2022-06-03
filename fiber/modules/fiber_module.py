@@ -89,7 +89,7 @@ class FIBERTransformerSS(pl.LightningModule):
             self.cross_modal_att_layers = nn.ModuleList(self.cross_modal_att_layers)
 
             if config["loss_names"]["caption_cider"] > 0:
-                from .cider.ciderD import CiderD
+                from .cider.ciderD.ciderD import CiderD
                 self.cider_scorer = CiderD(df=config['cider_path'])
 
 
@@ -373,7 +373,7 @@ class FIBERTransformerSS(pl.LightningModule):
             ret.update(compute_caption_gold(self, batch))
 
         if "caption_cider" in self.current_tasks:
-            ret.update(compute_caption_cider(self, batch))
+            ret.update(objectives.compute_caption_cider(self, batch))
 
         return ret
 
@@ -476,7 +476,7 @@ def compute_caption_gold(pl_module, batch, update_freq=1000, min_prob=0.1):
      
     mlm_labels[pad_mask] = -100
     
-    mlm_loss = F.cross_entropy(
+    mlm_loss = torch.nn.functional.cross_entropy(
         mlm_logits.view(-1, pl_module.hparams.config["vocab_size"]),
         mlm_labels.view(-1),
         ignore_index=-100,
