@@ -122,7 +122,7 @@ python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_fi
 # gold training example
 python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_caption_gold_coco per_gpu_batchsize=8 load_path=fiber_coco_caption_mle.ckpt
 
-# cider optimizationd training example
+# cider optimization training example
 python run.py with data_root=/data2/dsets/dataset num_gpus=8 num_nodes=1 task_finetune_caption_cider_coco per_gpu_batchsize=8 load_path=fiber_coco_caption_gold.ckpt
 
 # evaluation example
