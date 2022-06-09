@@ -2,7 +2,7 @@ from collections import OrderedDict
 import torch
 from torch import nn
 
-from onedet.modeling import registry
+from maskrcnn_benchmark.modeling import registry
 from . import bert_model
 from . import rnn_model
 from . import clip_model

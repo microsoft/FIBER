@@ -6,12 +6,12 @@ Implements the Generalized VL R-CNN framework
 import torch
 from torch import nn
 import torch.nn.functional as F
-
+import torch.utils.checkpoint as checkpoint
 from maskrcnn_benchmark.structures.image_list import to_image_list
 from maskrcnn_benchmark.structures.bounding_box import BoxList
 from maskrcnn_benchmark.structures.boxlist_ops import cat_boxlist
 
-from ..backbone import build_backbone
+from ..backbone import build_backbone, build_fusion_backbone
 from ..rpn import build_rpn
 from ..roi_heads import build_roi_heads
 
@@ -22,6 +22,7 @@ import random
 import timeit
 import pdb
 from copy import deepcopy
+
 
 def random_word(input_ids, mask_token_id, vocabs, padding_token_id, greenlight_map):
     """
@@ -36,27 +37,27 @@ def random_word(input_ids, mask_token_id, vocabs, padding_token_id, greenlight_m
             prob = random.random()
             # mask token with probability
             ratio = 0.15
-            if greenlight_map is not None and greenlight_map[j,i] == -1:
-                output_label[j,i] = -100
+            if greenlight_map is not None and greenlight_map[j, i] == -1:
+                output_label[j, i] = -100
                 continue
 
-            if (not input_ids[j,i] == padding_token_id) and prob < ratio:
+            if (not input_ids[j, i] == padding_token_id) and prob < ratio:
                 prob /= ratio
 
                 # 80% randomly change token to mask token
                 if prob < 0.8:
-                    input_ids[j,i] = mask_token_id
+                    input_ids[j, i] = mask_token_id
 
                 # 10% randomly change token to random token
                 elif prob < 0.9:
-                    input_ids[j,i] = random.choice(vocabs)
+                    input_ids[j, i] = random.choice(vocabs)
 
             else:
                 # no masking token (will be ignored by loss function later)
-                output_label[j,i] = -100
-            
-            if greenlight_map is not None and greenlight_map[j,i] != 1:
-                output_label[j,i] = -100 # If this location should not be masked
+                output_label[j, i] = -100
+
+            if greenlight_map is not None and greenlight_map[j, i] != 1:
+                output_label[j, i] = -100  # If this location should not be masked
     return input_ids, output_label
 
 
@@ -73,9 +74,10 @@ class GeneralizedVLRCNN(nn.Module):
     def __init__(self, cfg):
         super(GeneralizedVLRCNN, self).__init__()
         self.cfg = cfg
+        self.fusion_in_backbone = cfg.MODEL.SWINT.VERSION == "fusion"
 
         # visual encoder
-        self.backbone = build_backbone(cfg)
+        backbone = build_backbone(cfg)
 
         # language encoder
         if cfg.MODEL.LANGUAGE_BACKBONE.TOKENIZER_TYPE == "clip":
@@ -84,16 +86,31 @@ class GeneralizedVLRCNN(nn.Module):
             if cfg.MODEL.DYHEAD.FUSE_CONFIG.MLM_LOSS:
                 print("Reuse token 'ðŁĴĳ</w>' (token_id = 49404) for mask token!")
                 self.tokenizer = CLIPTokenizerFast.from_pretrained("openai/clip-vit-base-patch32",
-                                                                            from_slow=True, mask_token='ðŁĴĳ</w>')
+                                                                   from_slow=True, mask_token='ðŁĴĳ</w>')
             else:
                 self.tokenizer = CLIPTokenizerFast.from_pretrained("openai/clip-vit-base-patch32",
-                                                                            from_slow=True)
+                                                                   from_slow=True)
         else:
             self.tokenizer = AutoTokenizer.from_pretrained(cfg.MODEL.LANGUAGE_BACKBONE.TOKENIZER_TYPE)
         self.tokenizer_vocab = self.tokenizer.get_vocab()
         self.tokenizer_vocab_ids = [item for key, item in self.tokenizer_vocab.items()]
 
-        self.language_backbone = build_language_backbone(cfg)
+        # if cfg.MODEL.LANGUAGE_BACKBONE.TOKENIZER_TYPE == "bert-base-uncased":
+        #     self.tokenizer = BertTokenizerFast.from_pretrained("bert-base-uncased")
+        # elif cfg.MODEL.LANGUAGE_BACKBONE.TOKENIZER_TYPE == "roberta-base":
+        #     self.tokenizer = RobertaTokenizerFast.from_pretrained("roberta-base")
+        # else:
+        #     raise NotImplementedError
+        # self.tokenizer = AutoTokenizer.from_pretrained(cfg.MODEL.LANGUAGE_BACKBONE.TOKENIZER_TYPE)
+
+        language_backbone = build_language_backbone(cfg)
+
+        if self.fusion_in_backbone:
+            self.fusion_backbone = build_fusion_backbone(backbone, language_backbone, cfg.MODEL.BACKBONE.FUSION_VERSION,
+                                                         add_linear_layer=cfg.MODEL.DYHEAD.FUSE_CONFIG.ADD_LINEAR_LAYER)
+        else:
+            self.backbone = backbone
+            self.language_backbone = language_backbone
 
         self.rpn = build_rpn(cfg)
         self.roi_heads = build_roi_heads(cfg)
@@ -108,8 +125,12 @@ class GeneralizedVLRCNN(nn.Module):
 
         if cfg.MODEL.LINEAR_PROB:
             assert cfg.MODEL.BACKBONE.FREEZE, "For linear probing, backbone should be frozen!"
-            if hasattr(self.backbone, 'fpn'):
-                assert cfg.MODEL.FPN.FREEZE, "For linear probing, FPN should be frozen!"
+            if self.fusion_in_backbone:
+                if hasattr(self.fusion_backbone.backbone, 'fpn'):
+                    assert cfg.MODEL.FPN.FREEZE, "For linear probing, FPN should be frozen!"
+            else:
+                if hasattr(self.backbone, 'fpn'):
+                    assert cfg.MODEL.FPN.FREEZE, "For linear probing, FPN should be frozen!"
         self.linear_prob = cfg.MODEL.LINEAR_PROB
         self.freeze_cls_logits = cfg.MODEL.DYHEAD.FUSE_CONFIG.USE_DOT_PRODUCT_TOKEN_LOSS
         if cfg.MODEL.DYHEAD.FUSE_CONFIG.USE_DOT_PRODUCT_TOKEN_LOSS:
@@ -120,23 +141,41 @@ class GeneralizedVLRCNN(nn.Module):
 
         self.freeze_language_backbone = self.cfg.MODEL.LANGUAGE_BACKBONE.FREEZE
         if self.cfg.MODEL.LANGUAGE_BACKBONE.FREEZE:
-            for p in self.language_backbone.parameters():
-                p.requires_grad = False
-        
-        self.use_mlm_loss = cfg.MODEL.DYHEAD.FUSE_CONFIG.MLM_LOSS 
+            if self.fusion_in_backbone:
+                for p in self.fusion_backbone.language_backbone.parameters():
+                    p.requires_grad = False
+            else:
+                for p in self.language_backbone.parameters():
+                    p.requires_grad = False
+
+        self.use_mlm_loss = cfg.MODEL.DYHEAD.FUSE_CONFIG.MLM_LOSS
         self.mlm_loss_for_only_positives = cfg.MODEL.DYHEAD.FUSE_CONFIG.MLM_LOSS_FOR_ONLY_POSITIVES
+
+        if self.cfg.MODEL.DYHEAD.FUSE_CONFIG.ADD_LINEAR_LAYER and not self.fusion_in_backbone:
+            self.tunable_linear = torch.nn.Linear(cfg.MODEL.LANGUAGE_BACKBONE.LANG_DIM, 1000, bias=False)
+            self.tunable_linear.weight.data.fill_(0.0)
 
     def train(self, mode=True):
         """Convert the model into training mode while keep layers freezed."""
         super(GeneralizedVLRCNN, self).train(mode)
         if self.freeze_backbone:
-            self.backbone.body.eval()
-            for p in self.backbone.body.parameters():
-                p.requires_grad = False
+            if self.fusion_in_backbone:
+                self.fusion_backbone.backbone.body.eval()
+                for p in self.fusion_backbone.backbone.body.parameters():
+                    p.requires_grad = False
+            else:
+                self.backbone.body.eval()
+                for p in self.backbone.body.parameters():
+                    p.requires_grad = False
         if self.freeze_fpn:
-            self.backbone.fpn.eval()
-            for p in self.backbone.fpn.parameters():
-                p.requires_grad = False
+            if self.fusion_in_backbone:
+                self.fusion_backbone.backbone.fpn.eval()
+                for p in self.fusion_backbone.backbone.fpn.parameters():
+                    p.requires_grad = False
+            else:
+                self.backbone.fpn.eval()
+                for p in self.backbone.fpn.parameters():
+                    p.requires_grad = False
         if self.freeze_rpn:
             if hasattr(self.rpn, 'head'):
                 self.rpn.head.eval()
@@ -145,11 +184,13 @@ class GeneralizedVLRCNN(nn.Module):
         if self.linear_prob:
             if self.rpn is not None:
                 for key, value in self.rpn.named_parameters():
-                    if not ('bbox_pred' in key or 'cls_logits' in key or 'centerness' in key or 'cosine_scale' in key or 'dot_product_projection_text' in key or 'head.log_scale' in key or 'head.bias_lang' in key or 'head.bias0' in key):
+                    if not (
+                            'bbox_pred' in key or 'cls_logits' in key or 'centerness' in key or 'cosine_scale' in key or 'dot_product_projection_text' in key or 'head.log_scale' in key or 'head.bias_lang' in key or 'head.bias0' in key):
                         value.requires_grad = False
             if self.roi_heads is not None:
                 for key, value in self.roi_heads.named_parameters():
-                    if not ('bbox_pred' in key or 'cls_logits' in key or 'centerness' in key or 'cosine_scale' in key or 'dot_product_projection_text' in key or 'head.log_scale' in key or 'head.bias_lang' in key or 'head.bias0' in key):
+                    if not (
+                            'bbox_pred' in key or 'cls_logits' in key or 'centerness' in key or 'cosine_scale' in key or 'dot_product_projection_text' in key or 'head.log_scale' in key or 'head.bias_lang' in key or 'head.bias0' in key):
                         value.requires_grad = False
         if self.freeze_cls_logits:
             if hasattr(self.rpn.head, 'cls_logits'):
@@ -157,22 +198,32 @@ class GeneralizedVLRCNN(nn.Module):
                 for p in self.rpn.head.cls_logits.parameters():
                     p.requires_grad = False
         if self.add_linear_layer:
-            if self.rpn is not None:
-                for key, p in self.rpn.named_parameters():
+            if not self.fusion_in_backbone:
+                if self.rpn is not None:
+                    for key, p in self.rpn.named_parameters():
+                        if 'tunable_linear' in key:
+                            p.requires_grad = True
+            else:
+                for key, p in self.fusion_backbone.named_parameters():
                     if 'tunable_linear' in key:
                         p.requires_grad = True
 
         if self.freeze_language_backbone:
-            self.language_backbone.eval()
-            for p in self.language_backbone.parameters():
-                p.requires_grad = False
+            if self.fusion_in_backbone:
+                self.fusion_backbone.language_backbone.eval()
+                for p in self.fusion_backbone.language_backbone.parameters():
+                    p.requires_grad = False
+            else:
+                self.language_backbone.eval()
+                for p in self.language_backbone.parameters():
+                    p.requires_grad = False
 
-    def forward(self, 
-        images, 
-        targets=None, 
-        captions=None, 
-        positive_map=None,
-        greenlight_map=None):
+    def forward(self,
+                images,
+                targets=None,
+                captions=None,
+                positive_map=None,
+                greenlight_map=None):
         """
         Arguments:
             images (list[Tensor] or ImageList): images to be processed
@@ -189,7 +240,7 @@ class GeneralizedVLRCNN(nn.Module):
         """
         if self.training and targets is None:
             raise ValueError("In training mode, targets should be passed")
-        
+
         images = to_image_list(images)
         # batch_size = images.tensors.shape[0]
         device = images.tensors.device
@@ -197,7 +248,7 @@ class GeneralizedVLRCNN(nn.Module):
         # language embedding
         language_dict_features = {}
         if captions is not None:
-            #print(captions[0])
+            # print(captions[0])
             tokenized = self.tokenizer.batch_encode_plus(captions,
                                                          max_length=self.cfg.MODEL.LANGUAGE_BACKBONE.MAX_QUERY_LEN,
                                                          padding='max_length' if self.cfg.MODEL.LANGUAGE_BACKBONE.PAD_MAX else "longest",
@@ -208,7 +259,7 @@ class GeneralizedVLRCNN(nn.Module):
                 if not self.mlm_loss_for_only_positives:
                     greenlight_map = None
                 input_ids, mlm_labels = random_word(
-                    input_ids=tokenized.input_ids, 
+                    input_ids=tokenized.input_ids,
                     mask_token_id=self.tokenizer.mask_token_id,
                     vocabs=self.tokenizer_vocab_ids,
                     padding_token_id=self.tokenizer.pad_token_id,
@@ -216,38 +267,52 @@ class GeneralizedVLRCNN(nn.Module):
             else:
                 input_ids = tokenized.input_ids
                 mlm_labels = None
-            
-            
+
             tokenizer_input = {"input_ids": input_ids,
                                "attention_mask": tokenized.attention_mask}
 
-            if self.cfg.MODEL.LANGUAGE_BACKBONE.FREEZE:
-                with torch.no_grad():
+            if not self.fusion_in_backbone:
+                if self.cfg.MODEL.LANGUAGE_BACKBONE.FREEZE:
+                    with torch.no_grad():
+                        language_dict_features = self.language_backbone(tokenizer_input)
+                else:
                     language_dict_features = self.language_backbone(tokenizer_input)
-            else:
-                language_dict_features = self.language_backbone(tokenizer_input)
-            
-            # ONE HOT
-            if self.cfg.DATASETS.ONE_HOT:
-                new_masks = torch.zeros_like(language_dict_features['masks'],
-                                             device=language_dict_features['masks'].device)
-                new_masks[:, :self.cfg.MODEL.DYHEAD.NUM_CLASSES] = 1
-                language_dict_features['masks'] = new_masks
 
-            # MASK ALL SPECIAL TOKENS
-            if self.cfg.MODEL.LANGUAGE_BACKBONE.MASK_SPECIAL:
-                language_dict_features["masks"] = 1 - tokenized.special_tokens_mask
-            
+                # ONE HOT
+                if self.cfg.DATASETS.ONE_HOT:
+                    new_masks = torch.zeros_like(language_dict_features['masks'],
+                                                 device=language_dict_features['masks'].device)
+                    new_masks[:, :self.cfg.MODEL.DYHEAD.NUM_CLASSES] = 1
+                    language_dict_features['masks'] = new_masks
+
+                # MASK ALL SPECIAL TOKENS
+                if self.cfg.MODEL.LANGUAGE_BACKBONE.MASK_SPECIAL:
+                    language_dict_features["masks"] = 1 - tokenized.special_tokens_mask
+
+                language_dict_features["mlm_labels"] = mlm_labels
+
+        if not self.fusion_in_backbone:
+            # visual embedding
+            swint_feature_c4 = None
+            if 'vl' in self.cfg.MODEL.SWINT.VERSION:
+                # the backbone only updates the "hidden" field in language_dict_features
+                inputs = {"img": images.tensors, "lang": language_dict_features}
+                visual_features, language_dict_features, swint_feature_c4 = self.backbone(inputs)
+            else:
+                visual_features = self.backbone(images.tensors)
+
+        else:
+            visual_features, language_dict_features, swint_feature_c4 = self.fusion_backbone(tokenizer_input, images)
             language_dict_features["mlm_labels"] = mlm_labels
 
-        # visual embedding
-        swint_feature_c4 = None
-        if 'vl' in self.cfg.MODEL.SWINT.VERSION:
-            # the backbone only updates the "hidden" field in language_dict_features
-            inputs = {"img": images.tensors, "lang": language_dict_features}
-            visual_features, language_dict_features, swint_feature_c4 = self.backbone(inputs)
-        else:
-            visual_features = self.backbone(images.tensors)
+        # add the prompt tuning linear layer if not fusion, for fusion do it inside the backbone
+        if not self.fusion_in_backbone:
+            if self.cfg.MODEL.DYHEAD.FUSE_CONFIG.ADD_LINEAR_LAYER:
+                embedding = language_dict_features['embedded']
+                embedding = self.tunable_linear.weight[:embedding.size(1), :].unsqueeze(0) + embedding
+                language_dict_features['embedded'] = embedding
+                language_dict_features['hidden'] = self.tunable_linear.weight[:embedding.size(1), :].unsqueeze(0) + \
+                                                   language_dict_features['hidden']
 
         # rpn force boxes
         if targets:
@@ -270,13 +335,20 @@ class GeneralizedVLRCNN(nn.Module):
                     null_loss += 0.0 * param.sum()
                 proposal_losses = {('rpn_null_loss', null_loss)}
         else:
-            proposals, proposal_losses, fused_visual_features = self.rpn(images, visual_features, targets, language_dict_features, positive_map,
-                                              captions, swint_feature_c4)
+            proposals, proposal_losses, fused_visual_features = self.rpn(images, visual_features, targets,
+                                                                         language_dict_features, positive_map,
+                                                                         captions, swint_feature_c4)
+
         if self.roi_heads:
+            if not self.training:
+                assert len(proposals) == 1, "Evaluation batch size per GPU should be 1!"
+                if len(proposals[0]) == 0:
+                    return proposals
             if self.cfg.MODEL.ROI_MASK_HEAD.PREDICTOR.startswith("VL"):
                 if self.training:
                     # "Only support VL mask head right now!!"
-                    assert len(targets) == 1 and len(targets[0]) == len(positive_map), "shape match assert for mask head!!"
+                    assert len(targets) == 1 and len(targets[0]) == len(
+                        positive_map), "shape match assert for mask head!!"
                     # Not necessary but as a safe guard:
                     # use the binary 0/1 positive map to replace the normalized positive map
                     targets[0].add_field("positive_map", positive_map)
