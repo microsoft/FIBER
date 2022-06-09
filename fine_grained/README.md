@@ -53,8 +53,8 @@ We use 4 nodes, 16 gpus of V100 32GB GPUs to do the training. You will be requir
 
 |Model | Coarse-grained data   | Weight used to initialize|  Pre-train data | Config | Final pre-trained Weight |
 |---------- |---------- |---------- |---------- |---------- |---------- |
-|FIBER-B | COCO, VG, SBU, GCC | [weight](https://datarelease.blob.core.windows.net/fiber/coarse_grained/fiber_coarse_init.pt) | Flickr30k, MixedNoCOCO, Objects365 | [config](configs/pretrain/mixed_nococo_flickr_objects365.yaml) | [weight](https://penzhanwu2v2.blob.core.windows.net/amulet/projects/aish-intern/amlt-results/7350008695.29874-98510721-cd70-422c-bf40-3c5b4c4adc1e/last_checkpoint) |
-|FIBER-B | COCO, VG, SBU, GCC | [weight](https://datarelease.blob.core.windows.net/fiber/coarse_grained/fiber_coarse_init_for_refexp.pt) |Flickr30k, MixedNoCOCO (cleaned for Refexp) , Objects365 | [config](configs/pretrain/mixed_nococo_flickr_objects365_refexpclean.yaml) | [weight](https://penzhanwu2v2.blob.core.windows.net/amulet/projects/aish-intern/amlt-results/7347935755.69767-58af254b-fdac-49dc-ac0e-906c7f369e98/last_checkpoint) |
+|FIBER-B | COCO, VG, SBU, GCC | [weight](https://datarelease.blob.core.windows.net/fiber/coarse_grained/fiber_coarse_init.pt) | Flickr30k, MixedNoCOCO, Objects365 | [config](configs/pretrain/mixed_nococo_flickr_objects365.yaml) | [weight](https://datarelease.blob.core.windows.net/fiber/fine_grained/fiber_coarse_then_fine.pth) |
+|FIBER-B | COCO, VG, SBU, GCC | [weight](https://datarelease.blob.core.windows.net/fiber/coarse_grained/fiber_coarse_init_for_refexp.pt) |Flickr30k, MixedNoCOCO (cleaned for Refexp) , Objects365 | [config](configs/pretrain/mixed_nococo_flickr_objects365_refexpclean.yaml) | [weight](https://datarelease.blob.core.windows.net/fiber/fine_grained/fiber_coarse_then_fine_for_refexp.pth) |
 
 
 
