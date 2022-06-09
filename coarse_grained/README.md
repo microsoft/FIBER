@@ -10,14 +10,14 @@ pip install -e .
 ## Pre-trained Checkpoints
 
 Here are the pre-trained models:
-1. FIBER pre-trained on GCC+SBU+COCO+VG [link]()
-2. FIBER fine-tuned on COCO IR/TR with ITC [link]()
-3. FIBER fine-tuned on COCO IR/TR with ITM [link]()
-4. FIBER fine-tuned on Flickr30k IR/TR with ITC [link]()
-5. FIBER fine-tuned on Flickr30k IR/TR with ITM [link]()
-6. FIBER fine-tuned on VQAv2 [link]()
-7. FIBER fine-tuned on NLVR2 [link]()
-8. FIBER fine-tuned on COCO Captioning [link]()
+1. FIBER pre-trained on GCC+SBU+COCO+VG [link](https://datarelease.blob.core.windows.net/fiber/coarse_grained/fiber_pretrain.ckpt)
+2. FIBER fine-tuned on COCO IR/TR with ITC [link](https://datarelease.blob.core.windows.net/fiber/coarse_grained/fiber_coco_irtr_itc.ckpt)
+3. FIBER fine-tuned on COCO IR/TR with ITM [link](https://datarelease.blob.core.windows.net/fiber/coarse_grained/fiber_coco_irtr_itm.ckpt)
+4. FIBER fine-tuned on Flickr30k IR/TR with ITC [link](https://datarelease.blob.core.windows.net/fiber/coarse_grained/fiber_f30k_irtr_itc.ckpt)
+5. FIBER fine-tuned on Flickr30k IR/TR with ITM [link](https://datarelease.blob.core.windows.net/fiber/coarse_grained/fiber_f30k_irtr_itm.ckpt)
+6. FIBER fine-tuned on VQAv2 [link](https://datarelease.blob.core.windows.net/fiber/coarse_grained/fiber_vqa.ckpt)
+7. FIBER fine-tuned on NLVR2 [link](https://datarelease.blob.core.windows.net/fiber/coarse_grained/fiber_nlvr2.ckpt)
+8. FIBER fine-tuned on COCO Captioning [link](https://datarelease.blob.core.windows.net/fiber/coarse_grained/fiber_coco_caption.ckpt)
 
 
 ## Dataset Preparation
