@@ -23,7 +23,7 @@ LVIS use the same images as COCO. Thus prepare the COCO images first.
     DATASET/coco
 
 Download the following annotation files:
-    "wget https://penzhanwu2v2.blob.core.windows.net/data/htzhang/coco/annotations/lvis_od_train.json"
+    "wget https://penzhanwu2v2.blob.core.windows.net/data/htzhang/coco/annotations/lvis_od_train.json" -O coco/annotations/lvis_od_train.json"
     "wget https://penzhanwu2bbs.blob.core.windows.net/data/GLIPv1_Open/coco/annotations/lvis_v1_minival_inserted_image_name.json -O DATASET/coco/annotations/lvis_v1_minival_inserted_image_name.json"
     "wget https://penzhanwu2bbs.blob.core.windows.net/data/GLIPv1_Open/coco/annotations/lvis_od_val.json -O coco/annotations/lvis_od_val.json"
 
