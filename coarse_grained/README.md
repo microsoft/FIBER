@@ -1,4 +1,4 @@
-# Coarse-grained Pre-training of FIBER
+# FIBER coarse-grained stage
 
 ## Install
 

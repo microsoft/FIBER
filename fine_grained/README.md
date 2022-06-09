@@ -217,11 +217,6 @@ python -m torch.distributed.launch --nproc_per_node=16 tools/train_net.py
 ```
 
 
-## Citations
-
-Please cite out paper if you use this code: 
- TODO
-
 
 ## Acknowledgement 
 This codebase was built upon the GLIP codebase. We thank the authors for making the code available. 
