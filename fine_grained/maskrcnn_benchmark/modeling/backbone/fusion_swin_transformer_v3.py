@@ -456,7 +456,7 @@ class BasicLayer(nn.Module):
                     attn_drop=attn_drop,
                     drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
                     norm_layer=norm_layer,
-                    dim_text=(768 if i >= 17 else dim_text),
+                    dim_text=(768 if i >= 14 else dim_text),
                 )
                 for i in range(depth)
             ]
@@ -846,7 +846,7 @@ class FusionSwinTransformer(nn.Module):
 
         outs = []
         # Pass the text through the first 10 layers
-        num_pre_text = 9
+        num_pre_text = 6
         for layer_i, layer in enumerate(self.language_backbone.body.model.encoder.layer[:num_pre_text]):
             text_embeds = layer(text_embeds, extended_text_masks)[0]
 
@@ -861,7 +861,7 @@ class FusionSwinTransformer(nn.Module):
                 out = x_out.view(-1, H, W, self.backbone.body.num_features[layer_i]).permute(0, 3, 1, 2).contiguous()
                 outs.append(out)
 
-        num_pre_block = 17
+        num_pre_block = 14
         # Get the attention mask for the third layer:
         attn_mask = self.backbone.body.layers[num_pre_vision].get_attention_mask(Wh, Ww, image_embeds.device)
         for blk_cnt, blk in enumerate(self.backbone.body.layers[num_pre_vision].blocks):

@@ -481,7 +481,7 @@ class RobertaEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.layer = nn.ModuleList([RobertaLayer(config, add_cross=(layer_i>=9), layer_index=layer_i) for layer_i in range(config.num_hidden_layers)])
+        self.layer = nn.ModuleList([RobertaLayer(config, add_cross=(layer_i>=6), layer_index=layer_i) for layer_i in range(config.num_hidden_layers)])
 
     def forward(
         self,

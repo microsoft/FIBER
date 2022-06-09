@@ -33,7 +33,14 @@ def align_and_update_state_dicts(model_state_dict, loaded_state_dict, reshape_ke
     backbone[0].body.res2.conv1.weight to res2.conv1.weight.
     """
     current_keys = sorted(list(model_state_dict.keys()))
+
+    new_loaded_state_dict = dict()
+    for key in loaded_state_dict.keys():
+        new_loaded_state_dict[key.replace("text_transformer.", "").replace("vit_model.", "")] = loaded_state_dict[key]
+
+    loaded_state_dict = new_loaded_state_dict
     loaded_keys = sorted(list(loaded_state_dict.keys()))
+
     # get a matrix of string matches, where each (i, j) entry correspond to the size of the
     # loaded_key string, if it matches
     match_matrix = [
@@ -114,6 +121,8 @@ def load_state_dict(model, loaded_state_dict):
     # if the state_dict comes from a model that was wrapped in a
     # DataParallel or DistributedDataParallel during serialization,
     # remove the "module" prefix before performing the matching
+    if 'state_dict' in loaded_state_dict:
+        loaded_state_dict = loaded_state_dict['state_dict']
     loaded_state_dict = strip_prefix_if_present(loaded_state_dict, prefix="module.")
     align_and_update_state_dicts(model_state_dict, loaded_state_dict)
 

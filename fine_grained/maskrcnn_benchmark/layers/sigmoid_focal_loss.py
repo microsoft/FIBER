@@ -59,6 +59,10 @@ class SigmoidFocalLoss(nn.Module):
         self.alpha = alpha
 
     def forward(self, logits, targets):
+        # Protect for the case where there are no boxes!
+        if targets.nelement() == 0 :
+            return torch.as_tensor(0, device=logits.device)
+
         if logits.is_cuda:
             loss_func = sigmoid_focal_loss_cuda
         else:
@@ -178,6 +182,11 @@ class TokenSigmoidFocalLoss(nn.Module):
         self.gamma = gamma
 
     def forward(self, logits, targets, text_masks=None, version="binary", **kwargs):
+
+        # Protect for the case where there are no boxes!
+        if targets.nelement() == 0:
+            return torch.as_tensor(0, device=logits.device)
+
         if version == "binary":
             loss_func = token_sigmoid_binary_focal_loss
         elif version == "softmax":
