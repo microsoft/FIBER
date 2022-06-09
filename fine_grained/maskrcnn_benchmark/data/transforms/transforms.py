@@ -9,6 +9,7 @@ from torchvision.transforms import functional as F
 
 from maskrcnn_benchmark.structures.bounding_box import BoxList
 
+
 def matrix_iou(a, b, relative=False):
     """
     return iou of a and b, numpy version for data augenmentation
@@ -20,9 +21,9 @@ def matrix_iou(a, b, relative=False):
     area_a = np.prod(a[:, 2:] - a[:, :2], axis=1)
     area_b = np.prod(b[:, 2:] - b[:, :2], axis=1)
     if relative:
-        ious = area_i / (area_b[:, np.newaxis]+1e-12)
+        ious = area_i / (area_b[:, np.newaxis] + 1e-12)
     else:
-        ious = area_i / (area_a[:, np.newaxis] + area_b - area_i+1e-12)
+        ious = area_i / (area_a[:, np.newaxis] + area_b - area_i + 1e-12)
     return ious
 
 
@@ -155,38 +156,41 @@ class RandomVerticalFlip(object):
             target = target.transpose(1)
         return image, target
 
+
 class ToTensor(object):
     def __call__(self, image, target):
         return F.to_tensor(image), target
 
 
 class Normalize(object):
-    def __init__(self, mean, std, format='rgb'):
+    def __init__(self, mean, std, format="rgb"):
         self.mean = mean
         self.std = std
         self.format = format.lower()
 
     def __call__(self, image, target):
-        if 'bgr' in self.format:
+        if "bgr" in self.format:
             image = image[[2, 1, 0]]
-        if '255' in self.format:
+        if "255" in self.format:
             image = image * 255
         image = F.normalize(image, mean=self.mean, std=self.std)
         return image, target
 
 
 class ColorJitter(object):
-    def __init__(self,
-                 brightness=0.0,
-                 contrast=0.0,
-                 saturation=0.0,
-                 hue=0.0,
-                 ):
+    def __init__(
+        self,
+        brightness=0.0,
+        contrast=0.0,
+        saturation=0.0,
+        hue=0.0,
+    ):
         self.color_jitter = torchvision.transforms.ColorJitter(
             brightness=brightness,
             contrast=contrast,
             saturation=saturation,
-            hue=hue,)
+            hue=hue,
+        )
 
     def __call__(self, image, target):
         image = self.color_jitter(image)
@@ -206,7 +210,7 @@ class RandomCrop(object):
 
         h, w, c = img.shape
         boxes = target.bbox.numpy()
-        labels = target.get_field('labels')
+        labels = target.get_field("labels")
 
         while True:
             mode = random.choice(self.sample_mode)
@@ -232,7 +236,12 @@ class RandomCrop(object):
 
             # center of boxes should inside the crop img
             center = (boxes[:, :2] + boxes[:, 2:]) / 2
-            mask = (center[:, 0] > patch[0]) * (center[:, 1] > patch[1]) * (center[:, 0] < patch[2]) * ( center[:, 1] < patch[3])
+            mask = (
+                (center[:, 0] > patch[0])
+                * (center[:, 1] > patch[1])
+                * (center[:, 0] < patch[2])
+                * (center[:, 1] < patch[3])
+            )
             if not mask.any():
                 continue
 
@@ -240,20 +249,27 @@ class RandomCrop(object):
             labels = labels[mask]
 
             # adjust boxes
-            img = img[int(patch[1]):int(patch[3]), int(patch[0]):int(patch[2])]
+            img = img[int(patch[1]) : int(patch[3]), int(patch[0]) : int(patch[2])]
 
             boxes[:, 2:] = boxes[:, 2:].clip(max=patch[2:])
             boxes[:, :2] = boxes[:, :2].clip(min=patch[:2])
             boxes -= np.tile(patch[:2], 2)
 
-            new_target = BoxList(boxes, (img.shape[1], img.shape[0]), mode='xyxy')
-            new_target.add_field('labels', labels)
+            new_target = BoxList(boxes, (img.shape[1], img.shape[0]), mode="xyxy")
+            new_target.add_field("labels", labels)
             return img, new_target
 
 
 class RandomAffine(object):
-    def __init__(self, prob=0.5, degrees=(-10, 10), translate=(.1, .1), scale=(.9, 1.1), shear=(-2, 2),
-                 borderValue=(127.5, 127.5, 127.5)):
+    def __init__(
+        self,
+        prob=0.5,
+        degrees=(-10, 10),
+        translate=(0.1, 0.1),
+        scale=(0.9, 1.1),
+        shear=(-2, 2),
+        borderValue=(127.5, 127.5, 127.5),
+    ):
         self.prob = prob
         self.degrees = degrees
         self.translate = translate
@@ -268,7 +284,7 @@ class RandomAffine(object):
         # https://medium.com/uruvideo/dataset-augmentation-with-random-homographies-a8f4b44830d4
 
         border = 0  # width of added border (optional)
-        #height = max(img.shape[0], img.shape[1]) + border * 2
+        # height = max(img.shape[0], img.shape[1]) + border * 2
         height, width, _ = img.shape
         bbox = targets.bbox
 
@@ -286,12 +302,17 @@ class RandomAffine(object):
 
         # Shear
         S = np.eye(3)
-        S[0, 1] = math.tan((random.random() * (self.shear[1] - self.shear[0]) + self.shear[0]) * math.pi / 180)  # x shear (deg)
-        S[1, 0] = math.tan((random.random() * (self.shear[1] - self.shear[0]) + self.shear[0]) * math.pi / 180)  # y shear (deg)
+        S[0, 1] = math.tan(
+            (random.random() * (self.shear[1] - self.shear[0]) + self.shear[0]) * math.pi / 180
+        )  # x shear (deg)
+        S[1, 0] = math.tan(
+            (random.random() * (self.shear[1] - self.shear[0]) + self.shear[0]) * math.pi / 180
+        )  # y shear (deg)
 
         M = S @ T @ R  # Combined rotation matrix. ORDER IS IMPORTANT HERE!!
-        imw = cv2.warpPerspective(img, M, dsize=(width, height), flags=cv2.INTER_LINEAR,
-                                  borderValue=self.borderValue)  # BGR order borderValue
+        imw = cv2.warpPerspective(
+            img, M, dsize=(width, height), flags=cv2.INTER_LINEAR, borderValue=self.borderValue
+        )  # BGR order borderValue
 
         # Return warped points also
         if targets:
@@ -319,10 +340,10 @@ class RandomAffine(object):
             xy = np.concatenate((x - w / 2, y - h / 2, x + w / 2, y + h / 2)).reshape(4, n).T
 
             # reject warped points outside of image
-            x1 = np.clip(xy[:,0], 0, width)
-            y1 = np.clip(xy[:,1], 0, height)
-            x2 = np.clip(xy[:,2], 0, width)
-            y2 = np.clip(xy[:,3], 0, height)
+            x1 = np.clip(xy[:, 0], 0, width)
+            y1 = np.clip(xy[:, 1], 0, height)
+            x2 = np.clip(xy[:, 2], 0, width)
+            y2 = np.clip(xy[:, 3], 0, height)
             new_bbox = np.concatenate((x1, y1, x2, y2)).reshape(4, n).T
             targets.bbox = torch.as_tensor(new_bbox, dtype=torch.float32)
 
@@ -330,8 +351,17 @@ class RandomAffine(object):
 
 
 class RandomErasing:
-    def __init__(self, prob=0.5, era_l=0.02, era_h=1/3, min_aspect=0.3,
-                 mode='const', max_count=1, max_overlap=0.3, max_value=255):
+    def __init__(
+        self,
+        prob=0.5,
+        era_l=0.02,
+        era_h=1 / 3,
+        min_aspect=0.3,
+        mode="const",
+        max_count=1,
+        max_overlap=0.3,
+        max_value=255,
+    ):
         self.prob = prob
         self.era_l = era_l
         self.era_h = era_h
@@ -341,13 +371,13 @@ class RandomErasing:
         self.max_overlap = max_overlap
         self.max_value = max_value
         self.mode = mode.lower()
-        assert self.mode in ['const', 'rand', 'pixel'], 'invalid erase mode: %s' % self.mode
+        assert self.mode in ["const", "rand", "pixel"], "invalid erase mode: %s" % self.mode
 
     def _get_pixels(self, patch_size):
-        if self.mode == 'pixel':
-            return np.random.random(patch_size)*self.max_value
-        elif self.mode == 'rand':
-            return np.random.random((1, 1, patch_size[-1]))*self.max_value
+        if self.mode == "pixel":
+            return np.random.random(patch_size) * self.max_value
+        elif self.mode == "rand":
+            return np.random.random((1, 1, patch_size[-1])) * self.max_value
         else:
             return np.zeros((1, 1, patch_size[-1]))
 
@@ -356,30 +386,29 @@ class RandomErasing:
             return image, target
         ih, iw, ic = image.shape
         ia = ih * iw
-        count = self.min_count if self.min_count == self.max_count else \
-            random.randint(self.min_count, self.max_count)
+        count = self.min_count if self.min_count == self.max_count else random.randint(self.min_count, self.max_count)
         erase_boxes = []
         for _ in range(count):
             for try_idx in range(10):
                 erase_area = random.uniform(self.era_l, self.era_h) * ia / count
-                aspect_ratio = math.exp(random.uniform(math.log(self.min_aspect), math.log(1/self.min_aspect)))
+                aspect_ratio = math.exp(random.uniform(math.log(self.min_aspect), math.log(1 / self.min_aspect)))
                 eh = int(round(math.sqrt(erase_area * aspect_ratio)))
                 ew = int(round(math.sqrt(erase_area / aspect_ratio)))
                 if eh < ih and ew < iw:
                     x = random.randint(0, iw - ew)
                     y = random.randint(0, ih - eh)
-                    image[y:y+eh, x:x+ew, :] = self._get_pixels((eh, ew, ic))
-                    erase_boxes.append([x,y,x+ew,y+eh])
+                    image[y : y + eh, x : x + ew, :] = self._get_pixels((eh, ew, ic))
+                    erase_boxes.append([x, y, x + ew, y + eh])
                 break
 
-        if target is not None and len(erase_boxes)>0:
+        if target is not None and len(erase_boxes) > 0:
             boxes = target.bbox.numpy()
-            labels = target.get_field('labels')
+            labels = target.get_field("labels")
             overlap = matrix_iou(np.array(erase_boxes), boxes, relative=True)
-            mask = overlap.max(axis=0)<self.max_overlap
+            mask = overlap.max(axis=0) < self.max_overlap
             boxes = boxes[mask]
             labels = labels[mask]
             target.bbox = torch.as_tensor(boxes, dtype=torch.float32)
-            target.add_field('labels', labels)
+            target.add_field("labels", labels)
 
         return image, target

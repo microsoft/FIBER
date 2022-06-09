@@ -15,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 class LayerNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-12):
-        """Construct a layernorm module in the TF style (epsilon inside the square root).
-        """
+        """Construct a layernorm module in the TF style (epsilon inside the square root)."""
         super(LayerNorm, self).__init__()
         self.weight = nn.Parameter(torch.ones(hidden_size))
         self.bias = nn.Parameter(torch.zeros(hidden_size))
@@ -37,27 +36,26 @@ class QuickGELU(nn.Module):
 
 
 class ResidualAttentionBlock(nn.Module):
-    def __init__(self,
-                 d_model: int,
-                 n_head: int,
-                 attn_mask: torch.Tensor = None,
-                 drop_path: float = 0.0):
+    def __init__(self, d_model: int, n_head: int, attn_mask: torch.Tensor = None, drop_path: float = 0.0):
         super().__init__()
 
         self.attn = nn.MultiheadAttention(d_model, n_head)
         self.ln_1 = LayerNorm(d_model)
-        self.mlp = nn.Sequential(OrderedDict([
-            ("c_fc", nn.Linear(d_model, d_model * 4)),
-            ("gelu", QuickGELU()),
-            ("c_proj", nn.Linear(d_model * 4, d_model))
-        ]))
+        self.mlp = nn.Sequential(
+            OrderedDict(
+                [
+                    ("c_fc", nn.Linear(d_model, d_model * 4)),
+                    ("gelu", QuickGELU()),
+                    ("c_proj", nn.Linear(d_model * 4, d_model)),
+                ]
+            )
+        )
         self.ln_2 = LayerNorm(d_model)
         self.attn_mask = attn_mask
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def attention(self, x: torch.Tensor, key_padding_mask: torch.Tensor = None):
-        self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device) \
-            if self.attn_mask is not None else None
+        self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device) if self.attn_mask is not None else None
         return self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask, key_padding_mask=key_padding_mask)[0]
 
     def forward(self, x: torch.Tensor, key_padding_mask: torch.Tensor = None):
@@ -83,32 +81,26 @@ class CLIPTransformer(nn.Module):
 
         self.token_embedding = nn.Embedding(self.vocab_size, self.width)
 
-        self.positional_embedding = nn.Parameter(
-            torch.empty(self.context_length, self.width)
-        )
+        self.positional_embedding = nn.Parameter(torch.empty(self.context_length, self.width))
 
         # attn_mask = self.build_attention_mask()
         attn_mask = None
 
         dpr = [x.item() for x in torch.linspace(0, self.drop_path, self.layers)]  # stochastic depth decay rule
         self.resblocks = nn.ModuleList(
-            [
-                ResidualAttentionBlock(self.width, self.heads, attn_mask, dpr[i])
-                for i in range(self.layers)
-            ]
+            [ResidualAttentionBlock(self.width, self.heads, attn_mask, dpr[i]) for i in range(self.layers)]
         )
 
         self.ln_final = LayerNorm(self.width)
 
-        trunc_normal_(self.positional_embedding, std=.02)
+        trunc_normal_(self.positional_embedding, std=0.02)
         # nn.init.normal_(self.token_embedding, std=.02)
-        trunc_normal_(self.token_embedding.weight, std=.02)
+        trunc_normal_(self.token_embedding.weight, std=0.02)
         self.apply(self._init_weights)
 
         # loading pre-trained weight from our CLIP models
         if len(self.cfg.MODEL.LANGUAGE_BACKBONE.WEIGHT) > 0:
-            self.init_weights(pretrained=try_to_find(self.cfg.MODEL.LANGUAGE_BACKBONE.WEIGHT),
-                              pretrained_layers=['*'])
+            self.init_weights(pretrained=try_to_find(self.cfg.MODEL.LANGUAGE_BACKBONE.WEIGHT), pretrained_layers=["*"])
 
     def build_attention_mask(self):
         # lazily create causal attention mask, with full attention between the vision tokens
@@ -132,7 +124,7 @@ class CLIPTransformer(nn.Module):
         if ntok_old > 1:
             ntok_new = shape_new[0]
             posemb_grid = posemb.unsqueeze(dim=0).permute(0, 2, 1).unsqueeze(dim=-1)
-            posemb_grid = F.interpolate(posemb_grid, size=[ntok_new, 1], mode='bilinear')
+            posemb_grid = F.interpolate(posemb_grid, size=[ntok_new, 1], mode="bilinear")
             posemb_grid = posemb_grid.squeeze(dim=-1).permute(0, 2, 1).squeeze(dim=0)
             posemb = posemb_grid
         return posemb
@@ -140,32 +132,30 @@ class CLIPTransformer(nn.Module):
     def init_weights(self, pretrained="", pretrained_layers=[], verbose=False):
         if os.path.isfile(pretrained):
             pretrained_dict = torch.load(pretrained, map_location="cpu")
-            logger.info(f'=> loading pretrained clip text model {pretrained}')
+            logger.info(f"=> loading pretrained clip text model {pretrained}")
             model_dict = self.state_dict()
 
             need_init_state_dict = {}
             for k, v in pretrained_dict.items():
-                need_init = (
-                        k.split('.')[0] in pretrained_layers
-                        or pretrained_layers[0] is '*'
-                )
+                need_init = k.split(".")[0] in pretrained_layers or pretrained_layers[0] is "*"
                 if need_init:
-                    if k.startswith('text.') and k[5:] in model_dict.keys():
+                    if k.startswith("text.") and k[5:] in model_dict.keys():
                         need_init_state_dict[k[5:]] = v
 
             # notice the context length now changes from 77 to 256, so we need to resize the positional embedding
             if "positional_embedding" in need_init_state_dict.keys():
                 old_pos_embed = need_init_state_dict["positional_embedding"].float()
-                new_pos_embed = self.resize_pos_embed_1d(old_pos_embed,
-                                                         (self.cfg.MODEL.CLIP.CONTEXT_LENGTH, old_pos_embed.shape[1]))
+                new_pos_embed = self.resize_pos_embed_1d(
+                    old_pos_embed, (self.cfg.MODEL.CLIP.CONTEXT_LENGTH, old_pos_embed.shape[1])
+                )
                 need_init_state_dict["positional_embedding"] = new_pos_embed
             self.load_state_dict(need_init_state_dict, strict=True)
 
     @torch.jit.ignore
     def no_weight_decay(self):
         return {
-            'positional_embedding',
-            'token_embedding',
+            "positional_embedding",
+            "token_embedding",
         }
 
     def forward(self, text):
@@ -190,11 +180,6 @@ class CLIPTransformer(nn.Module):
 
         # x = x[torch.arange(x.shape[0]), text.argmax(dim=-1)]
 
-        ret = {
-            "aggregate": x,
-            "embedded": x,
-            "masks": mask,
-            "hidden": x
-        }
+        ret = {"aggregate": x, "embedded": x, "masks": mask, "hidden": x}
 
         return ret

@@ -51,24 +51,12 @@ def epoch_wrapup(pl_module):
         else:
             (ir_r1, ir_r5, ir_r10, tr_r1, tr_r5, tr_r10) = compute_itm_recall(pl_module)
         print((ir_r1, ir_r5, ir_r10, tr_r1, tr_r5, tr_r10), pl_module.global_step)
-        pl_module.logger.experiment.add_scalar(
-            "recalls/ir_r1", ir_r1, pl_module.global_step
-        )
-        pl_module.logger.experiment.add_scalar(
-            "recalls/ir_r5", ir_r5, pl_module.global_step
-        )
-        pl_module.logger.experiment.add_scalar(
-            "recalls/ir_r10", ir_r10, pl_module.global_step
-        )
-        pl_module.logger.experiment.add_scalar(
-            "recalls/tr_r1", tr_r1, pl_module.global_step
-        )
-        pl_module.logger.experiment.add_scalar(
-            "recalls/tr_r5", tr_r5, pl_module.global_step
-        )
-        pl_module.logger.experiment.add_scalar(
-            "recalls/tr_r10", tr_r10, pl_module.global_step
-        )
+        pl_module.logger.experiment.add_scalar("recalls/ir_r1", ir_r1, pl_module.global_step)
+        pl_module.logger.experiment.add_scalar("recalls/ir_r5", ir_r5, pl_module.global_step)
+        pl_module.logger.experiment.add_scalar("recalls/ir_r10", ir_r10, pl_module.global_step)
+        pl_module.logger.experiment.add_scalar("recalls/tr_r1", tr_r1, pl_module.global_step)
+        pl_module.logger.experiment.add_scalar("recalls/tr_r5", tr_r5, pl_module.global_step)
+        pl_module.logger.experiment.add_scalar("recalls/tr_r10", tr_r10, pl_module.global_step)
         the_metric += ir_r1.item() + tr_r1.item()
 
     for loss_name, v in pl_module.hparams.config["loss_names"].items():
@@ -161,10 +149,9 @@ def check_non_acc_grad(pl_module):
 
 
 def set_task(pl_module):
-    pl_module.current_tasks = [
-        k for k, v in pl_module.hparams.config["loss_names"].items() if v > 0
-    ]
+    pl_module.current_tasks = [k for k, v in pl_module.hparams.config["loss_names"].items() if v > 0]
     return
+
 
 def set_schedule(pl_module):
     lr = pl_module.hparams.config["learning_rate"]
@@ -182,7 +169,7 @@ def set_schedule(pl_module):
         "norm2.weight",
     ]
     head_names = ["vqa_classifier", "nlvr2_classifier", "mlm_score", "itm_score", "snli_classifier"]
-    cross_modal_names = ['cross_modal', 'i2t', 't2i']
+    cross_modal_names = ["cross_modal", "i2t", "t2i"]
     lr_mult_head = pl_module.hparams.config["lr_mult_head"]
     lr_mult_cross_modal = pl_module.hparams.config["lr_mult_cross_modal"]
     end_lr = pl_module.hparams.config["end_lr"]
@@ -226,7 +213,8 @@ def set_schedule(pl_module):
             "params": [
                 p
                 for n, p in pl_module.named_parameters()
-                if any(nd in n for nd in no_decay) and any(bb in n for bb in head_names)
+                if any(nd in n for nd in no_decay)
+                and any(bb in n for bb in head_names)
                 and not any(ht in n for ht in cross_modal_names)
             ],
             "weight_decay": 0.0,
@@ -257,9 +245,7 @@ def set_schedule(pl_module):
     ]
 
     if optim_type == "adamw":
-        optimizer = AdamW(
-            optimizer_grouped_parameters, lr=lr, eps=1e-8, betas=(0.9, 0.98)
-        )
+        optimizer = AdamW(optimizer_grouped_parameters, lr=lr, eps=1e-8, betas=(0.9, 0.98))
     elif optim_type == "adam":
         optimizer = torch.optim.Adam(optimizer_grouped_parameters, lr=lr)
     elif optim_type == "sgd":
@@ -280,7 +266,9 @@ def set_schedule(pl_module):
 
     if decay_power == "cosine":
         scheduler = get_cosine_schedule_with_warmup(
-            optimizer, num_warmup_steps=warmup_steps, num_training_steps=max_steps,
+            optimizer,
+            num_warmup_steps=warmup_steps,
+            num_training_steps=max_steps,
         )
     else:
         scheduler = get_polynomial_decay_schedule_with_warmup(

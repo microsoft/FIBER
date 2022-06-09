@@ -808,7 +808,9 @@ class FusionSwinTransformer(nn.Module):
         self.cross_modal_image_transform3 = nn.Linear(1024, 768)
         self.add_linear_layer = add_linear_layer
         if self.add_linear_layer:
-            self.tunable_linear = torch.nn.Linear(self.language_backbone.body.cfg.MODEL.LANGUAGE_BACKBONE.LANG_DIM, 1000, bias=False)
+            self.tunable_linear = torch.nn.Linear(
+                self.language_backbone.body.cfg.MODEL.LANGUAGE_BACKBONE.LANG_DIM, 1000, bias=False
+            )
             self.tunable_linear.weight.data.fill_(0.0)
 
     def forward(
@@ -840,7 +842,7 @@ class FusionSwinTransformer(nn.Module):
         )
 
         if self.add_linear_layer:
-            text_embeds = self.tunable_linear.weight[:text_embeds.size(1), :].unsqueeze(0) + text_embeds
+            text_embeds = self.tunable_linear.weight[: text_embeds.size(1), :].unsqueeze(0) + text_embeds
 
         outs = []
         # Pass the text through the first 10 layers
@@ -880,7 +882,9 @@ class FusionSwinTransformer(nn.Module):
         if name in self.backbone.body.out_features:
             norm_layer = getattr(self.backbone.body, f"norm{num_pre_vision}")
             x_out = norm_layer(image_embeds)
-            out = x_out.view(-1, Wh, Ww, self.backbone.body.num_features[num_pre_vision]).permute(0, 3, 1, 2).contiguous()
+            out = (
+                x_out.view(-1, Wh, Ww, self.backbone.body.num_features[num_pre_vision]).permute(0, 3, 1, 2).contiguous()
+            )
             outs.append(out)
 
         # Apply downsampling if we need to at the output of third layer for input to next layer
@@ -918,7 +922,11 @@ class FusionSwinTransformer(nn.Module):
         if name in self.backbone.body.out_features:
             norm_layer = getattr(self.backbone.body, f"norm{num_pre_vision + 1}")
             x_out = norm_layer(image_embeds)
-            out = x_out.view(-1, Wh, Ww, self.backbone.body.num_features[num_pre_vision + 1]).permute(0, 3, 1, 2).contiguous()
+            out = (
+                x_out.view(-1, Wh, Ww, self.backbone.body.num_features[num_pre_vision + 1])
+                .permute(0, 3, 1, 2)
+                .contiguous()
+            )
             outs.append(out)
 
         language_dict_features = self.language_backbone.body.get_aggregated_output(

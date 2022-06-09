@@ -56,7 +56,7 @@ class Checkpointer(object):
         # use relative path name to save the checkpoint
         self.tag_last_checkpoint("{}.pth".format(name))
 
-    def load(self, f=None, force=False, keyword="model", skip_optimizer =False):
+    def load(self, f=None, force=False, keyword="model", skip_optimizer=False):
         resume = False
         if self.has_checkpoint() and not force:
             # override argument with existing checkpoint
@@ -129,17 +129,13 @@ class DetectronCheckpointer(Checkpointer):
         save_to_disk=None,
         logger=None,
     ):
-        super(DetectronCheckpointer, self).__init__(
-            model, optimizer, scheduler, save_dir, save_to_disk, logger
-        )
+        super(DetectronCheckpointer, self).__init__(model, optimizer, scheduler, save_dir, save_to_disk, logger)
         self.cfg = cfg.clone()
 
     def _load_file(self, f):
         # catalog lookup
         if f.startswith("catalog://"):
-            paths_catalog = import_file(
-                "maskrcnn_benchmark.config.paths_catalog", self.cfg.PATHS_CATALOG, True
-            )
+            paths_catalog = import_file("maskrcnn_benchmark.config.paths_catalog", self.cfg.PATHS_CATALOG, True)
             catalog_f = paths_catalog.ModelCatalog.get(f[len("catalog://") :])
             self.logger.info("{} points to {}".format(f, catalog_f))
             f = catalog_f

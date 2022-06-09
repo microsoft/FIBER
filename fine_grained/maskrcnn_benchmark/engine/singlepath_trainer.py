@@ -36,16 +36,7 @@ def reduce_loss_dict(loss_dict):
 
 
 def do_train(
-        cfg,
-        model,
-        data_loader,
-        optimizer,
-        scheduler,
-        checkpointer,
-        device,
-        checkpoint_period,
-        arguments,
-        rngs=None
+    cfg, model, data_loader, optimizer, scheduler, checkpointer, device, checkpoint_period, arguments, rngs=None
 ):
     logger = logging.getLogger("maskrcnn_benchmark.trainer")
     logger.info("Start training")
@@ -54,7 +45,7 @@ def do_train(
     start_iter = arguments["iteration"]
     model.train()
     model_ema = None
-    if cfg.SOLVER.MODEL_EMA>0:
+    if cfg.SOLVER.MODEL_EMA > 0:
         model_ema = ModelEma(model, decay=cfg.SOLVER.MODEL_EMA)
     start_training_time = time.time()
     end = time.time()
@@ -62,7 +53,9 @@ def do_train(
     for iteration, (images, targets, _) in enumerate(data_loader, start_iter):
 
         if any(len(target) < 1 for target in targets):
-            logger.error("Iteration={iteration + 1} || Image Ids used for training {_} || targets Length={[len(target) for target in targets]}" )
+            logger.error(
+                "Iteration={iteration + 1} || Image Ids used for training {_} || targets Length={[len(target) for target in targets]}"
+            )
             continue
         data_time = time.time() - end
         iteration = iteration + 1
@@ -77,7 +70,7 @@ def do_train(
                 mix_nums = model.module.mix_nums
             else:
                 mix_nums = model.mix_nums
-            rngs = [random.randint(0, mix-1) for mix in mix_nums]
+            rngs = [random.randint(0, mix - 1) for mix in mix_nums]
         rngs = broadcast_data(rngs)
 
         for param in model.parameters():
@@ -134,8 +127,4 @@ def do_train(
 
     total_training_time = time.time() - start_training_time
     total_time_str = str(datetime.timedelta(seconds=total_training_time))
-    logger.info(
-        "Total training time: {} ({:.4f} s / it)".format(
-            total_time_str, total_training_time / (max_iter)
-        )
-    )
+    logger.info("Total training time: {} ({:.4f} s / it)".format(total_time_str, total_training_time / (max_iter)))

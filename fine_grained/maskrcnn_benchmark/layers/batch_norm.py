@@ -6,6 +6,7 @@ import torch.distributed as dist
 import maskrcnn_benchmark.utils.comm as comm
 from torch.autograd.function import Function
 
+
 class FrozenBatchNorm2d(nn.Module):
     """
     BatchNorm2d where the batch statistics and the affine parameters
@@ -95,9 +96,7 @@ class NaiveSyncBatchNorm2d(nn.BatchNorm2d):
                 vec = torch.zeros([2 * C + 1], device=mean.device, dtype=mean.dtype)
                 vec = vec + input.sum()  # make sure there is gradient w.r.t input
             else:
-                vec = torch.cat(
-                    [mean, meansqr, torch.ones([1], device=mean.device, dtype=mean.dtype)], dim=0
-                )
+                vec = torch.cat([mean, meansqr, torch.ones([1], device=mean.device, dtype=mean.dtype)], dim=0)
             vec = AllReduce.apply(vec * B)
 
             total_batch = vec[-1].detach()

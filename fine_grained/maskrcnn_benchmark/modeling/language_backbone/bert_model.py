@@ -43,7 +43,7 @@ class BertEncoder(nn.Module):
             # outputs has 13 layers, 1 input layer and 12 hidden layers
             encoded_layers = outputs.hidden_states[1:]
             features = None
-            features = torch.stack(encoded_layers[-self.num_layers:], 1).mean(1)
+            features = torch.stack(encoded_layers[-self.num_layers :], 1).mean(1)
 
             # language embedding has shape [len(phrase), seq_len, language_dim]
             features = features / self.num_layers
@@ -63,17 +63,12 @@ class BertEncoder(nn.Module):
             encoded_layers = outputs.hidden_states[1:]
 
             features = None
-            features = torch.stack(encoded_layers[-self.num_layers:], 1).mean(1)
+            features = torch.stack(encoded_layers[-self.num_layers :], 1).mean(1)
             # language embedding has shape [len(phrase), seq_len, language_dim]
             features = features / self.num_layers
 
             embedded = features * mask[:, :max_len].unsqueeze(-1).float()
             aggregate = embedded.sum(1) / (mask.sum(-1).unsqueeze(-1).float())
 
-        ret = {
-            "aggregate": aggregate,
-            "embedded": embedded,
-            "masks": mask,
-            "hidden": encoded_layers[-1]
-        }
+        ret = {"aggregate": aggregate, "embedded": embedded, "masks": mask, "hidden": encoded_layers[-1]}
         return ret

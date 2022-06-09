@@ -34,9 +34,7 @@ class Conv2d(torch.nn.Conv2d):
 
         output_shape = [
             (i + 2 * p - (di * (k - 1) + 1)) // d + 1
-            for i, p, di, k, d in zip(
-                x.shape[-2:], self.padding, self.dilation, self.kernel_size, self.stride
-            )
+            for i, p, di, k, d in zip(x.shape[-2:], self.padding, self.dilation, self.kernel_size, self.stride)
         ]
         output_shape = [x.shape[0], self.weight.shape[0]] + output_shape
         return _NewEmptyTensorOp.apply(x, output_shape)
@@ -72,24 +70,16 @@ class BatchNorm2d(torch.nn.BatchNorm2d):
         return _NewEmptyTensorOp.apply(x, output_shape)
 
 
-def interpolate(
-    input, size=None, scale_factor=None, mode="nearest", align_corners=None
-):
+def interpolate(input, size=None, scale_factor=None, mode="nearest", align_corners=None):
     if input.numel() > 0:
-        return torch.nn.functional.interpolate(
-            input, size, scale_factor, mode, align_corners
-        )
+        return torch.nn.functional.interpolate(input, size, scale_factor, mode, align_corners)
 
     def _check_size_scale_factor(dim):
         if size is None and scale_factor is None:
             raise ValueError("either size or scale_factor should be defined")
         if size is not None and scale_factor is not None:
             raise ValueError("only one of size or scale_factor should be defined")
-        if (
-            scale_factor is not None
-            and isinstance(scale_factor, tuple)
-            and len(scale_factor) != dim
-        ):
+        if scale_factor is not None and isinstance(scale_factor, tuple) and len(scale_factor) != dim:
             raise ValueError(
                 "scale_factor shape must match input shape. "
                 "Input is {}D, scale_factor size is {}".format(dim, len(scale_factor))
@@ -101,9 +91,7 @@ def interpolate(
             return size
         scale_factors = _ntuple(dim)(scale_factor)
         # math.floor might return float in py2.7
-        return [
-            int(math.floor(input.size(i + 2) * scale_factors[i])) for i in range(dim)
-        ]
+        return [int(math.floor(input.size(i + 2) * scale_factors[i])) for i in range(dim)]
 
     output_shape = tuple(_output_size(2))
     output_shape = input.shape[:-2] + output_shape
@@ -121,6 +109,7 @@ class Scale(torch.nn.Module):
 
 class DFConv2d(torch.nn.Module):
     """Deformable convolutional layer"""
+
     def __init__(
         self,
         in_channels,
@@ -132,7 +121,7 @@ class DFConv2d(torch.nn.Module):
         padding=1,
         dilation=1,
         deformable_groups=1,
-        bias=False
+        bias=False,
     ):
         super(DFConv2d, self).__init__()
         if isinstance(kernel_size, (list, tuple)):
@@ -142,11 +131,13 @@ class DFConv2d(torch.nn.Module):
             offset_base_channels = kernel_size * kernel_size
         if with_modulated_dcn:
             from maskrcnn_benchmark.layers import ModulatedDeformConv
-            offset_channels = offset_base_channels * 3 #default: 27
+
+            offset_channels = offset_base_channels * 3  # default: 27
             conv_block = ModulatedDeformConv
         else:
             from maskrcnn_benchmark.layers import DeformConv
-            offset_channels = offset_base_channels * 2 #default: 18
+
+            offset_channels = offset_base_channels * 2  # default: 18
             conv_block = DeformConv
         self.offset = Conv2d(
             in_channels,
@@ -155,11 +146,13 @@ class DFConv2d(torch.nn.Module):
             stride=stride,
             padding=padding,
             groups=1,
-            dilation=dilation
+            dilation=dilation,
         )
-        for l in [self.offset, ]:
+        for l in [
+            self.offset,
+        ]:
             torch.nn.init.kaiming_uniform_(l.weight, a=1)
-            torch.nn.init.constant_(l.bias, 0.)
+            torch.nn.init.constant_(l.bias, 0.0)
         self.conv = conv_block(
             in_channels,
             out_channels,
@@ -169,7 +162,7 @@ class DFConv2d(torch.nn.Module):
             dilation=dilation,
             groups=groups,
             deformable_groups=deformable_groups,
-            bias=bias
+            bias=bias,
         )
         self.with_modulated_dcn = with_modulated_dcn
         self.kernel_size = kernel_size
@@ -193,13 +186,7 @@ class DFConv2d(torch.nn.Module):
         # get output shape
         output_shape = [
             (i + 2 * p - (di * (k - 1) + 1)) // d + 1
-            for i, p, di, k, d in zip(
-                x.shape[-2:],
-                self.padding,
-                self.dilation,
-                self.kernel_size,
-                self.stride
-            )
+            for i, p, di, k, d in zip(x.shape[-2:], self.padding, self.dilation, self.kernel_size, self.stride)
         ]
         output_shape = [x.shape[0], self.conv.weight.shape[0]] + output_shape
         return _NewEmptyTensorOp.apply(x, output_shape)

@@ -45,7 +45,9 @@ def make_arrow(root, dataset_root):
         else:
             print("not all images have caption annotations")
         print(
-            len(paths), len(caption_paths), len(iid2captions),
+            len(paths),
+            len(caption_paths),
+            len(iid2captions),
         )
 
         sub_len = int(len(caption_paths) // 100000)
@@ -54,15 +56,14 @@ def make_arrow(root, dataset_root):
             sub_paths = caption_paths[sub * 100000 : (sub + 1) * 100000]
             bs = [path2rest(path, iid2captions) for path in tqdm(sub_paths)]
             dataframe = pd.DataFrame(
-                bs, columns=["image", "caption", "image_id", "split"],
+                bs,
+                columns=["image", "caption", "image_id", "split"],
             )
 
             table = pa.Table.from_pandas(dataframe)
 
             os.makedirs(dataset_root, exist_ok=True)
-            with pa.OSFile(
-                f"{dataset_root}/conceptual_caption_{split}_{sub}.arrow", "wb"
-            ) as sink:
+            with pa.OSFile(f"{dataset_root}/conceptual_caption_{split}_{sub}.arrow", "wb") as sink:
                 with pa.RecordBatchFileWriter(sink, table.schema) as writer:
                     writer.write_table(table)
             del dataframe

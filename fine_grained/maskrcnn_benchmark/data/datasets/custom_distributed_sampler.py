@@ -10,19 +10,21 @@ import torch
 
 
 class DistributedSamplerChunkByNode(torch.utils.data.Sampler):
-
-    def __init__(self,
-                 dataset,
-                 all_datasets,
-                 chunk_or_not,
-                 num_replicas: Optional[int] = None,
-                 rank: Optional[int] = None,
-                 shuffle: bool = True,
-                 seed: int = 0,
-                 drop_last: bool = False,
-                 node_rank=0,
-                 node_number=1, process_num_per_node=1,
-                 rank_within_local_node=0) -> None:
+    def __init__(
+        self,
+        dataset,
+        all_datasets,
+        chunk_or_not,
+        num_replicas: Optional[int] = None,
+        rank: Optional[int] = None,
+        shuffle: bool = True,
+        seed: int = 0,
+        drop_last: bool = False,
+        node_rank=0,
+        node_number=1,
+        process_num_per_node=1,
+        rank_within_local_node=0,
+    ) -> None:
         if num_replicas is None:
             if not dist.is_available():
                 raise RuntimeError("Requires distributed package to be available")
@@ -33,8 +35,8 @@ class DistributedSamplerChunkByNode(torch.utils.data.Sampler):
             rank = dist.get_rank()
         if rank >= num_replicas or rank < 0:
             raise ValueError(
-                "Invalid rank {}, rank should be in the interval"
-                " [0, {}]".format(rank, num_replicas - 1))
+                "Invalid rank {}, rank should be in the interval" " [0, {}]".format(rank, num_replicas - 1)
+            )
         self.dataset = dataset
         self.num_replicas = num_replicas
         self.rank = rank
@@ -45,7 +47,7 @@ class DistributedSamplerChunkByNode(torch.utils.data.Sampler):
         self.process_num_per_node = process_num_per_node
         self.rank_within_local_node = rank_within_local_node
 
-        assert (self.process_num_per_node * self.node_number == self.num_replicas)
+        assert self.process_num_per_node * self.node_number == self.num_replicas
 
         # 1. divide the datasets into two parts
         normal_datasets = []
@@ -58,12 +60,13 @@ class DistributedSamplerChunkByNode(torch.utils.data.Sampler):
 
         # 2. calculate dataset sizes:
         self.normal_dataset_size = sum(
-            [len(i) for i in normal_datasets])  # this part we follow the conventional distributed sampler
+            [len(i) for i in normal_datasets]
+        )  # this part we follow the conventional distributed sampler
 
-        # 3. Divide 
+        # 3. Divide
         self.current_node_start_range = -1
         self.current_node_end_range = -1
-        assert (len(chunked_datasets) >= self.node_number)
+        assert len(chunked_datasets) >= self.node_number
         chunk_size = len(chunked_datasets) // self.node_number
         current_example_num = self.normal_dataset_size
 
@@ -87,7 +90,8 @@ class DistributedSamplerChunkByNode(torch.utils.data.Sampler):
             self.num_samples = math.ceil(
                 # `type:ignore` is required because Dataset cannot provide a default __len__
                 # see NOTE in pytorch/torch/utils/data/sampler.py
-                (len(self.dataset) - self.num_replicas) / self.num_replicas  # type: ignore[arg-type]
+                (len(self.dataset) - self.num_replicas)
+                / self.num_replicas  # type: ignore[arg-type]
             )
         else:
             self.num_samples = math.ceil(len(self.dataset) / self.num_replicas)  # type: ignore[arg-type]
@@ -99,26 +103,23 @@ class DistributedSamplerChunkByNode(torch.utils.data.Sampler):
         indices = self.generate_indices_within_range_with_rank(
             seed=self.seed,
             epoch=self.epoch,
-
             # NOTE: Distribute among all processes
             process_num=self.num_replicas,
             rank=self.rank,
             generate_length=-1,
             valid_indices=list(range(self.normal_dataset_size)),
-            prefix="Normal "
+            prefix="Normal ",
         )
 
         addition_indices = self.generate_indices_within_range_with_rank(
             seed=self.seed,
             epoch=self.epoch,
-
             # NOTE : very important arguments, distribute among local nodes
             process_num=self.process_num_per_node,
             rank=self.rank_within_local_node,
-
             generate_length=self.num_samples - len(indices),
             valid_indices=list(range(self.current_node_start_range, self.current_node_end_range)),
-            prefix="Distribute "
+            prefix="Distribute ",
         )
 
         indices.extend(addition_indices)
@@ -127,12 +128,13 @@ class DistributedSamplerChunkByNode(torch.utils.data.Sampler):
         assert len(indices) == self.num_samples
         return iter(indices)
 
-    def generate_indices_within_range_with_rank(self, seed, epoch, process_num, generate_length, valid_indices, rank=-1,
-                                                shuffle=True, prefix=""):
-        '''
+    def generate_indices_within_range_with_rank(
+        self, seed, epoch, process_num, generate_length, valid_indices, rank=-1, shuffle=True, prefix=""
+    ):
+        """
         Use scenario : we want to sample 2500 examples from 10000 examples, while not sampling overlapping examples with other three process.
         Modified from DistributedSampler
-        '''
+        """
         dataset_size = len(valid_indices)
         if shuffle:
             # deterministically shuffle based on epoch and seed
@@ -144,23 +146,27 @@ class DistributedSamplerChunkByNode(torch.utils.data.Sampler):
 
         indices = [valid_indices[i] for i in indices]
 
-        num_samples_normal = math.ceil(
-            (dataset_size - process_num) / process_num  # type: ignore[arg-type]
-        )
+        num_samples_normal = math.ceil((dataset_size - process_num) / process_num)  # type: ignore[arg-type]
         # remove tail of data to make it evenly divisible.
-        indices = indices[:num_samples_normal * process_num]
+        indices = indices[: num_samples_normal * process_num]
 
         print("\n")
-        print(prefix,
-              "Global Rank {}   Local Rank {}    generate_length {}    valid_indices {}    process_num {}  indices_before_subsample {} {}".format(
-                  self.rank, rank, generate_length, len(valid_indices), process_num, len(indices), indices[:10]))
+        print(
+            prefix,
+            "Global Rank {}   Local Rank {}    generate_length {}    valid_indices {}    process_num {}  indices_before_subsample {} {}".format(
+                self.rank, rank, generate_length, len(valid_indices), process_num, len(indices), indices[:10]
+            ),
+        )
 
         # subsample
-        indices = indices[rank:num_samples_normal * process_num: process_num]
+        indices = indices[rank : num_samples_normal * process_num : process_num]
 
-        print(prefix,
-              "Global Rank {}   Local Rank {}    generate_length {}    valid_indices {}    process_num {}  indices_after_subsample {} {}".format(
-                  self.rank, rank, generate_length, len(valid_indices), process_num, len(indices), indices[:10]))
+        print(
+            prefix,
+            "Global Rank {}   Local Rank {}    generate_length {}    valid_indices {}    process_num {}  indices_after_subsample {} {}".format(
+                self.rank, rank, generate_length, len(valid_indices), process_num, len(indices), indices[:10]
+            ),
+        )
         print("\n")
 
         if generate_length != -1:

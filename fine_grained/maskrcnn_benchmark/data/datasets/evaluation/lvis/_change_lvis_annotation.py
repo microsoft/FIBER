@@ -1,5 +1,6 @@
 path = "DATASET/coco/annotations/lvis_v1_minival.json"
 import json
+
 with open(path) as f:
     all = json.load(f)
 

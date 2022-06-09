@@ -54,12 +54,11 @@ def _rename_basic_resnet_weights(layer_keys):
     layer_keys = [k.replace("conv2.gn.bias", "bn2.bias") for k in layer_keys]
     layer_keys = [k.replace("conv3.gn.s", "bn3.weight") for k in layer_keys]
     layer_keys = [k.replace("conv3.gn.bias", "bn3.bias") for k in layer_keys]
-    layer_keys = [k.replace("downsample.0.gn.s", "downsample.1.weight") \
-        for k in layer_keys]
-    layer_keys = [k.replace("downsample.0.gn.bias", "downsample.1.bias") \
-        for k in layer_keys]
+    layer_keys = [k.replace("downsample.0.gn.s", "downsample.1.weight") for k in layer_keys]
+    layer_keys = [k.replace("downsample.0.gn.bias", "downsample.1.bias") for k in layer_keys]
 
     return layer_keys
+
 
 def _rename_fpn_weights(layer_keys, stage_names):
     for mapped_idx, stage_name in enumerate(stage_names, 1):
@@ -67,16 +66,16 @@ def _rename_fpn_weights(layer_keys, stage_names):
         if mapped_idx < 4:
             suffix = ".lateral"
         layer_keys = [
-            k.replace("fpn.inner.layer{}.sum{}".format(stage_name, suffix), "fpn_inner{}".format(mapped_idx)) for k in layer_keys
+            k.replace("fpn.inner.layer{}.sum{}".format(stage_name, suffix), "fpn_inner{}".format(mapped_idx))
+            for k in layer_keys
         ]
-        layer_keys = [k.replace("fpn.layer{}.sum".format(stage_name), "fpn_layer{}".format(mapped_idx)) for k in layer_keys]
-
+        layer_keys = [
+            k.replace("fpn.layer{}.sum".format(stage_name), "fpn_layer{}".format(mapped_idx)) for k in layer_keys
+        ]
 
     layer_keys = [k.replace("rpn.conv.fpn2", "rpn.conv") for k in layer_keys]
     layer_keys = [k.replace("rpn.bbox_pred.fpn2", "rpn.bbox_pred") for k in layer_keys]
-    layer_keys = [
-        k.replace("rpn.cls_logits.fpn2", "rpn.cls_logits") for k in layer_keys
-    ]
+    layer_keys = [k.replace("rpn.cls_logits.fpn2", "rpn.cls_logits") for k in layer_keys]
 
     return layer_keys
 
@@ -119,7 +118,7 @@ def _rename_weights_for_resnet(weights, stage_names):
         v = weights[k]
         if "_momentum" in k:
             continue
-        if 'weight_order' in k:
+        if "weight_order" in k:
             continue
         # if 'fc1000' in k:
         #     continue
@@ -147,6 +146,7 @@ def _load_c2_pickled_weights(file_path):
 
 def _rename_conv_weights_for_deformable_conv_layers(state_dict, cfg):
     import re
+
     logger = logging.getLogger(__name__)
     logger.info("Remapping conv weights for deformable conv weights")
     layer_keys = sorted(state_dict.keys())
@@ -161,12 +161,8 @@ def _rename_conv_weights_for_deformable_conv_layers(state_dict, cfg):
             for param in ["weight", "bias"]:
                 if old_key.find(param) is -1:
                     continue
-                new_key = old_key.replace(
-                    "conv2.{}".format(param), "conv2.conv.{}".format(param)
-                )
-                logger.info("pattern: {}, old_key: {}, new_key: {}".format(
-                    pattern, old_key, new_key
-                ))
+                new_key = old_key.replace("conv2.{}".format(param), "conv2.conv.{}".format(param))
+                logger.info("pattern: {}, old_key: {}, new_key: {}".format(pattern, old_key, new_key))
                 state_dict[new_key] = state_dict[old_key]
                 del state_dict[old_key]
     return state_dict
@@ -193,7 +189,13 @@ C2_FORMAT_LOADER = Registry()
 def load_resnet_c2_format(cfg, f):
     state_dict = _load_c2_pickled_weights(f)
     conv_body = cfg.MODEL.BACKBONE.CONV_BODY
-    arch = conv_body.replace("-C4", "").replace("-C5", "").replace("-FPN", "").replace("-RETINANET", "").replace("-FCOS", "")
+    arch = (
+        conv_body.replace("-C4", "")
+        .replace("-C5", "")
+        .replace("-FPN", "")
+        .replace("-RETINANET", "")
+        .replace("-FCOS", "")
+    )
     stages = _C2_STAGE_NAMES[arch]
     state_dict = _rename_weights_for_resnet(state_dict, stages)
     # ***********************************

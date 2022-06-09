@@ -6,10 +6,10 @@ import re
 import torch
 import codecs
 
-UNK_TOKEN = '<unk>'
-PAD_TOKEN = '<pad>'
-END_TOKEN = '<eos>'
-SENTENCE_SPLIT_REGEX = re.compile(r'(\W+)')
+UNK_TOKEN = "<unk>"
+PAD_TOKEN = "<pad>"
+END_TOKEN = "<eos>"
+SENTENCE_SPLIT_REGEX = re.compile(r"(\W+)")
 
 
 class Dictionary(object):
@@ -48,7 +48,7 @@ class Corpus(object):
         self.max_len = value
 
     def load_file(self, filename):
-        with codecs.open(filename, 'r', 'utf-8') as f:
+        with codecs.open(filename, "r", "utf-8") as f:
             for line in f:
                 line = line.strip()
                 self.add_to_corpus(line)
@@ -68,9 +68,9 @@ class Corpus(object):
         # Tokenize line contents
         words = SENTENCE_SPLIT_REGEX.split(line.strip())
         # words = [w.lower() for w in words if len(w) > 0]
-        words = [w.lower() for w in words if (len(w) > 0 and w != ' ')]  ## do not include space as a token
+        words = [w.lower() for w in words if (len(w) > 0 and w != " ")]  ## do not include space as a token
 
-        if words[-1] == '.':
+        if words[-1] == ".":
             words = words[:-1]
 
         if max_len > 0:
@@ -87,10 +87,14 @@ class Corpus(object):
             if word not in self.dictionary:
                 word = UNK_TOKEN
             # print(word, type(word), word.encode('ascii','ignore').decode('ascii'), type(word.encode('ascii','ignore').decode('ascii')))
-            if type(word) != type('a'):
-                print(word, type(word), word.encode('ascii', 'ignore').decode('ascii'),
-                      type(word.encode('ascii', 'ignore').decode('ascii')))
-                word = word.encode('ascii', 'ignore').decode('ascii')
+            if type(word) != type("a"):
+                print(
+                    word,
+                    type(word),
+                    word.encode("ascii", "ignore").decode("ascii"),
+                    type(word.encode("ascii", "ignore").decode("ascii")),
+                )
+                word = word.encode("ascii", "ignore").decode("ascii")
             ids[token] = self.dictionary[word]
             token += 1
         # ids[token] = self.dictionary[END_TOKEN]

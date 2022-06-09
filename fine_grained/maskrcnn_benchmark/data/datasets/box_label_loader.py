@@ -10,11 +10,18 @@ from maskrcnn_benchmark.structures.segmentation_mask import SegmentationMask
 
 
 class LabelLoader(object):
-    def __init__(self, labelmap, extra_fields=(), filter_duplicate_relations=False, ignore_attr=None, ignore_rel=None,
-                 mask_mode="poly"):
+    def __init__(
+        self,
+        labelmap,
+        extra_fields=(),
+        filter_duplicate_relations=False,
+        ignore_attr=None,
+        ignore_rel=None,
+        mask_mode="poly",
+    ):
         self.labelmap = labelmap
         self.extra_fields = extra_fields
-        self.supported_fields = ["class", "conf", "attributes", 'scores_all', 'boxes_all', 'feature', "mask"]
+        self.supported_fields = ["class", "conf", "attributes", "scores_all", "boxes_all", "feature", "mask"]
         self.filter_duplicate_relations = filter_duplicate_relations
         self.ignore_attr = set(ignore_attr) if ignore_attr != None else set()
         self.ignore_rel = set(ignore_rel) if ignore_rel != None else set()
@@ -64,7 +71,7 @@ class LabelLoader(object):
         elif self.mask_mode == "mask":
             # note the order of height/width order in mask is opposite to image
             mask = np.zeros([img_size[1], img_size[0]], dtype=np.uint8)
-            mask[math.floor(y1):math.ceil(y2), math.floor(x1):math.ceil(x2)] = 255
+            mask[math.floor(y1) : math.ceil(y2), math.floor(x1) : math.ceil(x2)] = 255
             encoded_mask = mask_utils.encode(np.asfortranarray(mask))
             encoded_mask["counts"] = encoded_mask["counts"].decode("utf-8")
             return encoded_mask
@@ -87,7 +94,7 @@ class LabelLoader(object):
         class_names = [obj["class"] for obj in annotations]
         classes = [None] * len(class_names)
         for i in range(len(class_names)):
-            classes[i] = self.labelmap['class_to_ind'][class_names[i]]
+            classes[i] = self.labelmap["class_to_ind"][class_names[i]]
         return torch.tensor(classes)
 
     def add_confidences(self, annotations):
@@ -104,25 +111,25 @@ class LabelLoader(object):
         attributes = [[0] * 16 for _ in range(len(annotations))]
         for i, obj in enumerate(annotations):
             for j, attr in enumerate(obj["attributes"]):
-                attributes[i][j] = self.labelmap['attribute_to_ind'][attr]
+                attributes[i][j] = self.labelmap["attribute_to_ind"][attr]
         return torch.tensor(attributes)
 
     def add_features(self, annotations):
         features = []
         for obj in annotations:
-            features.append(np.frombuffer(base64.b64decode(obj['feature']), np.float32))
+            features.append(np.frombuffer(base64.b64decode(obj["feature"]), np.float32))
         return torch.tensor(features)
 
     def add_scores_all(self, annotations):
         scores_all = []
         for obj in annotations:
-            scores_all.append(np.frombuffer(base64.b64decode(obj['scores_all']), np.float32))
+            scores_all.append(np.frombuffer(base64.b64decode(obj["scores_all"]), np.float32))
         return torch.tensor(scores_all)
 
     def add_boxes_all(self, annotations):
         boxes_all = []
         for obj in annotations:
-            boxes_all.append(np.frombuffer(base64.b64decode(obj['boxes_all']), np.float32).reshape(-1, 4))
+            boxes_all.append(np.frombuffer(base64.b64decode(obj["boxes_all"]), np.float32).reshape(-1, 4))
         return torch.tensor(boxes_all)
 
     def relation_loader(self, relation_annos, target):
@@ -130,18 +137,18 @@ class LabelLoader(object):
             # Filter out dupes!
             all_rel_sets = collections.defaultdict(list)
             for triplet in relation_annos:
-                all_rel_sets[(triplet['subj_id'], triplet['obj_id'])].append(triplet)
+                all_rel_sets[(triplet["subj_id"], triplet["obj_id"])].append(triplet)
             relation_annos = [np.random.choice(v) for v in all_rel_sets.values()]
 
         # get M*M pred_labels
         relation_triplets = []
         relations = torch.zeros([len(target), len(target)], dtype=torch.int64)
         for i in range(len(relation_annos)):
-            if len(self.ignore_rel) != 0 and relation_annos[i]['class'] in self.ignore_rel:
+            if len(self.ignore_rel) != 0 and relation_annos[i]["class"] in self.ignore_rel:
                 continue
-            subj_id = relation_annos[i]['subj_id']
-            obj_id = relation_annos[i]['obj_id']
-            predicate = self.labelmap['relation_to_ind'][relation_annos[i]['class']]
+            subj_id = relation_annos[i]["subj_id"]
+            obj_id = relation_annos[i]["obj_id"]
+            predicate = self.labelmap["relation_to_ind"][relation_annos[i]["class"]]
             relations[subj_id, obj_id] = predicate
             relation_triplets.append([subj_id, obj_id, predicate])
 
@@ -152,15 +159,13 @@ class LabelLoader(object):
 
 
 class BoxLabelLoader(object):
-    def __init__(self, labelmap, extra_fields=(), ignore_attrs=(),
-                 mask_mode="poly"):
+    def __init__(self, labelmap, extra_fields=(), ignore_attrs=(), mask_mode="poly"):
         self.labelmap = labelmap
         self.extra_fields = extra_fields
         self.ignore_attrs = ignore_attrs
         assert mask_mode == "poly" or mask_mode == "mask"
         self.mask_mode = mask_mode
-        self.all_fields = ["class", "mask", "confidence",
-                           "attributes_encode", "IsGroupOf", "IsProposal"]
+        self.all_fields = ["class", "mask", "confidence", "attributes_encode", "IsGroupOf", "IsProposal"]
 
     def __call__(self, annotations, img_size, remove_empty=True):
         boxes = [obj["rect"] for obj in annotations]
@@ -183,12 +188,10 @@ class BoxLabelLoader(object):
                 attributes = self.add_attributes(annotations)
                 target.add_field("attributes", attributes)
             elif field == "IsGroupOf":
-                is_group = [1 if 'IsGroupOf' in obj and obj['IsGroupOf'] == 1 else 0
-                            for obj in annotations]
+                is_group = [1 if "IsGroupOf" in obj and obj["IsGroupOf"] == 1 else 0 for obj in annotations]
                 target.add_field("IsGroupOf", torch.tensor(is_group))
             elif field == "IsProposal":
-                is_proposal = [1 if "IsProposal" in obj and obj['IsProposal'] == 1 else 0
-                               for obj in annotations]
+                is_proposal = [1 if "IsProposal" in obj and obj["IsProposal"] == 1 else 0 for obj in annotations]
                 target.add_field("IsProposal", torch.tensor(is_proposal))
 
         target = target.clip_to_image(remove_empty=remove_empty)
@@ -227,7 +230,7 @@ class BoxLabelLoader(object):
         elif self.mask_mode == "mask":
             # note the order of height/width order in mask is opposite to image
             mask = np.zeros([img_size[1], img_size[0]], dtype=np.uint8)
-            mask[math.floor(y1):math.ceil(y2), math.floor(x1):math.ceil(x2)] = 255
+            mask[math.floor(y1) : math.ceil(y2), math.floor(x1) : math.ceil(x2)] = 255
             encoded_mask = mask_utils.encode(np.asfortranarray(mask))
             encoded_mask["counts"] = encoded_mask["counts"].decode("utf-8")
             return encoded_mask
@@ -247,5 +250,5 @@ class BoxLabelLoader(object):
         # we know that the maximal number of attributes per object is 16
         attributes = [[0] * 16 for _ in range(len(annotations))]
         for i, obj in enumerate(annotations):
-            attributes[i][:len(obj["attributes_encode"])] = obj["attributes_encode"]
+            attributes[i][: len(obj["attributes_encode"])] = obj["attributes_encode"]
         return torch.tensor(attributes)

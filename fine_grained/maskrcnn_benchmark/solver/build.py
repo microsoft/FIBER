@@ -10,9 +10,9 @@ def make_optimizer(cfg, model):
         # detectron2 doesn't have full model gradient clipping now
         clip_norm_val = cfg.SOLVER.CLIP_GRADIENTS.CLIP_VALUE
         enable = (
-                cfg.SOLVER.CLIP_GRADIENTS.ENABLED
-                and cfg.SOLVER.CLIP_GRADIENTS.CLIP_TYPE == "full_model"
-                and clip_norm_val > 0.0
+            cfg.SOLVER.CLIP_GRADIENTS.ENABLED
+            and cfg.SOLVER.CLIP_GRADIENTS.CLIP_TYPE == "full_model"
+            and clip_norm_val > 0.0
         )
 
         class FullModelGradientClippingOptimizer(optim):
@@ -41,7 +41,7 @@ def make_optimizer(cfg, model):
             lr *= cfg.SOLVER.BIAS_LR_FACTOR
             weight_decay = cfg.SOLVER.WEIGHT_DECAY_BIAS
 
-        if 'norm' in key or 'Norm' in key:
+        if "norm" in key or "Norm" in key:
             weight_decay *= cfg.SOLVER.WEIGHT_DECAY_NORM_FACTOR
             print("Setting weight decay of {} to {}".format(key, weight_decay))
 
@@ -64,13 +64,16 @@ def make_lr_scheduler(cfg, optimizer):
             milestones = []
             for step in stage_step:
                 milestones.append(round(step * stage_max_epoch))
-            lr_scheduler.append(WarmupMultiStepLR(optimizer,
-                                                  milestones,
-                                                  cfg.SOLVER.GAMMA,
-                                                  warmup_factor=cfg.SOLVER.WARMUP_FACTOR,
-                                                  warmup_iters=cfg.SOLVER.WARMUP_ITERS,
-                                                  warmup_method=cfg.SOLVER.WARMUP_METHOD, )
-                                )
+            lr_scheduler.append(
+                WarmupMultiStepLR(
+                    optimizer,
+                    milestones,
+                    cfg.SOLVER.GAMMA,
+                    warmup_factor=cfg.SOLVER.WARMUP_FACTOR,
+                    warmup_iters=cfg.SOLVER.WARMUP_ITERS,
+                    warmup_method=cfg.SOLVER.WARMUP_METHOD,
+                )
+            )
         return lr_scheduler
 
     elif cfg.SOLVER.USE_COSINE:
@@ -82,7 +85,7 @@ def make_lr_scheduler(cfg, optimizer):
             warmup_factor=cfg.SOLVER.WARMUP_FACTOR,
             warmup_iters=cfg.SOLVER.WARMUP_ITERS,
             warmup_method=cfg.SOLVER.WARMUP_METHOD,
-            eta_min=cfg.SOLVER.MIN_LR
+            eta_min=cfg.SOLVER.MIN_LR,
         )
 
     elif cfg.SOLVER.USE_AUTOSTEP:
@@ -96,7 +99,7 @@ def make_lr_scheduler(cfg, optimizer):
             warmup_method=cfg.SOLVER.WARMUP_METHOD,
             eta_min=cfg.SOLVER.MIN_LR,
             patience=cfg.SOLVER.STEP_PATIENCE,
-            verbose=True
+            verbose=True,
         )
 
     else:

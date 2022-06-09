@@ -35,46 +35,22 @@ class RetinaNetHead(torch.nn.Module):
         cls_tower = []
         bbox_tower = []
         for i in range(cfg.MODEL.RETINANET.NUM_CONVS):
-            cls_tower.append(
-                nn.Conv2d(
-                    in_channels,
-                    in_channels,
-                    kernel_size=3,
-                    stride=1,
-                    padding=1
-                )
-            )
+            cls_tower.append(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1))
             cls_tower.append(nn.ReLU())
-            bbox_tower.append(
-                nn.Conv2d(
-                    in_channels,
-                    in_channels,
-                    kernel_size=3,
-                    stride=1,
-                    padding=1
-                )
-            )
+            bbox_tower.append(nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1))
             bbox_tower.append(nn.ReLU())
 
-        self.add_module('cls_tower', nn.Sequential(*cls_tower))
-        self.add_module('bbox_tower', nn.Sequential(*bbox_tower))
-        self.cls_logits = nn.Conv2d(
-            in_channels, num_anchors * num_classes, kernel_size=3, stride=1,
-            padding=1
-        )
-        self.bbox_pred = nn.Conv2d(
-            in_channels,  num_anchors * 4, kernel_size=3, stride=1,
-            padding=1
-        )
+        self.add_module("cls_tower", nn.Sequential(*cls_tower))
+        self.add_module("bbox_tower", nn.Sequential(*bbox_tower))
+        self.cls_logits = nn.Conv2d(in_channels, num_anchors * num_classes, kernel_size=3, stride=1, padding=1)
+        self.bbox_pred = nn.Conv2d(in_channels, num_anchors * 4, kernel_size=3, stride=1, padding=1)
 
         # Initialization
-        for modules in [self.cls_tower, self.bbox_tower, self.cls_logits,
-                  self.bbox_pred]:
+        for modules in [self.cls_tower, self.bbox_tower, self.cls_logits, self.bbox_pred]:
             for l in modules.modules():
                 if isinstance(l, nn.Conv2d):
                     torch.nn.init.normal_(l.weight, std=0.01)
                     torch.nn.init.constant_(l.bias, 0)
-
 
         # retinanet_bias_init
         prior_prob = cfg.MODEL.RETINANET.PRIOR_PROB
@@ -104,7 +80,7 @@ class RetinaNetModule(torch.nn.Module):
         anchor_generator = make_anchor_generator_complex(cfg)
         head = RetinaNetHead(cfg)
 
-        box_coder = BoxCoder(weights=(10., 10., 5., 5.))
+        box_coder = BoxCoder(weights=(10.0, 10.0, 5.0, 5.0))
 
         box_selector_test = make_retina_postprocessor(cfg, box_coder, is_train=False)
 
@@ -140,9 +116,7 @@ class RetinaNetModule(torch.nn.Module):
 
     def _forward_train(self, anchors, box_cls, box_regression, targets):
 
-        loss_box_cls, loss_box_reg = self.loss_evaluator(
-            anchors, box_cls, box_regression, targets
-        )
+        loss_box_cls, loss_box_reg = self.loss_evaluator(anchors, box_cls, box_regression, targets)
         losses = {
             "loss_retina_cls": loss_box_cls,
             "loss_retina_reg": loss_box_reg,
@@ -152,5 +126,3 @@ class RetinaNetModule(torch.nn.Module):
     def _forward_test(self, anchors, box_cls, box_regression):
         boxes = self.box_selector_test(anchors, box_cls, box_regression)
         return boxes, {}
-
-

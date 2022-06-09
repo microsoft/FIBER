@@ -59,8 +59,7 @@ class VLMaskRCNNC4Predictor(nn.Module):
         log_scale = cfg.MODEL.DYHEAD.LOG_SCALE
         self.out_dim = cfg.MODEL.LANGUAGE_BACKBONE.MAX_QUERY_LEN
         self.dot_product_projection_image = nn.Identity()
-        self.dot_product_projection_text = nn.Linear(cfg.MODEL.LANGUAGE_BACKBONE.LANG_DIM,
-                                                     dim_reduced, bias=True)
+        self.dot_product_projection_text = nn.Linear(cfg.MODEL.LANGUAGE_BACKBONE.LANG_DIM, dim_reduced, bias=True)
         self.log_scale = nn.Parameter(torch.Tensor([log_scale]), requires_grad=True)
         self.bias_lang = nn.Parameter(torch.zeros(cfg.MODEL.LANGUAGE_BACKBONE.LANG_DIM), requires_grad=True)
 
@@ -92,9 +91,9 @@ class VLMaskRCNNC4Predictor(nn.Module):
         bias = dot_product_proj_tokens_bias.unsqueeze(1).repeat(1, A, 1)
 
         # dot product
-        dot_product_logit = (torch.matmul(dot_product_proj_queries,
-                                          dot_product_proj_tokens.transpose(-1,
-                                                                            -2)) / self.log_scale.exp()) + bias
+        dot_product_logit = (
+            torch.matmul(dot_product_proj_queries, dot_product_proj_tokens.transpose(-1, -2)) / self.log_scale.exp()
+        ) + bias
         # clamp for stability
         dot_product_logit = torch.clamp(dot_product_logit, max=50000)
         dot_product_logit = torch.clamp(dot_product_logit, min=-50000)
@@ -102,8 +101,7 @@ class VLMaskRCNNC4Predictor(nn.Module):
         return dot_product_logit
 
 
-_ROI_MASK_PREDICTOR = {"MaskRCNNC4Predictor": MaskRCNNC4Predictor,
-                       "VLMaskRCNNC4Predictor": VLMaskRCNNC4Predictor}
+_ROI_MASK_PREDICTOR = {"MaskRCNNC4Predictor": MaskRCNNC4Predictor, "VLMaskRCNNC4Predictor": VLMaskRCNNC4Predictor}
 
 
 def make_roi_mask_predictor(cfg):

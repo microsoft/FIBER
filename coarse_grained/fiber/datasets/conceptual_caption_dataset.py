@@ -17,7 +17,6 @@ class ConceptualCaptionDataset(BaseDataset):
 
         super().__init__(*args, **kwargs, names=names, text_column_name="caption")
 
-
     def __getitem__(self, index):
         return self.get_suite(index)
 

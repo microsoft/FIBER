@@ -8,6 +8,7 @@ from .inference import make_roi_box_post_processor
 from .loss import make_roi_box_loss_evaluator
 from maskrcnn_benchmark.utils.amp import custom_fwd, custom_bwd
 
+
 class ROIBoxHead(torch.nn.Module):
     """
     Generic Box Head class.
@@ -56,9 +57,7 @@ class ROIBoxHead(torch.nn.Module):
             result = self.post_processor((class_logits, box_regression), proposals)
             return x, result, {}
 
-        loss_classifier, loss_box_reg = self.loss_evaluator(
-            [class_logits], [box_regression]
-        )
+        loss_classifier, loss_box_reg = self.loss_evaluator([class_logits], [box_regression])
         return (
             x,
             proposals,

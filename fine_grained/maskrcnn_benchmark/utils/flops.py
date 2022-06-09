@@ -19,8 +19,8 @@ def profile(model, input_size, custom_ops={}, device="cpu", verbose=False, extra
         if len(list(m.children())) > 0:
             return
 
-        m.register_buffer('total_ops', torch.zeros(1))
-        m.register_buffer('total_params', torch.zeros(1))
+        m.register_buffer("total_ops", torch.zeros(1))
+        m.register_buffer("total_params", torch.zeros(1))
 
         for p in m.parameters():
             m.total_params += torch.Tensor([p.numel()])
@@ -52,7 +52,7 @@ def profile(model, input_size, custom_ops={}, device="cpu", verbose=False, extra
         tic = timeit.time.perf_counter()
         model(x, **extra_args)
         toc = timeit.time.perf_counter()
-        total_time = toc-tic
+        total_time = toc - tic
 
     total_ops = 0
     total_params = 0
@@ -76,6 +76,8 @@ def profile(model, input_size, custom_ops={}, device="cpu", verbose=False, extra
 
 
 multiply_adds = 1
+
+
 def count_conv2d(m, x, y):
     x = x[0]
     cin = m.in_channels
@@ -124,7 +126,7 @@ def count_bn(m, x, y):
     x = x[0]
     nelements = x.numel()
     # subtract, divide, gamma, beta
-    total_ops = 4*nelements
+    total_ops = 4 * nelements
     m.total_ops = torch.Tensor([int(total_ops)])
 
 
@@ -153,7 +155,7 @@ def count_maxpool(m, x, y):
 
 
 def count_adap_maxpool(m, x, y):
-    kernel = torch.Tensor([*(x[0].shape[2:])])//torch.Tensor(list((m.output_size,))).squeeze()
+    kernel = torch.Tensor([*(x[0].shape[2:])]) // torch.Tensor(list((m.output_size,))).squeeze()
     kernel_ops = torch.prod(kernel)
     num_elements = y.numel()
     total_ops = kernel_ops * num_elements
@@ -170,7 +172,7 @@ def count_avgpool(m, x, y):
 
 
 def count_adap_avgpool(m, x, y):
-    kernel = torch.Tensor([*(x[0].shape[2:])])//torch.Tensor(list((m.output_size,))).squeeze()
+    kernel = torch.Tensor([*(x[0].shape[2:])]) // torch.Tensor(list((m.output_size,))).squeeze()
     total_add = torch.prod(kernel)
     total_div = 1
     kernel_ops = total_add + total_div
@@ -196,7 +198,7 @@ def count_LastLevelMaxPool(m, x, y):
 
 def count_ROIAlign(m, x, y):
     num_elements = y.numel()
-    total_ops = num_elements*4
+    total_ops = num_elements * 4
     m.total_ops = torch.Tensor([int(total_ops)])
 
 
@@ -206,18 +208,15 @@ register_hooks = {
     nn.Conv2d: count_conv2d,
     ModulatedDeformConv: count_conv2d,
     StdConv2d: count_conv2d,
-
     nn.BatchNorm1d: count_bn,
     nn.BatchNorm2d: count_bn,
     nn.BatchNorm3d: count_bn,
     FrozenBatchNorm2d: count_bn,
     nn.GroupNorm: count_bn,
     NaiveSyncBatchNorm2d: count_bn,
-
     nn.ReLU: count_relu,
     nn.ReLU6: count_relu,
     swish: None,
-
     nn.ConstantPad2d: None,
     SPPLayer: count_LastLevelMaxPool,
     LastLevelMaxPool: count_LastLevelMaxPool,
@@ -238,7 +237,6 @@ register_hooks = {
     nn.Dropout: None,
     nn.Sigmoid: None,
     DropBlock2D: None,
-
     ROIAlign: count_ROIAlign,
     RPNPostProcessor: None,
     PostProcessor: None,

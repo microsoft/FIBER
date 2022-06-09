@@ -15,8 +15,8 @@
 # limitations under the License.
 """PyTorch RoBERTa model. """
 
-NUM_FUSE_BLOCK=6
-DIM_IMG=1024
+NUM_FUSE_BLOCK = 6
+DIM_IMG = 1024
 
 import math
 import inspect
@@ -69,6 +69,7 @@ ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST = [
     # See all RoBERTa models at https://huggingface.co/models?filter=roberta
 ]
 
+
 def apply_chunking_to_forward(
     forward_fn: Callable[..., torch.Tensor], chunk_size: int, chunk_dim: int, *input_tensors, last_norm=True
 ) -> torch.Tensor:
@@ -103,7 +104,7 @@ def apply_chunking_to_forward(
 
     # inspect.signature exist since python 3.5 and is a python method -> no problem with backward compatibility
     num_args_in_forward_chunk_fn = len(inspect.signature(forward_fn).parameters)
-    #if num_args_in_forward_chunk_fn != len(input_tensors):
+    # if num_args_in_forward_chunk_fn != len(input_tensors):
     #    raise ValueError(
     #        f"forward_chunk_fn expects {num_args_in_forward_chunk_fn} arguments, but only {len(input_tensors)} input "
     #        "tensors are given"
@@ -129,7 +130,9 @@ def apply_chunking_to_forward(
         # chunk input tensor into tuples
         input_tensors_chunks = tuple(input_tensor.chunk(num_chunks, dim=chunk_dim) for input_tensor in input_tensors)
         # apply forward fn to every tuple
-        output_chunks = tuple(forward_fn(*input_tensors_chunk, last_norm=last_norm) for input_tensors_chunk in zip(*input_tensors_chunks))
+        output_chunks = tuple(
+            forward_fn(*input_tensors_chunk, last_norm=last_norm) for input_tensors_chunk in zip(*input_tensors_chunks)
+        )
         # concatenate output at same dimension
         return torch.cat(output_chunks, dim=chunk_dim)
 
@@ -231,13 +234,11 @@ class RobertaSelfAttention(nn.Module):
             self.value = nn.Linear(config.hidden_size, self.all_head_size)
         else:
             if layer_index < 10:
-                self.key = nn.Linear(int(DIM_IMG/2), self.all_head_size)
-                self.value = nn.Linear(int(DIM_IMG/2), self.all_head_size)
+                self.key = nn.Linear(int(DIM_IMG / 2), self.all_head_size)
+                self.value = nn.Linear(int(DIM_IMG / 2), self.all_head_size)
             else:
                 self.key = nn.Linear(DIM_IMG, self.all_head_size)
                 self.value = nn.Linear(DIM_IMG, self.all_head_size)
-                
-                
 
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
@@ -459,7 +460,6 @@ class RobertaLayer(nn.Module):
         )
         attention_output = self_attention_outputs[0]
 
-
         # if decoder, the last output is tuple of self-attn cache
         outputs = self_attention_outputs[1:]  # add self attentions if we output attention weights
 
@@ -480,12 +480,16 @@ class RobertaLayer(nn.Module):
                 cross_attn_past_key_value,
                 output_attentions,
             )
-            attention_output = self.alpha_t2i*cross_attention_outputs[0] + attention_output
+            attention_output = self.alpha_t2i * cross_attention_outputs[0] + attention_output
 
-        attention_output = self.attention.output.LayerNorm(attention_output+hidden_states)
+        attention_output = self.attention.output.LayerNorm(attention_output + hidden_states)
 
         layer_output = apply_chunking_to_forward(
-            self.feed_forward_chunk, self.chunk_size_feed_forward, self.seq_len_dim, attention_output, last_norm=last_norm
+            self.feed_forward_chunk,
+            self.chunk_size_feed_forward,
+            self.seq_len_dim,
+            attention_output,
+            last_norm=last_norm,
         )
         outputs = (layer_output,) + outputs
 
@@ -503,7 +507,9 @@ class RobertaEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.layer = nn.ModuleList([RobertaLayer(config, layer_index=layer_i) for layer_i in range(config.num_hidden_layers)])
+        self.layer = nn.ModuleList(
+            [RobertaLayer(config, layer_index=layer_i) for layer_i in range(config.num_hidden_layers)]
+        )
 
     def forward(
         self,
@@ -896,7 +902,8 @@ def _make_causal_mask(input_ids_shape: torch.Size, dtype: torch.dtype, past_key_
         mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype), mask], dim=-1)
     return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
 
-def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len = None):
+
+def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len=None):
     """
     Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
     """
@@ -909,7 +916,10 @@ def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len = None):
 
     return inverted_mask.masked_fill(inverted_mask.bool(), torch.finfo(dtype).min)
 
-def _prepare_decoder_attention_mask(attention_mask, input_shape, inputs_embeds, device, past_key_values_length: int = 0):
+
+def _prepare_decoder_attention_mask(
+    attention_mask, input_shape, inputs_embeds, device, past_key_values_length: int = 0
+):
     # create causal mask
     # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
     combined_attention_mask = None

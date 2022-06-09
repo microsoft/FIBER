@@ -42,10 +42,7 @@ class ROIMaskHead(torch.nn.Module):
         self.post_processor = make_roi_mask_post_processor(cfg)
         self.loss_evaluator = make_roi_mask_loss_evaluator(cfg)
 
-    def forward(self, features, proposals, targets=None,
-                language_dict_features=None,
-                positive_map_label_to_token=None
-                ):
+    def forward(self, features, proposals, targets=None, language_dict_features=None, positive_map_label_to_token=None):
         """
         Arguments:
             features (list[Tensor]): feature-maps from possibly several levels

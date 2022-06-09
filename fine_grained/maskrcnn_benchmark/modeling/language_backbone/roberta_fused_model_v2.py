@@ -65,6 +65,7 @@ ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST = [
     # See all RoBERTa models at https://huggingface.co/models?filter=roberta
 ]
 
+
 class RobertaFusedEncoder(nn.Module):
     def __init__(self, cfg):
         super().__init__()
@@ -82,7 +83,7 @@ class RobertaFusedEncoder(nn.Module):
 
         self.num_layers = cfg.MODEL.LANGUAGE_BACKBONE.N_LAYERS
 
-    def get_aggregated_output(self, features, input_ids,  mask):
+    def get_aggregated_output(self, features, input_ids, mask):
 
         if self.cfg.MODEL.DYHEAD.FUSE_CONFIG.USE_DOT_PRODUCT_TOKEN_LOSS:
             embedded = features * mask.unsqueeze(-1).float()
@@ -95,12 +96,7 @@ class RobertaFusedEncoder(nn.Module):
             embedded = features * mask[:, :max_len].unsqueeze(-1).float()
             aggregate = embedded.sum(1) / (mask.sum(-1).unsqueeze(-1).float())
 
-        ret = {
-            "aggregate": aggregate,
-            "embedded": embedded,
-            "masks": mask,
-            "hidden": features
-        }
+        ret = {"aggregate": aggregate, "embedded": embedded, "masks": mask, "hidden": features}
         return ret
 
 
@@ -205,7 +201,6 @@ class RobertaSelfAttention(nn.Module):
                 self.key = nn.Linear(1024, self.all_head_size)
                 self.value = nn.Linear(1024, self.all_head_size)
 
-
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
@@ -303,9 +298,9 @@ class RobertaSelfOutput(nn.Module):
     def forward(self, hidden_states, input_tensor, cross=False):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
-        #if not cross:
+        # if not cross:
         #    hidden_states = self.LayerNorm(hidden_states + input_tensor)
-        #else:
+        # else:
         #    hidden_states = self.LayerNorm(hidden_states) + input_tensor
         return hidden_states
 
@@ -409,11 +404,10 @@ class RobertaLayer(nn.Module):
             self.alpha_t2i = nn.Parameter(torch.Tensor([0]))
         self.intermediate = RobertaIntermediate(config)
         self.output = RobertaOutput(config)
-        #dim = config.hidden_size
-        #self.gate_t2i = nn.Linear(2*dim, 1)
-        #self.gate_t2i = nn.Linear(2*dim, dim)
-        #self.sigmoid_t2i = nn.Sigmoid()
-
+        # dim = config.hidden_size
+        # self.gate_t2i = nn.Linear(2*dim, 1)
+        # self.gate_t2i = nn.Linear(2*dim, dim)
+        # self.sigmoid_t2i = nn.Sigmoid()
 
     def forward(
         self,
@@ -436,7 +430,6 @@ class RobertaLayer(nn.Module):
         )
         attention_output = self_attention_outputs[0]
 
-
         # if decoder, the last output is tuple of self-attn cache
         outputs = self_attention_outputs[1:]  # add self attentions if we output attention weights
 
@@ -458,9 +451,9 @@ class RobertaLayer(nn.Module):
                 output_attentions,
                 cross=True,
             )
-            attention_output = self.alpha_t2i* cross_attention_outputs[0] + attention_output
+            attention_output = self.alpha_t2i * cross_attention_outputs[0] + attention_output
 
-        attention_output = self.attention.output.LayerNorm(attention_output+hidden_states)
+        attention_output = self.attention.output.LayerNorm(attention_output + hidden_states)
 
         layer_output = apply_chunking_to_forward(
             self.feed_forward_chunk, self.chunk_size_feed_forward, self.seq_len_dim, attention_output
@@ -481,7 +474,12 @@ class RobertaEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.layer = nn.ModuleList([RobertaLayer(config, add_cross=(layer_i>=6), layer_index=layer_i) for layer_i in range(config.num_hidden_layers)])
+        self.layer = nn.ModuleList(
+            [
+                RobertaLayer(config, add_cross=(layer_i >= 6), layer_index=layer_i)
+                for layer_i in range(config.num_hidden_layers)
+            ]
+        )
 
     def forward(
         self,

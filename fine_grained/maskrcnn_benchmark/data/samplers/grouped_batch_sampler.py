@@ -24,8 +24,7 @@ class GroupedBatchSampler(BatchSampler):
     def __init__(self, sampler, group_ids, batch_size, drop_uneven=False):
         if not isinstance(sampler, Sampler):
             raise ValueError(
-                "sampler should be an instance of "
-                "torch.utils.data.Sampler, but got sampler={}".format(sampler)
+                "sampler should be an instance of " "torch.utils.data.Sampler, but got sampler={}".format(sampler)
             )
         self.sampler = sampler
         self.group_ids = torch.as_tensor(group_ids)
@@ -81,9 +80,7 @@ class GroupedBatchSampler(BatchSampler):
         # they occur (as returned by the sampler)
         inv_sampled_ids_map = {v: k for k, v in enumerate(sampled_ids.tolist())}
         # from the first element in each batch, get a relative ordering
-        first_index_of_batch = torch.as_tensor(
-            [inv_sampled_ids_map[s] for s in first_element_of_batch]
-        )
+        first_index_of_batch = torch.as_tensor([inv_sampled_ids_map[s] for s in first_element_of_batch])
 
         # permute the batches so that they approximately follow the order
         # from the sampler

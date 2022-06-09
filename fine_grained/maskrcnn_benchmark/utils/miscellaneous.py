@@ -3,6 +3,7 @@ import errno
 import os
 from .comm import is_main_process
 
+
 def mkdir(path):
     try:
         os.makedirs(path)
@@ -13,5 +14,5 @@ def mkdir(path):
 
 def save_config(cfg, path):
     if is_main_process():
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             f.write(cfg.dump())

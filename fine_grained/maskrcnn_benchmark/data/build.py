@@ -18,6 +18,7 @@ from .transforms import build_transforms
 from transformers import AutoTokenizer
 from .datasets.duplicate_dataset import create_duplicate_dataset
 
+
 def build_dataset(cfg, dataset_list, transforms, dataset_catalog, is_train=True, class_concat=False, extra_args={}):
     """
     Arguments:
@@ -29,9 +30,7 @@ def build_dataset(cfg, dataset_list, transforms, dataset_catalog, is_train=True,
         is_train (bool): whether to setup the dataset for training or testing
     """
     if not isinstance(dataset_list, (list, tuple)):
-        raise RuntimeError(
-            "dataset_list should be a list of strings, got {}".format(dataset_list)
-        )
+        raise RuntimeError("dataset_list should be a list of strings, got {}".format(dataset_list))
     datasets = []
     num_category = 1
     for dataset_id, dataset_name in enumerate(dataset_list, 1):
@@ -54,8 +53,17 @@ def build_dataset(cfg, dataset_list, transforms, dataset_catalog, is_train=True,
             if cfg.MODEL.MASK_ON:
                 args["extra_fields"].append("mask")
 
-        if data["factory"] in ["CocoGrounding", "CocoDetectionTSV", "CaptionTSV", "MixedDataset", "FlickrDataset",
-                               "RefExpDataset", "GQADataset", "PseudoData", "PhrasecutDetection"]:
+        if data["factory"] in [
+            "CocoGrounding",
+            "CocoDetectionTSV",
+            "CaptionTSV",
+            "MixedDataset",
+            "FlickrDataset",
+            "RefExpDataset",
+            "GQADataset",
+            "PseudoData",
+            "PhrasecutDetection",
+        ]:
             # args["return_masks"] = False
             args["return_masks"] = cfg.MODEL.MASK_ON
             args["return_tokens"] = True
@@ -88,8 +96,8 @@ def build_dataset(cfg, dataset_list, transforms, dataset_catalog, is_train=True,
         elif not is_train:
             copy = cfg.DATASETS.GENERAL_COPY_TEST
         else:
-            copy = -1 # do not ever copy test
-        
+            copy = -1  # do not ever copy test
+
         if copy != -1:
             new_factory = create_duplicate_dataset(factory)
             dataset = new_factory(copy=copy, **args)
@@ -97,7 +105,7 @@ def build_dataset(cfg, dataset_list, transforms, dataset_catalog, is_train=True,
             # make dataset from factory
             dataset = factory(**args)
 
-        print(dataset_name, 'has the {} data points'.format(len(dataset)), data["factory"])
+        print(dataset_name, "has the {} data points".format(len(dataset)), data["factory"])
 
         if class_concat:
             category = list(dataset.contiguous_category_id_to_json_id.values())
@@ -122,8 +130,9 @@ def build_dataset(cfg, dataset_list, transforms, dataset_catalog, is_train=True,
     return [dataset]
 
 
-def build_dataset_by_group(dataset_list, transforms, dataset_catalog, is_train=True, class_by_group=True,
-                           class_concat=False, extra_args={}):
+def build_dataset_by_group(
+    dataset_list, transforms, dataset_catalog, is_train=True, class_by_group=True, class_concat=False, extra_args={}
+):
     """
     Arguments:
         dataset_list (list[str]): Contains the names of the datasets, i.e.,
@@ -134,9 +143,7 @@ def build_dataset_by_group(dataset_list, transforms, dataset_catalog, is_train=T
         is_train (bool): whether to setup the dataset for training or testing
     """
     if not isinstance(dataset_list, (list, tuple)):
-        raise RuntimeError(
-            "dataset_list should be a list of strings, got {}".format(dataset_list)
-        )
+        raise RuntimeError("dataset_list should be a list of strings, got {}".format(dataset_list))
 
     num_category = 1
     grouped_datasets = []
@@ -196,8 +203,9 @@ def build_dataset_by_group(dataset_list, transforms, dataset_catalog, is_train=T
 
 def make_data_sampler(dataset, shuffle, distributed, num_replicas=None, rank=None, use_random_seed=True):
     if distributed:
-        return samplers.DistributedSampler(dataset, shuffle=shuffle, num_replicas=num_replicas, rank=rank,
-                                           use_random=use_random_seed)
+        return samplers.DistributedSampler(
+            dataset, shuffle=shuffle, num_replicas=num_replicas, rank=rank, use_random=use_random_seed
+        )
     if shuffle:
         sampler = torch.utils.data.sampler.RandomSampler(dataset)
     else:
@@ -222,43 +230,34 @@ def _compute_aspect_ratios(dataset):
 
 
 def make_batch_data_sampler(
-        dataset, sampler, aspect_grouping, images_per_batch, num_iters=None, start_iter=0, drop_last=False
+    dataset, sampler, aspect_grouping, images_per_batch, num_iters=None, start_iter=0, drop_last=False
 ):
     if aspect_grouping:
         if not isinstance(aspect_grouping, (list, tuple)):
             aspect_grouping = [aspect_grouping]
         aspect_ratios = _compute_aspect_ratios(dataset)
         group_ids = _quantize(aspect_ratios, aspect_grouping)
-        batch_sampler = samplers.GroupedBatchSampler(
-            sampler, group_ids, images_per_batch, drop_uneven=drop_last
-        )
+        batch_sampler = samplers.GroupedBatchSampler(sampler, group_ids, images_per_batch, drop_uneven=drop_last)
     else:
-        batch_sampler = torch.utils.data.sampler.BatchSampler(
-            sampler, images_per_batch, drop_last=drop_last
-        )
+        batch_sampler = torch.utils.data.sampler.BatchSampler(sampler, images_per_batch, drop_last=drop_last)
     if num_iters is not None:
-        batch_sampler = samplers.IterationBasedBatchSampler(
-            batch_sampler, num_iters, start_iter
-        )
+        batch_sampler = samplers.IterationBasedBatchSampler(batch_sampler, num_iters, start_iter)
     return batch_sampler
+
 
 def make_data_loader(cfg, is_train=True, is_distributed=False, num_replicas=None, rank=None, start_iter=0):
     num_gpus = num_replicas or get_world_size()
 
     if is_train:
         images_per_batch = cfg.SOLVER.IMS_PER_BATCH
-        assert (
-                images_per_batch % num_gpus == 0
-        ), "SOLVER.IMS_PER_BATCH ({}) must be divisible by the number "
+        assert images_per_batch % num_gpus == 0, "SOLVER.IMS_PER_BATCH ({}) must be divisible by the number "
         "of GPUs ({}) used.".format(images_per_batch, num_gpus)
         images_per_gpu = images_per_batch // num_gpus
         shuffle = True
         num_iters = cfg.SOLVER.MAX_ITER
     else:
         images_per_batch = cfg.TEST.IMS_PER_BATCH
-        assert (
-                images_per_batch % num_gpus == 0
-        ), "TEST.IMS_PER_BATCH ({}) must be divisible by the number "
+        assert images_per_batch % num_gpus == 0, "TEST.IMS_PER_BATCH ({}) must be divisible by the number "
         "of GPUs ({}) used.".format(images_per_batch, num_gpus)
         images_per_gpu = images_per_batch // num_gpus
         shuffle = False if not is_distributed else True
@@ -283,9 +282,7 @@ def make_data_loader(cfg, is_train=True, is_distributed=False, num_replicas=None
     # but the code supports more general grouping strategy
     aspect_grouping = [1] if cfg.DATALOADER.ASPECT_RATIO_GROUPING else []
 
-    paths_catalog = import_file(
-        "maskrcnn_benchmark.config.paths_catalog", cfg.PATHS_CATALOG, True
-    )
+    paths_catalog = import_file("maskrcnn_benchmark.config.paths_catalog", cfg.PATHS_CATALOG, True)
 
     DatasetCatalog = paths_catalog.DatasetCatalog
     if len(cfg.DATASETS.REGISTER) > 0:
@@ -302,7 +299,6 @@ def make_data_loader(cfg, is_train=True, is_distributed=False, num_replicas=None
                 new_dataset = new_dataset + cfg.DATASETS.TEST_DATASETNAME_SUFFIX
             DatasetCatalog.set(new_dataset, attrs)
 
-
     dataset_list = cfg.DATASETS.TRAIN if is_train else cfg.DATASETS.TEST
 
     # Haotian: expand bing dataset
@@ -312,7 +308,7 @@ def make_data_loader(cfg, is_train=True, is_distributed=False, num_replicas=None
         for bing_index in cfg.DATASETS.BING_INDEX_LIST:
             dataset_list.insert(len(dataset_list), "bing_caption_{}_train".format(bing_index))
         dataset_list = tuple(dataset_list)
-    
+
     if "bing_caption_train_no_coco" in dataset_list and len(cfg.DATASETS.BING_INDEX_LIST) > 0:
         dataset_list = list(dataset_list)
         dataset_list.remove("bing_caption_train_no_coco")
@@ -326,25 +322,25 @@ def make_data_loader(cfg, is_train=True, is_distributed=False, num_replicas=None
 
     extra_args = {}
     if is_train and cfg.DATASETS.USE_CROWD:
-        extra_args['ignore_crowd'] = False
+        extra_args["ignore_crowd"] = False
     if is_train and cfg.DATASETS.MAX_BOX > 0:
-        extra_args['max_box'] = cfg.DATASETS.MAX_BOX
-    if is_train and cfg.DATASETS.FEW_SHOT>0:
-        extra_args['few_shot'] = cfg.DATASETS.FEW_SHOT
+        extra_args["max_box"] = cfg.DATASETS.MAX_BOX
+    if is_train and cfg.DATASETS.FEW_SHOT > 0:
+        extra_args["few_shot"] = cfg.DATASETS.FEW_SHOT
     if is_train and cfg.DATASETS.SHUFFLE_SEED != 0:
-        extra_args['shuffle_seed'] = cfg.DATASETS.SHUFFLE_SEED
+        extra_args["shuffle_seed"] = cfg.DATASETS.SHUFFLE_SEED
     if is_train and cfg.AUGMENT.MOSAIC_PROB > 0:
-        extra_args['mosaic_prob'] = cfg.AUGMENT.MOSAIC_PROB
-        extra_args['mosaic_shift'] = cfg.AUGMENT.MOSAIC_SHIFT
-        extra_args['mosaic_size'] = cfg.AUGMENT.MOSAIC_SIZE
+        extra_args["mosaic_prob"] = cfg.AUGMENT.MOSAIC_PROB
+        extra_args["mosaic_shift"] = cfg.AUGMENT.MOSAIC_SHIFT
+        extra_args["mosaic_size"] = cfg.AUGMENT.MOSAIC_SIZE
     if is_train and cfg.AUGMENT.PASTE_PROB > 0:
-        extra_args['paste_prob'] = cfg.AUGMENT.PASTE_PROB
-        extra_args['paste_cat'] = cfg.AUGMENT.PASTE_CAT
-        extra_args['paste_num'] = cfg.AUGMENT.PASTE_NUM
+        extra_args["paste_prob"] = cfg.AUGMENT.PASTE_PROB
+        extra_args["paste_cat"] = cfg.AUGMENT.PASTE_CAT
+        extra_args["paste_num"] = cfg.AUGMENT.PASTE_NUM
 
     # od to grounding
     if is_train and cfg.DATASETS.RANDOM_SAMPLE_NEG > 0:
-        extra_args['random_sample_negative'] = cfg.DATASETS.RANDOM_SAMPLE_NEG
+        extra_args["random_sample_negative"] = cfg.DATASETS.RANDOM_SAMPLE_NEG
     if is_train and cfg.DATASETS.ADD_DET_PROMPT:
         extra_args["add_detection_prompt"] = True
     if is_train and cfg.DATASETS.USE_OD_AUG:
@@ -360,7 +356,7 @@ def make_data_loader(cfg, is_train=True, is_distributed=False, num_replicas=None
     if is_train and len(cfg.DATASETS.CONTROL_PROB) == 4:
         extra_args["control_probabilities"] = cfg.DATASETS.CONTROL_PROB
     if is_train and cfg.DATASETS.DISABLE_CLIP_TO_IMAGE:
-        extra_args["disable_clip_to_image"] =  cfg.DATASETS.DISABLE_CLIP_TO_IMAGE
+        extra_args["disable_clip_to_image"] = cfg.DATASETS.DISABLE_CLIP_TO_IMAGE
     if is_train and cfg.DATASETS.NO_MINUS_ONE_FOR_ONE_HOT:
         extra_args["no_minus_one_for_one_hot"] = cfg.DATASETS.NO_MINUS_ONE_FOR_ONE_HOT
     if is_train:
@@ -409,22 +405,36 @@ def make_data_loader(cfg, is_train=True, is_distributed=False, num_replicas=None
     if cfg.MODEL.LANGUAGE_BACKBONE.TOKENIZER_TYPE == "clip":
         # extra_args['tokenizer'] = build_tokenizer("clip")
         from transformers import CLIPTokenizerFast
+
         if cfg.MODEL.DYHEAD.FUSE_CONFIG.MLM_LOSS:
-            extra_args["tokenizer"] = CLIPTokenizerFast.from_pretrained("openai/clip-vit-base-patch32", from_slow=True, mask_token='ðŁĴĳ</w>')
+            extra_args["tokenizer"] = CLIPTokenizerFast.from_pretrained(
+                "openai/clip-vit-base-patch32", from_slow=True, mask_token="ðŁĴĳ</w>"
+            )
         else:
             extra_args["tokenizer"] = CLIPTokenizerFast.from_pretrained("openai/clip-vit-base-patch32", from_slow=True)
     else:
-        extra_args['tokenizer'] = AutoTokenizer.from_pretrained(cfg.MODEL.LANGUAGE_BACKBONE.TOKENIZER_TYPE)
+        extra_args["tokenizer"] = AutoTokenizer.from_pretrained(cfg.MODEL.LANGUAGE_BACKBONE.TOKENIZER_TYPE)
 
     if isinstance(dataset_list[0], (tuple, list)):
-        datasets = build_dataset_by_group(dataset_list, transforms, DatasetCatalog, is_train,
-                                          class_by_group=cfg.DATASETS.ALTERNATIVE_TRAINING,
-                                          class_concat=cfg.DATASETS.CLASS_CONCAT,
-                                          extra_args=extra_args)
+        datasets = build_dataset_by_group(
+            dataset_list,
+            transforms,
+            DatasetCatalog,
+            is_train,
+            class_by_group=cfg.DATASETS.ALTERNATIVE_TRAINING,
+            class_concat=cfg.DATASETS.CLASS_CONCAT,
+            extra_args=extra_args,
+        )
     else:
-        datasets = build_dataset(cfg, dataset_list, transforms, DatasetCatalog, is_train,
-                                 class_concat=cfg.DATASETS.CLASS_CONCAT,
-                                 extra_args=extra_args)
+        datasets = build_dataset(
+            cfg,
+            dataset_list,
+            transforms,
+            DatasetCatalog,
+            is_train,
+            class_concat=cfg.DATASETS.CLASS_CONCAT,
+            extra_args=extra_args,
+        )
 
     data_loaders = []
     for di, dataset in enumerate(datasets):
@@ -443,39 +453,49 @@ def make_data_loader(cfg, is_train=True, is_distributed=False, num_replicas=None
 
         if is_train and cfg.DATALOADER.DISTRIBUTE_CHUNK_AMONG_NODE:
             from .datasets.custom_distributed_sampler import DistributedSamplerChunkByNode
+
             chunk_or_not = []
             for i in dataset_list:
                 if "bing_caption" in i:
                     chunk_or_not.append(True)
                 else:
                     chunk_or_not.append(False)
-            assert(len(chunk_or_not) == len(dataset.datasets))
-            '''
+            assert len(chunk_or_not) == len(dataset.datasets)
+            """
             If we are training on 4 nodes, each with 8 GPUs
-            '''
-            num_nodes = int(os.getenv('NODE_COUNT', os.getenv('OMPI_COMM_WORLD_SIZE', 1)))
-            local_size = cfg.num_gpus//num_nodes
-            node_rank = int(os.getenv('NODE_RANK', os.getenv('OMPI_COMM_WORLD_RANK', 0)))
+            """
+            num_nodes = int(os.getenv("NODE_COUNT", os.getenv("OMPI_COMM_WORLD_SIZE", 1)))
+            local_size = cfg.num_gpus // num_nodes
+            node_rank = int(os.getenv("NODE_RANK", os.getenv("OMPI_COMM_WORLD_RANK", 0)))
             local_rank = cfg.local_rank
             sampler = DistributedSamplerChunkByNode(
-                dataset = dataset,
-                all_datasets = dataset.datasets, # Assumming dataset is a ConcateDataset instance,
-                chunk_or_not = chunk_or_not,
-                num_replicas = cfg.num_gpus, # total GPU number, e.g., 32
-                rank = dist.get_rank(), # Global Rank, e.g., 0~31
-                node_rank = node_rank, # Node Rank, e.g., 0~3
-                node_number = num_nodes, # how many node e.g., 4
-                process_num_per_node = local_size, # e.g., 8
-                rank_within_local_node = local_rank, # e.g., 0~7
+                dataset=dataset,
+                all_datasets=dataset.datasets,  # Assumming dataset is a ConcateDataset instance,
+                chunk_or_not=chunk_or_not,
+                num_replicas=cfg.num_gpus,  # total GPU number, e.g., 32
+                rank=dist.get_rank(),  # Global Rank, e.g., 0~31
+                node_rank=node_rank,  # Node Rank, e.g., 0~3
+                node_number=num_nodes,  # how many node e.g., 4
+                process_num_per_node=local_size,  # e.g., 8
+                rank_within_local_node=local_rank,  # e.g., 0~7
             )
         else:
-            sampler = make_data_sampler(dataset, shuffle, is_distributed, num_replicas=num_replicas, rank=rank,
-                                        use_random_seed=cfg.DATALOADER.USE_RANDOM_SEED)
+            sampler = make_data_sampler(
+                dataset,
+                shuffle,
+                is_distributed,
+                num_replicas=num_replicas,
+                rank=rank,
+                use_random_seed=cfg.DATALOADER.USE_RANDOM_SEED,
+            )
         batch_sampler = make_batch_data_sampler(
             dataset, sampler, aspect_grouping, images_per_gpu, num_iters, start_iter, drop_last=is_train
         )
-        collator = BBoxAugCollator() if not is_train and cfg.TEST.USE_MULTISCALE else BatchCollator(
-            cfg.DATALOADER.SIZE_DIVISIBILITY)
+        collator = (
+            BBoxAugCollator()
+            if not is_train and cfg.TEST.USE_MULTISCALE
+            else BatchCollator(cfg.DATALOADER.SIZE_DIVISIBILITY)
+        )
         num_workers = cfg.DATALOADER.NUM_WORKERS
         data_loader = torch.utils.data.DataLoader(
             dataset,
@@ -487,7 +507,8 @@ def make_data_loader(cfg, is_train=True, is_distributed=False, num_replicas=None
     if is_train and cfg.SOLVER.MULTI_MAX_EPOCH:
         cfg.defrost()
         cfg.SOLVER.MULTI_MAX_ITER += (
-            cfg.SOLVER.MULTI_MAX_EPOCH[-1] * min([len(dataset) // cfg.SOLVER.IMS_PER_BATCH for dataset in datasets]),)
+            cfg.SOLVER.MULTI_MAX_EPOCH[-1] * min([len(dataset) // cfg.SOLVER.IMS_PER_BATCH for dataset in datasets]),
+        )
         cfg.freeze()
 
     if is_train and not cfg.DATASETS.ALTERNATIVE_TRAINING and not cfg.DATASETS.MULTISTAGE_TRAINING:

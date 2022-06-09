@@ -28,12 +28,8 @@ def process(root, iden, row):
 
 
 def make_arrow(root, dataset_root):
-    train_data = list(
-        map(json.loads, open(f"{root}/nlvr2/data/train.json").readlines())
-    )
-    test1_data = list(
-        map(json.loads, open(f"{root}/nlvr2/data/test1.json").readlines())
-    )
+    train_data = list(map(json.loads, open(f"{root}/nlvr2/data/train.json").readlines()))
+    test1_data = list(map(json.loads, open(f"{root}/nlvr2/data/test1.json").readlines()))
     dev_data = list(map(json.loads, open(f"{root}/nlvr2/data/dev.json").readlines()))
 
     balanced_test1_data = list(
@@ -91,12 +87,11 @@ def make_arrow(root, dataset_root):
         annotations[split] = _annot
 
     for split in splits:
-        bs = [
-            process(root, iden, row) for iden, row in tqdm(annotations[split].items())
-        ]
+        bs = [process(root, iden, row) for iden, row in tqdm(annotations[split].items())]
 
         dataframe = pd.DataFrame(
-            bs, columns=["image_0", "image_1", "questions", "answers", "identifier"],
+            bs,
+            columns=["image_0", "image_1", "questions", "answers", "identifier"],
         )
 
         table = pa.Table.from_pandas(dataframe)

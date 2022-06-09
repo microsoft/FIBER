@@ -18,9 +18,7 @@ def evaluate(dataset, predictions, output_folder, **kwargs):
     Returns:
         evaluation result
     """
-    args = dict(
-        dataset=dataset, predictions=predictions, output_folder=output_folder, **kwargs
-    )
+    args = dict(dataset=dataset, predictions=predictions, output_folder=output_folder, **kwargs)
     if isinstance(dataset, datasets.COCODataset) or isinstance(dataset, datasets.TSVDataset):
         return coco_evaluation(**args)
     # elif isinstance(dataset, datasets.VGTSVDataset):
@@ -37,10 +35,8 @@ def evaluate(dataset, predictions, output_folder, **kwargs):
 
 
 def evaluate_mdetr(dataset, predictions, output_folder, cfg):
-   
-    args = dict(
-        dataset=dataset, predictions=predictions, output_folder=output_folder, **kwargs
-    )
+
+    args = dict(dataset=dataset, predictions=predictions, output_folder=output_folder, **kwargs)
     if isinstance(dataset, datasets.COCODataset) or isinstance(dataset, datasets.TSVDataset):
         return coco_evaluation(**args)
     # elif isinstance(dataset, datasets.VGTSVDataset):

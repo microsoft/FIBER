@@ -10,7 +10,6 @@ import numpy as np
 
 def create_duplicate_dataset(DatasetBaseClass):
     class DupDataset(DatasetBaseClass):
-
         def __init__(self, copy, **kwargs):
             super(DupDataset, self).__init__(**kwargs)
 

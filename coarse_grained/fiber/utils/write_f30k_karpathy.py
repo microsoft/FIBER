@@ -45,7 +45,9 @@ def make_arrow(root, dataset_root):
     else:
         print("not all images have caption annotations")
     print(
-        len(paths), len(caption_paths), len(iid2captions),
+        len(paths),
+        len(caption_paths),
+        len(iid2captions),
     )
 
     bs = [path2rest(path, iid2captions, iid2split) for path in tqdm(caption_paths)]
@@ -54,14 +56,13 @@ def make_arrow(root, dataset_root):
         batches = [b for b in bs if b[-1] == split]
 
         dataframe = pd.DataFrame(
-            batches, columns=["image", "caption", "image_id", "split"],
+            batches,
+            columns=["image", "caption", "image_id", "split"],
         )
 
         table = pa.Table.from_pandas(dataframe)
 
         os.makedirs(dataset_root, exist_ok=True)
-        with pa.OSFile(
-            f"{dataset_root}/f30k_caption_karpathy_{split}.arrow", "wb"
-        ) as sink:
+        with pa.OSFile(f"{dataset_root}/f30k_caption_karpathy_{split}.arrow", "wb") as sink:
             with pa.RecordBatchFileWriter(sink, table.schema) as writer:
                 writer.write_table(table)

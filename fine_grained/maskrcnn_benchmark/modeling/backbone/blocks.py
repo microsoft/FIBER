@@ -32,7 +32,7 @@ class basic(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = conv(midplanes, planes)
         self.bn2 = norm_layer(planes)
-        if stride!=1 or inplanes!=planes*self.expansion:
+        if stride != 1 or inplanes != planes * self.expansion:
             self.downsample = nn.Sequential(
                 conv1x1(inplanes, planes, stride),
                 norm_layer(planes),
@@ -73,10 +73,10 @@ class bottleneck(nn.Module):
         self.conv3 = conv1x1(midplanes, planes * self.expansion)
         self.bn3 = norm_layer(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
-        if stride!=1 or inplanes!=planes*self.expansion:
+        if stride != 1 or inplanes != planes * self.expansion:
             self.downsample = nn.Sequential(
-                conv1x1(inplanes, planes*self.expansion, stride),
-                norm_layer(planes*self.expansion),
+                conv1x1(inplanes, planes * self.expansion, stride),
+                norm_layer(planes * self.expansion),
             )
         else:
             self.downsample = None
@@ -196,14 +196,14 @@ class shuffle(nn.Module):
             nn.ReLU(inplace=True),
         )
 
-        self.reduce = stride==2
+        self.reduce = stride == 2
 
     def forward(self, x):
         if self.reduce:
             out = torch.cat((self.left_branch(x), self.right_branch(x)), 1)
         else:
-            x1 = x[:, :(x.shape[1]//2), :, :]
-            x2 = x[:, (x.shape[1]//2):, :, :]
+            x1 = x[:, : (x.shape[1] // 2), :, :]
+            x2 = x[:, (x.shape[1] // 2) :, :, :]
             out = torch.cat((x1, self.right_branch(x2)), 1)
 
         return channel_shuffle(out, 2)
@@ -218,7 +218,7 @@ class shufflex(nn.Module):
         inplanes = inplanes // 2 if stride == 1 else inplanes
         midplanes = outplanes // 2 if midplanes is None else midplanes
         rightoutplanes = outplanes - inplanes
-        if stride==2:
+        if stride == 2:
             self.left_branch = nn.Sequential(
                 # dw
                 conv(inplanes, inplanes, stride),
@@ -253,14 +253,14 @@ class shufflex(nn.Module):
             nn.ReLU(inplace=True),
         )
 
-        self.reduce = stride==2
+        self.reduce = stride == 2
 
     def forward(self, x):
         if self.reduce:
             out = torch.cat((self.left_branch(x), self.right_branch(x)), 1)
         else:
-            x1 = x[:, :(x.shape[1] // 2), :, :]
-            x2 = x[:, (x.shape[1] // 2):, :, :]
+            x1 = x[:, : (x.shape[1] // 2), :, :]
+            x2 = x[:, (x.shape[1] // 2) :, :, :]
             out = torch.cat((x1, self.right_branch(x2)), 1)
 
         return channel_shuffle(out, 2)

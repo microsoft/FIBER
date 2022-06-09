@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class EvoNorm2d(nn.Module):
-    __constants__ = ['num_features', 'eps', 'nonlinearity']
+    __constants__ = ["num_features", "eps", "nonlinearity"]
 
     def __init__(self, num_features, eps=1e-5, nonlinearity=True, group=32):
         super(EvoNorm2d, self).__init__()

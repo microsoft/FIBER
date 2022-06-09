@@ -28,7 +28,7 @@ from maskrcnn_benchmark.utils.comm import synchronize, get_rank, is_main_process
 from maskrcnn_benchmark.utils.imports import import_file
 from maskrcnn_benchmark.utils.logger import setup_logger
 from maskrcnn_benchmark.utils.miscellaneous import mkdir, save_config
-from maskrcnn_benchmark.utils.metric_logger import (MetricLogger, TensorboardLogger)
+from maskrcnn_benchmark.utils.metric_logger import MetricLogger, TensorboardLogger
 import shutil
 
 
@@ -39,43 +39,42 @@ def removekey(d, prefix):
         if key.startswith(prefix):
             listofkeys.append(key)
     for key in listofkeys:
-        print('key: {} is removed'.format(key))
+        print("key: {} is removed".format(key))
         r.pop(key)
     return r
 
 
-def train(cfg, local_rank, distributed, zero_shot, skip_optimizer_resume=False, save_config_path = None):
+def train(cfg, local_rank, distributed, zero_shot, skip_optimizer_resume=False, save_config_path=None):
 
     data_loader = make_data_loader(
         cfg,
         is_train=True,
         is_distributed=distributed,
-        start_iter=0 #<TODO> Sample data from resume is disabled, due to the conflict with max_epoch
+        start_iter=0,  # <TODO> Sample data from resume is disabled, due to the conflict with max_epoch
     )
     if cfg.TEST.DURING_TRAINING:
         data_loaders_val = make_data_loader(cfg, is_train=False, is_distributed=distributed)
         data_loaders_val = data_loaders_val[0]
     else:
         data_loaders_val = None
-    
+
     model = build_detection_model(cfg)
     device = torch.device(cfg.MODEL.DEVICE)
     model.to(device)
 
-
     if cfg.MODEL.LINEAR_PROB:
         assert cfg.MODEL.BACKBONE.FREEZE, "For linear probing, backbone should be frozen!"
-        if hasattr(model.backbone, 'fpn'):
+        if hasattr(model.backbone, "fpn"):
             assert cfg.MODEL.FPN.FREEZE, "For linear probing, FPN should be frozen!"
     if cfg.MODEL.BACKBONE.FREEZE:
-        if hasattr(model, 'fusion_backbone'):
+        if hasattr(model, "fusion_backbone"):
             for p in model.fusion_backbone.backbone.body.parameters():
                 p.requires_grad = False
         else:
             for p in model.backbone.body.parameters():
                 p.requires_grad = False
     if cfg.MODEL.FPN.FREEZE:
-        if hasattr(model, 'fusion_backbone'):
+        if hasattr(model, "fusion_backbone"):
             for p in model.fusion_backbone.backbone.fpn.parameters():
                 p.requires_grad = False
         else:
@@ -87,32 +86,52 @@ def train(cfg, local_rank, distributed, zero_shot, skip_optimizer_resume=False, 
     if cfg.MODEL.LINEAR_PROB:
         if model.rpn is not None:
             for key, p in model.rpn.named_parameters():
-                if not ('bbox_pred' in key or 'cls_logits' in key or 'centerness' in key or 'cosine_scale' in key or 'dot_product_projection_text' in key or 'head.log_scale' in key or 'head.bias_lang' in key or 'head.bias0' in key):
+                if not (
+                    "bbox_pred" in key
+                    or "cls_logits" in key
+                    or "centerness" in key
+                    or "cosine_scale" in key
+                    or "dot_product_projection_text" in key
+                    or "head.log_scale" in key
+                    or "head.bias_lang" in key
+                    or "head.bias0" in key
+                ):
                     p.requires_grad = False
         if model.roi_heads is not None:
             for key, p in model.roi_heads.named_parameters():
-                if not ('bbox_pred' in key or 'cls_logits' in key or 'centerness' in key or 'cosine_scale' in key or 'dot_product_projection_text' in key or 'head.log_scale' in key or 'head.bias_lang' in key or 'head.bias0' in key):
+                if not (
+                    "bbox_pred" in key
+                    or "cls_logits" in key
+                    or "centerness" in key
+                    or "cosine_scale" in key
+                    or "dot_product_projection_text" in key
+                    or "head.log_scale" in key
+                    or "head.bias_lang" in key
+                    or "head.bias0" in key
+                ):
                     p.requires_grad = False
     if cfg.MODEL.DYHEAD.FUSE_CONFIG.ADD_LINEAR_LAYER:
-        if hasattr(model, 'fusion_backbone'):
+        if hasattr(model, "fusion_backbone"):
             for key, p in model.fusion_backbone.named_parameters():
-                if 'tunable_linear' in key:
+                if "tunable_linear" in key:
                     p.requires_grad = True
         else:
             if model.rpn is not None:
                 for key, p in model.rpn.named_parameters():
-                    if 'tunable_linear' in key:
+                    if "tunable_linear" in key:
                         p.requires_grad = True
 
     optimizer = make_optimizer(cfg, model)
     scheduler = make_lr_scheduler(cfg, optimizer)
-    
+
     if distributed:
         model = torch.nn.parallel.DistributedDataParallel(
-            model, device_ids=[local_rank], output_device=local_rank,
+            model,
+            device_ids=[local_rank],
+            output_device=local_rank,
             # this should be removed if we update BatchNorm stats
             broadcast_buffers=False,
-            find_unused_parameters=cfg.SOLVER.FIND_UNUSED_PARAMETERS
+            find_unused_parameters=cfg.SOLVER.FIND_UNUSED_PARAMETERS,
         )
 
     arguments = {}
@@ -121,10 +140,8 @@ def train(cfg, local_rank, distributed, zero_shot, skip_optimizer_resume=False, 
     output_dir = cfg.OUTPUT_DIR
 
     save_to_disk = get_rank() == 0
-    
-    checkpointer = DetectronCheckpointer(
-        cfg, model, optimizer, scheduler, output_dir, save_to_disk
-    )
+
+    checkpointer = DetectronCheckpointer(cfg, model, optimizer, scheduler, output_dir, save_to_disk)
     if checkpointer.has_checkpoint():
         extra_checkpoint_data = checkpointer.load(skip_optimizer=skip_optimizer_resume)
         arguments.update(extra_checkpoint_data)
@@ -137,7 +154,7 @@ def train(cfg, local_rank, distributed, zero_shot, skip_optimizer_resume=False, 
 
     if zero_shot:
         return model
-    
+
     if is_main_process():
         for name, p in model.named_parameters():
             if p.requires_grad:
@@ -157,7 +174,7 @@ def train(cfg, local_rank, distributed, zero_shot, skip_optimizer_resume=False, 
             arguments,
         )
     elif cfg.DATASETS.MULTISTAGE_TRAINING:
-        arguments['epoch_per_stage'] = cfg.SOLVER.MULTI_MAX_EPOCH
+        arguments["epoch_per_stage"] = cfg.SOLVER.MULTI_MAX_EPOCH
         multi_stage_train(
             model,
             data_loader,
@@ -181,7 +198,7 @@ def train(cfg, local_rank, distributed, zero_shot, skip_optimizer_resume=False, 
             checkpoint_period,
             arguments,
             data_loaders_val,
-            meters=meters
+            meters=meters,
         )
 
     return model
@@ -213,19 +230,22 @@ def test(cfg, model, distributed, verbose=False):
             data_loader_val,
             dataset_name=dataset_name,
             iou_types=iou_types,
-            box_only=cfg.MODEL.RPN_ONLY and cfg.MODEL.RPN_ARCHITECTURE=="RPN",
+            box_only=cfg.MODEL.RPN_ONLY and cfg.MODEL.RPN_ARCHITECTURE == "RPN",
             device=cfg.MODEL.DEVICE,
             expected_results=cfg.TEST.EXPECTED_RESULTS,
             expected_results_sigma_tol=cfg.TEST.EXPECTED_RESULTS_SIGMA_TOL,
             output_folder=output_folder,
-            cfg=cfg
+            cfg=cfg,
         )
         synchronize()
     if verbose:
         with open(os.path.join(output_folder, "bbox.csv")) as f:
             print(f.read())
 
-def tuning_highlevel_override(cfg,):
+
+def tuning_highlevel_override(
+    cfg,
+):
     if cfg.SOLVER.TUNING_HIGHLEVEL_OVERRIDE == "full":
         cfg.MODEL.BACKBONE.FREEZE = False
         cfg.MODEL.FPN.FREEZE = False
@@ -241,7 +261,7 @@ def tuning_highlevel_override(cfg,):
         cfg.MODEL.DYHEAD.FUSE_CONFIG.ADD_LINEAR_LAYER = False
         cfg.MODEL.LANGUAGE_BACKBONE.FREEZE = True
         cfg.MODEL.LANGUAGE_BACKBONE.FREEZE = True
-        cfg.MODEL.DYHEAD.USE_CHECKPOINT = False # Disable checkpoint
+        cfg.MODEL.DYHEAD.USE_CHECKPOINT = False  # Disable checkpoint
     elif cfg.SOLVER.TUNING_HIGHLEVEL_OVERRIDE == "language_prompt_v1":
         cfg.MODEL.BACKBONE.FREEZE = True
         cfg.MODEL.FPN.FREEZE = True
@@ -260,17 +280,18 @@ def tuning_highlevel_override(cfg,):
         cfg.MODEL.BACKBONE.FREEZE = True
         cfg.MODEL.FPN.FREEZE = True
         cfg.MODEL.RPN.FREEZE = True
-        cfg.MODEL.LINEAR_PROB = True # Turn on linear probe
+        cfg.MODEL.LINEAR_PROB = True  # Turn on linear probe
         cfg.MODEL.DYHEAD.FUSE_CONFIG.ADD_LINEAR_LAYER = False
-        cfg.MODEL.LANGUAGE_BACKBONE.FREEZE = False # Turn on language backbone
+        cfg.MODEL.LANGUAGE_BACKBONE.FREEZE = False  # Turn on language backbone
     elif cfg.SOLVER.TUNING_HIGHLEVEL_OVERRIDE == "language_prompt_v4":
         cfg.MODEL.BACKBONE.FREEZE = True
         cfg.MODEL.FPN.FREEZE = True
         cfg.MODEL.RPN.FREEZE = True
-        cfg.MODEL.LINEAR_PROB = True # Turn on linear probe
+        cfg.MODEL.LINEAR_PROB = True  # Turn on linear probe
         cfg.MODEL.DYHEAD.FUSE_CONFIG.ADD_LINEAR_LAYER = True
-        cfg.MODEL.LANGUAGE_BACKBONE.FREEZE = True # Turn off language backbone
+        cfg.MODEL.LANGUAGE_BACKBONE.FREEZE = True  # Turn off language backbone
     return cfg
+
 
 def report_freeze_options(cfg):
     print("Backbone Freeze:", cfg.MODEL.BACKBONE.FREEZE)
@@ -280,6 +301,7 @@ def report_freeze_options(cfg):
     print("Language Freeze:", cfg.MODEL.LANGUAGE_BACKBONE.FREEZE)
     print("Linear Layer (True Prmopt Tuning):", cfg.MODEL.DYHEAD.FUSE_CONFIG.ADD_LINEAR_LAYER)
     print("High Level Override:", cfg.SOLVER.TUNING_HIGHLEVEL_OVERRIDE)
+
 
 def main():
     parser = argparse.ArgumentParser(description="PyTorch Object Detection Training")
@@ -322,8 +344,12 @@ def main():
 
     parser.add_argument("--shuffle_seeds", default=None, type=str)
 
-    parser.add_argument("--evaluate_only_best_on_test", action="store_true") # just a dummpy parameter; only used in eval_all.py, add it here so it does not complain...
-    parser.add_argument("--push_both_val_and_test", action="store_true") # just a dummpy parameter; only used in eval_all.py, add it here so it does not complain...
+    parser.add_argument(
+        "--evaluate_only_best_on_test", action="store_true"
+    )  # just a dummpy parameter; only used in eval_all.py, add it here so it does not complain...
+    parser.add_argument(
+        "--push_both_val_and_test", action="store_true"
+    )  # just a dummpy parameter; only used in eval_all.py, add it here so it does not complain...
 
     parser.add_argument("--keep_testing", action="store_true")
 
@@ -334,9 +360,7 @@ def main():
 
     if args.distributed:
         torch.cuda.set_device(args.local_rank)
-        torch.distributed.init_process_group(
-            backend="nccl", init_method="env://"
-        )
+        torch.distributed.init_process_group(backend="nccl", init_method="env://")
 
     cfg.local_rank = args.local_rank
     cfg.num_gpus = num_gpus
@@ -346,9 +370,8 @@ def main():
     print("args.opts", args.opts)
     cfg.merge_from_list(args.opts)
 
-
     # specify output dir for models
-    cfg.OUTPUT_DIR = os.getenv('AMLT_OUTPUT_DIR', cfg.OUTPUT_DIR)
+    cfg.OUTPUT_DIR = os.getenv("AMLT_OUTPUT_DIR", cfg.OUTPUT_DIR)
 
     output_dir = cfg.OUTPUT_DIR
     if output_dir:
@@ -357,8 +380,8 @@ def main():
     logger.info("Using {} GPUs".format(num_gpus))
     logger.info(args)
 
-    #logger.info("Collecting env info (might take some time)")
-    #logger.info("\n" + collect_env_info())
+    # logger.info("Collecting env info (might take some time)")
+    # logger.info("\n" + collect_env_info())
 
     logger.info("Loaded configuration file {}".format(args.config_file))
     with open(args.config_file, "r") as cf:
@@ -366,7 +389,7 @@ def main():
         logger.info(config_str)
     logger.info("Running with config:\n{}".format(cfg))
 
-    output_config_path = os.path.join(cfg.OUTPUT_DIR, 'config.yml')
+    output_config_path = os.path.join(cfg.OUTPUT_DIR, "config.yml")
     logger.info("Saving config into: {}".format(output_config_path))
     # save overloaded model config in the output directory
     save_config(cfg, output_config_path)
@@ -381,10 +404,10 @@ def main():
 
     shuffle_seeds = []
     if args.shuffle_seeds:
-        shuffle_seeds = [int(seed) for seed in args.shuffle_seeds.split(',')]
+        shuffle_seeds = [int(seed) for seed in args.shuffle_seeds.split(",")]
     else:
         shuffle_seeds = [None]
-    
+
     model = None
     for task_id, ft_cfg in enumerate(ft_configs, 1):
         for shuffle_seed in shuffle_seeds:
@@ -392,7 +415,7 @@ def main():
             cfg_.defrost()
             cfg_.merge_from_file(ft_cfg)
             cfg_.merge_from_list(args.opts)
-            ft_output_dir = output_dir + '/ft_task_{}'.format(task_id)
+            ft_output_dir = output_dir + "/ft_task_{}".format(task_id)
 
             if args.custom_shot_and_epoch_and_general_copy:
                 custom_shot = int(args.custom_shot_and_epoch_and_general_copy.split("_")[0])
@@ -407,7 +430,7 @@ def main():
 
             if shuffle_seed is not None:
                 cfg_.DATASETS.SHUFFLE_SEED = shuffle_seed
-                ft_output_dir = ft_output_dir + '_seed_{}'.format(shuffle_seed)
+                ft_output_dir = ft_output_dir + "_seed_{}".format(shuffle_seed)
 
             # Remerge to make sure that the command line arguments are prioritized
             cfg_.merge_from_list(args.opts)
@@ -419,7 +442,7 @@ def main():
 
             mkdir(ft_output_dir)
             cfg_.OUTPUT_DIR = ft_output_dir
-            
+
             tuning_highlevel_override(cfg_)
             cfg_.freeze()
 
@@ -428,7 +451,7 @@ def main():
                 config_str = "\n" + cf.read()
                 logger.info(config_str)
 
-            output_config_path = os.path.join(ft_output_dir, 'config.yml')
+            output_config_path = os.path.join(ft_output_dir, "config.yml")
             print("Saving config into: {}".format(output_config_path))
             # save config here because the data loader will make some changes
             save_config(cfg_, output_config_path)
@@ -439,26 +462,26 @@ def main():
                     shutil.copy(try_to_find(cfg_.MODEL.WEIGHT), os.path.join(ft_output_dir, "model_best.pth"))
             else:
                 model = train(
-                    cfg_, 
-                    args.local_rank, 
-                    args.distributed, 
-                    args.skip_train or custom_shot == 10000, 
+                    cfg_,
+                    args.local_rank,
+                    args.distributed,
+                    args.skip_train or custom_shot == 10000,
                     skip_optimizer_resume=args.skip_optimizer_resume,
-                    save_config_path=output_config_path)
-                
+                    save_config_path=output_config_path,
+                )
+
                 if not args.skip_test:
                     test(cfg_, model, args.distributed)
-                
+
                 if args.keep_testing:
                     # for manual testing
                     cfg_.defrost()
-                    cfg_.DATASETS.TEST = ("test", )
+                    cfg_.DATASETS.TEST = ("test",)
                     test(cfg_, model, args.distributed, verbose=True)
                     print(cfg_.DATASETS.OVERRIDE_CATEGORY)
                     pdb.set_trace()
                     # test(cfg_, model, args.distributed, verbose=True)
                     continue
-                
 
 
 if __name__ == "__main__":

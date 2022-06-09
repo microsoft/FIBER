@@ -10,7 +10,6 @@ import torchvision
 from PIL import Image
 
 
-
 def _isArrayLike(obj):
     return hasattr(obj, "__iter__") and hasattr(obj, "__len__")
 
@@ -204,4 +203,3 @@ class LVIS:
         """
         rle = self.ann_to_rle(ann)
         return mask_utils.decode(rle)
-

@@ -11,38 +11,39 @@ from .modulated_coco import ConvertCocoPolysToMask
 from .tsv import ODTSVDataset, TSVYamlDataset
 from .od_to_grounding import sanity_check_target_after_processing
 
+
 class CaptionTSV(TSVYamlDataset):
-    def __init__(self,
-                 yaml_file,
-                 transforms,
-                 return_tokens,
-                 return_masks,
-                 tokenizer,
-                 caption_min_box=1,
-                 replace_clean_label=False,
-                 further_screen=False,
-                 caption_conf=0.5,
-                 caption_nms=-1,
-                 pack_random_caption_number=0,
-                 inference_caption=False,
-                 sample_negative_for_grounding_data=-1,
-                 random_pack_prob=-1.0,
-                 no_random_pack_probability=0.0,
-                 safeguard_positive_caption=True,
-                 mlm_obj_for_only_positive=False,
-                 caption_format_version="v1",
-                 local_debug=False,
-                 max_query_len=256,
-                 **kwargs
-                 ):
+    def __init__(
+        self,
+        yaml_file,
+        transforms,
+        return_tokens,
+        return_masks,
+        tokenizer,
+        caption_min_box=1,
+        replace_clean_label=False,
+        further_screen=False,
+        caption_conf=0.5,
+        caption_nms=-1,
+        pack_random_caption_number=0,
+        inference_caption=False,
+        sample_negative_for_grounding_data=-1,
+        random_pack_prob=-1.0,
+        no_random_pack_probability=0.0,
+        safeguard_positive_caption=True,
+        mlm_obj_for_only_positive=False,
+        caption_format_version="v1",
+        local_debug=False,
+        max_query_len=256,
+        **kwargs
+    ):
         super(CaptionTSV, self).__init__(yaml_file, None, replace_clean_label)
         self.yaml_file = yaml_file
         self._transforms = transforms
         self.max_query_len = max_query_len
-        self.prepare = ConvertCocoPolysToMask(return_masks=return_masks,
-                                              return_tokens=return_tokens,
-                                              tokenizer=tokenizer,
-                                              max_query_len=max_query_len)
+        self.prepare = ConvertCocoPolysToMask(
+            return_masks=return_masks, return_tokens=return_tokens, tokenizer=tokenizer, max_query_len=max_query_len
+        )
         self.tokenizer = tokenizer
         self.caption_min_box = caption_min_box
         self.replace_clean_label = replace_clean_label
@@ -86,7 +87,7 @@ class CaptionTSV(TSVYamlDataset):
             new_caption_list = [positive_caption] + negative_captions
         random.shuffle(new_caption_list)
 
-        new_caption = ''
+        new_caption = ""
 
         for i in new_caption_list:
             if i == positive_caption:
@@ -129,10 +130,10 @@ class CaptionTSV(TSVYamlDataset):
                     caption = " ".join(anno["captions"])
                     anno = []
             else:
-                '''
+                """
                 An example
                 {'img_h': 1154, 'img_w': 1600, 'caption': 'xxx', 'tokens_positive': [[[47, 50], [51, 53], [54, 59]], [[32, 35], [36, 41]], [[32, 35], [36, 41]], [[0, 3], [3, 6], [6, 10], [11, 16], [17, 19], [20, 23]], [[32, 35], [36, 41]], [[32, 35], [36, 41]]], 'bboxes': [[7.344961166381836, 10.479412078857422, 1592.2679443359375, 1090.0028076171875], [950.32861328125, 346.572021484375, 1333.2373046875, 679.3215942382812], [927.44140625, 342.7712707519531, 1389.833984375, 719.5758666992188], [90.48786163330078, 363.67572021484375, 1381.8631591796875, 1078.687744140625], [122.84217071533203, 422.6786193847656, 507.845703125, 667.2651977539062], [80.62384033203125, 416.500244140625, 563.1666259765625, 734.603271484375]], 'scores': [0.7966700196266174, 0.8952182531356812, 0.8186006546020508, 0.9995516538619995, 0.8021856546401978, 0.8923134803771973]}
-                '''
+                """
                 if len(anno["bboxes"]) < self.caption_min_box:  # Retry triggered!
                     return self[np.random.choice(len(self))]
 
@@ -155,7 +156,7 @@ class CaptionTSV(TSVYamlDataset):
                         bboxes = bboxes[keep]
                         tokens_positive = [i for index, i in enumerate(tokens_positive) if keep[index]]
 
-                        assert (len(tokens_positive) == len(bboxes) == len(scores))
+                        assert len(tokens_positive) == len(bboxes) == len(scores)
 
                         if len(bboxes) < self.caption_min_box:  # Retry triggered!
                             return self[np.random.choice(len(self))]
@@ -165,7 +166,7 @@ class CaptionTSV(TSVYamlDataset):
                             scores = scores[keep]
                             bboxes = bboxes[keep]
                             tokens_positive = [tokens_positive[i] for i in keep]
-                            assert (len(tokens_positive) == len(bboxes) == len(scores))
+                            assert len(tokens_positive) == len(bboxes) == len(scores)
 
                         # Write back
                         anno["bboxes"] = bboxes.tolist()
@@ -204,13 +205,14 @@ class CaptionTSV(TSVYamlDataset):
                         negative_captions = self.__get_negative_captions__(idx, negative_size=negative_pack_number)
 
                         caption, anno["tokens_positive"], greenlight_span_for_masked_lm_objective = self.pack_caption(
-                            caption, negative_captions, anno["tokens_positive"])
+                            caption, negative_captions, anno["tokens_positive"]
+                        )
                     else:
                         greenlight_span_for_masked_lm_objective = [(0, len(caption))]
 
                     if not self.mlm_obj_for_only_positive:
                         greenlight_span_for_masked_lm_objective = [(0, len(caption))]
-                    
+
                     new_anno = []
                     areas = target.area()
                     for i in range(len(target)):
@@ -220,7 +222,7 @@ class CaptionTSV(TSVYamlDataset):
                         new_anno_i["image_id"] = idx
                         new_anno_i["category_id"] = 1  # following vg and others
                         new_anno_i["id"] = None
-                        new_anno_i['bbox'] = target.bbox[i].numpy().tolist()
+                        new_anno_i["bbox"] = target.bbox[i].numpy().tolist()
                         new_anno_i["tokens_positive"] = anno["tokens_positive"][i]
                         new_anno.append(new_anno_i)
 
@@ -246,7 +248,7 @@ class CaptionTSV(TSVYamlDataset):
             return self[np.random.choice(len(self))]
 
         sanity_check_target_after_processing(target)
-        
+
         return img, target, idx
 
     def convert_anno_from_v2_to_v1(self, anno):
@@ -259,13 +261,13 @@ class CaptionTSV(TSVYamlDataset):
                 # j is the index for each box
                 flatterned_bboxes.append(anno["bboxes"][i][j])
                 flatterned_tokens_positive.append(
-                    anno["tokens_positive"][i])  # Assume this box corresponds to all the token_spans for this entity
+                    anno["tokens_positive"][i]
+                )  # Assume this box corresponds to all the token_spans for this entity
                 flatterned_bboxes_scores.append(anno["scores"][i][j])
         anno["bboxes"] = flatterned_bboxes
         anno["tokens_positive"] = flatterned_tokens_positive
         anno["scores"] = flatterned_bboxes_scores
         return anno
-
 
     def get_raw_image(self, idx):
         image, *_ = super(CaptionTSV, self).__getitem__(idx)

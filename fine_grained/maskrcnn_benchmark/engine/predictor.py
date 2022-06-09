@@ -16,6 +16,7 @@ from maskrcnn_benchmark.utils import cv2_util
 
 import timeit
 
+
 class COCODemo(object):
     # COCO categories for pretty print
     CATEGORIES = [
@@ -128,7 +129,7 @@ class COCODemo(object):
         self.masker = Masker(threshold=mask_threshold, padding=1)
 
         # used to make colors for each class
-        self.palette = torch.tensor([2 ** 25 - 1, 2 ** 15 - 1, 2 ** 21 - 1])
+        self.palette = torch.tensor([2**25 - 1, 2**15 - 1, 2**21 - 1])
 
         self.cpu_device = torch.device("cpu")
         self.confidence_threshold = confidence_threshold
@@ -151,14 +152,12 @@ class COCODemo(object):
         else:
             to_bgr_transform = T.Lambda(lambda x: x[[2, 1, 0]])
 
-        normalize_transform = T.Normalize(
-            mean=cfg.INPUT.PIXEL_MEAN, std=cfg.INPUT.PIXEL_STD
-        )
+        normalize_transform = T.Normalize(mean=cfg.INPUT.PIXEL_MEAN, std=cfg.INPUT.PIXEL_STD)
 
         transform = T.Compose(
             [
                 T.ToPILImage(),
-                T.Resize(self.min_image_size) if self.min_image_size is not None else lambda x:x,
+                T.Resize(self.min_image_size) if self.min_image_size is not None else lambda x: x,
                 T.ToTensor(),
                 to_bgr_transform,
                 normalize_transform,
@@ -225,7 +224,6 @@ class COCODemo(object):
         #         original_image[region[1]:region[3], region[0]:region[2], :] = 255
         image = self.transforms(original_image)
 
-
         # convert to an ImageList, padded so that it is divisible by
         # cfg.DATALOADER.SIZE_DIVISIBILITY
         image_list = to_image_list(image, self.cfg.DATALOADER.SIZE_DIVISIBILITY)
@@ -236,7 +234,7 @@ class COCODemo(object):
         with torch.no_grad():
             predictions, debug_info = self.model(image_list)
         predictions = [o.to(self.cpu_device) for o in predictions]
-        debug_info['total_time'] = timeit.time.perf_counter() - tic
+        debug_info["total_time"] = timeit.time.perf_counter() - tic
 
         # always single image is passed at a time
         prediction = predictions[0]
@@ -273,21 +271,21 @@ class COCODemo(object):
         scores = predictions.get_field("scores")
         labels = predictions.get_field("labels").tolist()
         thresh = scores.clone()
-        for i,lb in enumerate(labels):
+        for i, lb in enumerate(labels):
             if isinstance(self.confidence_threshold, float):
                 thresh[i] = self.confidence_threshold
-            elif len(self.confidence_threshold)==1:
+            elif len(self.confidence_threshold) == 1:
                 thresh[i] = self.confidence_threshold[0]
             else:
-                thresh[i] = self.confidence_threshold[lb-1]
+                thresh[i] = self.confidence_threshold[lb - 1]
         keep = torch.nonzero(scores > thresh).squeeze(1)
         predictions = predictions[keep]
 
         if self.exclude_region:
             exlude = BoxList(self.exclude_region, predictions.size)
             iou = boxlist_iou(exlude, predictions)
-            keep = torch.nonzero(torch.sum(iou>0.5, dim=0)==0).squeeze(1)
-            if len(keep)>0:
+            keep = torch.nonzero(torch.sum(iou > 0.5, dim=0) == 0).squeeze(1)
+            if len(keep) > 0:
                 predictions = predictions[keep]
 
         scores = predictions.get_field("scores")
@@ -298,7 +296,7 @@ class COCODemo(object):
         """
         Simple function that adds fixed colors depending on the class
         """
-        colors = (30*(labels[:, None] -1)+1)*self.palette
+        colors = (30 * (labels[:, None] - 1) + 1) * self.palette
         colors = (colors % 255).numpy().astype("uint8")
         return colors
 
@@ -319,8 +317,7 @@ class COCODemo(object):
         for box, color in zip(boxes, colors):
             box = box.to(torch.int64)
             top_left, bottom_right = box[:2].tolist(), box[2:].tolist()
-            image = cv2.rectangle(
-                image, tuple(top_left), tuple(bottom_right), tuple(color), 2)
+            image = cv2.rectangle(image, tuple(top_left), tuple(bottom_right), tuple(color), 2)
 
         return image
 
@@ -338,10 +335,15 @@ class COCODemo(object):
 
         for box, score in zip(boxes, scores):
             box = box.to(torch.int64)
-            image = cv2.putText(image, '%.3f'%score,
-                                (box[0], (box[1]+box[3])/2),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                                (255,255,255), 1)
+            image = cv2.putText(
+                image,
+                "%.3f" % score,
+                (box[0], (box[1] + box[3]) / 2),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (255, 255, 255),
+                1,
+            )
 
         return image
 
@@ -359,12 +361,10 @@ class COCODemo(object):
         for box, score in zip(boxes, scores):
             box = box.to(torch.int64)
             top_left, bottom_right = box[:2].tolist(), box[2:].tolist()
-            image = cv2.rectangle(
-                image, tuple(top_left), tuple(bottom_right), (255,0,0), 2)
-            image = cv2.putText(image, '%.3f'%score,
-                                (box[0], (box[1]+box[3])/2),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                                (255,0,0), 1)
+            image = cv2.rectangle(image, tuple(top_left), tuple(bottom_right), (255, 0, 0), 2)
+            image = cv2.putText(
+                image, "%.3f" % score, (box[0], (box[1] + box[3]) / 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1
+            )
         return image
 
     def overlay_centers(self, image, predictions):
@@ -380,8 +380,7 @@ class COCODemo(object):
 
         for cord in centers:
             cord = cord.to(torch.int64)
-            image = cv2.circle(image, (cord[0].item(),cord[1].item()),
-                               2, (255,0,0), 20)
+            image = cv2.circle(image, (cord[0].item(), cord[1].item()), 2, (255, 0, 0), 20)
 
         return image
 
@@ -398,7 +397,7 @@ class COCODemo(object):
             count = predictions
         else:
             count = len(predictions)
-        image = cv2.putText(image, 'Count: %d'%count, (0,100), cv2.FONT_HERSHEY_SIMPLEX, 3,  (255,0,0), 3)
+        image = cv2.putText(image, "Count: %d" % count, (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 0, 0), 3)
 
         return image
 
@@ -419,9 +418,7 @@ class COCODemo(object):
 
         for mask, color in zip(masks, colors):
             thresh = mask[0, :, :, None].astype(np.uint8)
-            contours, hierarchy = cv2_util.findContours(
-                thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
-            )
+            contours, hierarchy = cv2_util.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
             image = cv2.drawContours(image, contours, -1, color, 3)
 
         composite = image
@@ -434,8 +431,9 @@ class COCODemo(object):
         scores = keypoints.get_field("logits")
         kps = torch.cat((kps[:, :, 0:2], scores[:, :, None]), dim=2).numpy()
         for region in kps:
-            image = vis_keypoints(image, region.transpose((1, 0)),
-                                  names=keypoints.NAMES, connections=keypoints.CONNECTIONS)
+            image = vis_keypoints(
+                image, region.transpose((1, 0)), names=keypoints.NAMES, connections=keypoints.CONNECTIONS
+            )
         return image
 
     def create_mask_montage(self, image, predictions):
@@ -450,11 +448,9 @@ class COCODemo(object):
         """
         masks = predictions.get_field("mask")
         masks_per_dim = self.masks_per_dim
-        masks = L.interpolate(
-            masks.float(), scale_factor=1 / masks_per_dim
-        ).byte()
+        masks = L.interpolate(masks.float(), scale_factor=1 / masks_per_dim).byte()
         height, width = masks.shape[-2:]
-        max_masks = masks_per_dim ** 2
+        max_masks = masks_per_dim**2
         masks = masks[:max_masks]
         # handle case where we have less detections than max_masks
         if len(masks) < max_masks:
@@ -462,9 +458,7 @@ class COCODemo(object):
             masks_padded[: len(masks)] = masks
             masks = masks_padded
         masks = masks.reshape(masks_per_dim, masks_per_dim, height, width)
-        result = torch.zeros(
-            (masks_per_dim * height, masks_per_dim * width), dtype=torch.uint8
-        )
+        result = torch.zeros((masks_per_dim * height, masks_per_dim * width), dtype=torch.uint8)
         for y in range(masks_per_dim):
             start_y = y * height
             end_y = (y + 1) * height
@@ -487,7 +481,7 @@ class COCODemo(object):
         scores = predictions.get_field("scores").tolist()
         labels = predictions.get_field("labels").tolist()
         if names:
-            labels = [names[i-1] for i in labels]
+            labels = [names[i - 1] for i in labels]
         else:
             labels = [self.CATEGORIES[i] for i in labels]
         boxes = predictions.bbox
@@ -496,11 +490,10 @@ class COCODemo(object):
         for box, score, label in zip(boxes, scores, labels):
             x, y = box[:2]
             s = template.format(label, score)
-            cv2.putText(
-                image, s, (x, y), cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255), 1
-            )
+            cv2.putText(image, s, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
         return image
+
 
 def vis_keypoints(img, kps, kp_thresh=0, alpha=0.7, names=None, connections=None):
     """Visualizes keypoints (adapted from vis_one_image).
@@ -512,38 +505,51 @@ def vis_keypoints(img, kps, kp_thresh=0, alpha=0.7, names=None, connections=None
 
     # simple rainbow color map implementation
     blue_red_ratio = 0.8
-    gx = lambda x: (6-2*blue_red_ratio)*x + blue_red_ratio
-    colors = [[256*max(0, (3-abs(gx(i)-4)-abs(gx(i)-5))/2),
-               256*max(0, (3-abs(gx(i)-2)-abs(gx(i)-4))/2),
-               256*max(0, (3-abs(gx(i)-1)-abs(gx(i)-2))/2),] for i in np.linspace(0, 1, len(kp_lines) + 2)]
+    gx = lambda x: (6 - 2 * blue_red_ratio) * x + blue_red_ratio
+    colors = [
+        [
+            256 * max(0, (3 - abs(gx(i) - 4) - abs(gx(i) - 5)) / 2),
+            256 * max(0, (3 - abs(gx(i) - 2) - abs(gx(i) - 4)) / 2),
+            256 * max(0, (3 - abs(gx(i) - 1) - abs(gx(i) - 2)) / 2),
+        ]
+        for i in np.linspace(0, 1, len(kp_lines) + 2)
+    ]
 
     # Perform the drawing on a copy of the image, to allow for blending.
     kp_mask = np.copy(img)
 
     # Draw mid shoulder / mid hip first for better visualization.
     mid_shoulder = (
-        kps[:2, dataset_keypoints.index('right_shoulder')] +
-        kps[:2, dataset_keypoints.index('left_shoulder')]) / 2.0
+        kps[:2, dataset_keypoints.index("right_shoulder")] + kps[:2, dataset_keypoints.index("left_shoulder")]
+    ) / 2.0
     sc_mid_shoulder = np.minimum(
-        kps[2, dataset_keypoints.index('right_shoulder')],
-        kps[2, dataset_keypoints.index('left_shoulder')])
-    nose_idx = dataset_keypoints.index('nose')
+        kps[2, dataset_keypoints.index("right_shoulder")], kps[2, dataset_keypoints.index("left_shoulder")]
+    )
+    nose_idx = dataset_keypoints.index("nose")
     if sc_mid_shoulder > kp_thresh and kps[2, nose_idx] > kp_thresh:
         cv2.line(
-            kp_mask, tuple(mid_shoulder), tuple(kps[:2, nose_idx]),
-            color=colors[len(kp_lines)], thickness=2, lineType=cv2.LINE_AA)
+            kp_mask,
+            tuple(mid_shoulder),
+            tuple(kps[:2, nose_idx]),
+            color=colors[len(kp_lines)],
+            thickness=2,
+            lineType=cv2.LINE_AA,
+        )
 
-    if 'right_hip' in names and 'left_hip' in names:
-        mid_hip = (
-            kps[:2, dataset_keypoints.index('right_hip')] +
-            kps[:2, dataset_keypoints.index('left_hip')]) / 2.0
+    if "right_hip" in names and "left_hip" in names:
+        mid_hip = (kps[:2, dataset_keypoints.index("right_hip")] + kps[:2, dataset_keypoints.index("left_hip")]) / 2.0
         sc_mid_hip = np.minimum(
-            kps[2, dataset_keypoints.index('right_hip')],
-            kps[2, dataset_keypoints.index('left_hip')])
+            kps[2, dataset_keypoints.index("right_hip")], kps[2, dataset_keypoints.index("left_hip")]
+        )
         if sc_mid_shoulder > kp_thresh and sc_mid_hip > kp_thresh:
             cv2.line(
-                kp_mask, tuple(mid_shoulder), tuple(mid_hip),
-                color=colors[len(kp_lines) + 1], thickness=2, lineType=cv2.LINE_AA)
+                kp_mask,
+                tuple(mid_shoulder),
+                tuple(mid_hip),
+                color=colors[len(kp_lines) + 1],
+                thickness=2,
+                lineType=cv2.LINE_AA,
+            )
 
     # Draw the keypoints.
     for l in range(len(kp_lines)):
@@ -552,17 +558,11 @@ def vis_keypoints(img, kps, kp_thresh=0, alpha=0.7, names=None, connections=None
         p1 = kps[0, i1], kps[1, i1]
         p2 = kps[0, i2], kps[1, i2]
         if kps[2, i1] > kp_thresh and kps[2, i2] > kp_thresh:
-            cv2.line(
-                kp_mask, p1, p2,
-                color=colors[l], thickness=2, lineType=cv2.LINE_AA)
+            cv2.line(kp_mask, p1, p2, color=colors[l], thickness=2, lineType=cv2.LINE_AA)
         if kps[2, i1] > kp_thresh:
-            cv2.circle(
-                kp_mask, p1,
-                radius=3, color=colors[l], thickness=-1, lineType=cv2.LINE_AA)
+            cv2.circle(kp_mask, p1, radius=3, color=colors[l], thickness=-1, lineType=cv2.LINE_AA)
         if kps[2, i2] > kp_thresh:
-            cv2.circle(
-                kp_mask, p2,
-                radius=3, color=colors[l], thickness=-1, lineType=cv2.LINE_AA)
+            cv2.circle(kp_mask, p2, radius=3, color=colors[l], thickness=-1, lineType=cv2.LINE_AA)
 
     # Blend the keypoints.
     return cv2.addWeighted(img, 1.0 - alpha, kp_mask, alpha, 0)

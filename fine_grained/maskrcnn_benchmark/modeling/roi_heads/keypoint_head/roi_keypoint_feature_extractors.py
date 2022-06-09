@@ -40,6 +40,7 @@ class KeypointRCNNFeatureExtractor(nn.Module):
             x = F.relu(getattr(self, layer_name)(x))
         return x
 
+
 class KeypointRCNNFeature2XZoomExtractor(nn.Module):
     def __init__(self, cfg):
         super(KeypointRCNNFeature2XZoomExtractor, self).__init__()
@@ -64,10 +65,11 @@ class KeypointRCNNFeature2XZoomExtractor(nn.Module):
             nn.init.kaiming_normal_(module.weight, mode="fan_out", nonlinearity="relu")
             nn.init.constant_(module.bias, 0)
             self.add_module(layer_name, module)
-            if layer_idx==len(layers)//2:
+            if layer_idx == len(layers) // 2:
                 deconv_kernel = 4
-                kps_upsacle = ConvTranspose2d(layer_features, layer_features, deconv_kernel,
-                                              stride=2, padding=deconv_kernel//2-1)
+                kps_upsacle = ConvTranspose2d(
+                    layer_features, layer_features, deconv_kernel, stride=2, padding=deconv_kernel // 2 - 1
+                )
                 nn.init.kaiming_normal_(kps_upsacle.weight, mode="fan_out", nonlinearity="relu")
                 nn.init.constant_(kps_upsacle.bias, 0)
                 self.add_module("conv_fcn_upscale", kps_upsacle)
@@ -85,12 +87,10 @@ class KeypointRCNNFeature2XZoomExtractor(nn.Module):
 
 _ROI_KEYPOINT_FEATURE_EXTRACTORS = {
     "KeypointRCNNFeatureExtractor": KeypointRCNNFeatureExtractor,
-    "KeypointRCNNFeature2XZoomExtractor": KeypointRCNNFeature2XZoomExtractor
+    "KeypointRCNNFeature2XZoomExtractor": KeypointRCNNFeature2XZoomExtractor,
 }
 
 
 def make_roi_keypoint_feature_extractor(cfg):
-    func = _ROI_KEYPOINT_FEATURE_EXTRACTORS[
-        cfg.MODEL.ROI_KEYPOINT_HEAD.FEATURE_EXTRACTOR
-    ]
+    func = _ROI_KEYPOINT_FEATURE_EXTRACTORS[cfg.MODEL.ROI_KEYPOINT_HEAD.FEATURE_EXTRACTOR]
     return func(cfg)

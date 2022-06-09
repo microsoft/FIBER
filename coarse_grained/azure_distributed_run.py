@@ -2,6 +2,7 @@ import os
 import copy
 import pytorch_lightning as pl
 import os
+
 os.environ["NCCL_DEBUG"] = "INFO"
 
 from fiber.config import ex
@@ -9,32 +10,34 @@ from fiber.modules import FIBERTransformerSS
 from fiber.datamodules.multitask_datamodule import MTDataModule
 
 import resource
+
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (20480, rlimit[1]))
 
 from pytorch_lightning.plugins.environments import ClusterEnvironment
 from pytorch_lightning.plugins.training_type import DDPPlugin
 import torch.distributed as dist
-class MyCluster(ClusterEnvironment):
 
+
+class MyCluster(ClusterEnvironment):
     def creates_children(self) -> bool:
         # return True if the cluster is managed (you don't launch processes yourself)
         return True
 
     def master_address(self):
-        return os.environ['MASTER_ADDR']
+        return os.environ["MASTER_ADDR"]
 
     def master_port(self) -> int:
         return int(os.environ["MASTER_PORT"])
 
     def world_size(self):
-        return int(os.environ['OMPI_COMM_WORLD_SIZE'])
+        return int(os.environ["OMPI_COMM_WORLD_SIZE"])
 
     def global_rank(self) -> int:
-        return int(os.environ['OMPI_COMM_WORLD_RANK'])
+        return int(os.environ["OMPI_COMM_WORLD_RANK"])
 
     def local_rank(self) -> int:
-        return int(os.environ['OMPI_COMM_WORLD_LOCAL_RANK'])
+        return int(os.environ["OMPI_COMM_WORLD_LOCAL_RANK"])
 
     def node_rank(self) -> int:
         return int(os.environ["OMPI_COMM_WORLD_NODE_RANK"])
@@ -45,30 +48,31 @@ class MyCluster(ClusterEnvironment):
     def set_world_size(self, size: int) -> None:
         pass
 
-class MyDDPPlugin(DDPPlugin):
 
-    def init_ddp_connection(self, global_rank = None, world_size = None) -> None:
-        master_uri = "tcp://%s:%s" % (os.environ['MASTER_ADDR'], os.environ['MASTER_PORT'])
+class MyDDPPlugin(DDPPlugin):
+    def init_ddp_connection(self, global_rank=None, world_size=None) -> None:
+        master_uri = "tcp://%s:%s" % (os.environ["MASTER_ADDR"], os.environ["MASTER_PORT"])
         dist.init_process_group(
-        backend=self.torch_distributed_backend,
-        init_method=master_uri,
-        world_size=int(os.environ['OMPI_COMM_WORLD_SIZE']),
-        rank=int(os.environ['OMPI_COMM_WORLD_RANK']),
+            backend=self.torch_distributed_backend,
+            init_method=master_uri,
+            world_size=int(os.environ["OMPI_COMM_WORLD_SIZE"]),
+            rank=int(os.environ["OMPI_COMM_WORLD_RANK"]),
         )
+
 
 @ex.automain
 def main(_config):
     os.environ["NCCL_DEBUG"] = "INFO"
-    world_size = int(os.environ['OMPI_COMM_WORLD_SIZE'])
-    local_size = int(os.environ['OMPI_COMM_WORLD_LOCAL_SIZE'])
-    global_rank = int(os.environ['OMPI_COMM_WORLD_RANK'])
-    local_rank = int(os.environ['OMPI_COMM_WORLD_LOCAL_RANK'])
-    master_addr = os.environ['MASTER_ADDR']
-    master_port = os.environ['MASTER_PORT']
+    world_size = int(os.environ["OMPI_COMM_WORLD_SIZE"])
+    local_size = int(os.environ["OMPI_COMM_WORLD_LOCAL_SIZE"])
+    global_rank = int(os.environ["OMPI_COMM_WORLD_RANK"])
+    local_rank = int(os.environ["OMPI_COMM_WORLD_LOCAL_RANK"])
+    master_addr = os.environ["MASTER_ADDR"]
+    master_port = os.environ["MASTER_PORT"]
 
     # set environment variables for 'env://'
-    os.environ['WORLD_SIZE'] = str(world_size)
-    os.environ['NODE_RANK'] = str(os.environ["OMPI_COMM_WORLD_NODE_RANK"])
+    os.environ["WORLD_SIZE"] = str(world_size)
+    os.environ["NODE_RANK"] = str(os.environ["OMPI_COMM_WORLD_NODE_RANK"])
 
     _config = copy.deepcopy(_config)
     pl.seed_everything(_config["seed"])
@@ -94,15 +98,9 @@ def main(_config):
     lr_callback = pl.callbacks.LearningRateMonitor(logging_interval="step")
     callbacks = [checkpoint_callback, lr_callback]
 
-    num_gpus = (
-        _config["num_gpus"]
-        if isinstance(_config["num_gpus"], int)
-        else len(_config["num_gpus"])
-    )
+    num_gpus = _config["num_gpus"] if isinstance(_config["num_gpus"], int) else len(_config["num_gpus"])
 
-    grad_steps = max(_config["batch_size"] // (
-        _config["per_gpu_batchsize"] * num_gpus * _config["num_nodes"]
-    ), 1)
+    grad_steps = max(_config["batch_size"] // (_config["per_gpu_batchsize"] * num_gpus * _config["num_nodes"]), 1)
 
     max_steps = _config["max_steps"] if _config["max_steps"] is not None else None
 

@@ -27,13 +27,12 @@ def boxlist_nms(boxlist, nms_thresh, max_proposals=-1, score_field="score"):
     score = boxlist.get_field(score_field)
     keep = _box_nms(boxes, score, nms_thresh)
     if max_proposals > 0:
-        keep = keep[: max_proposals]
+        keep = keep[:max_proposals]
     boxlist = boxlist[keep]
     return boxlist.convert(mode)
 
 
-def boxlist_ml_nms(boxlist, nms_thresh, max_proposals=-1,
-                   score_field="scores", label_field="labels"):
+def boxlist_ml_nms(boxlist, nms_thresh, max_proposals=-1, score_field="scores", label_field="labels"):
     """
     Performs non-maximum suppression on a boxlist, with scores specified
     in a boxlist field via score_field.
@@ -53,7 +52,7 @@ def boxlist_ml_nms(boxlist, nms_thresh, max_proposals=-1,
     scores = boxlist.get_field(score_field)
     labels = boxlist.get_field(label_field)
 
-    if boxes.device==torch.device("cpu"):
+    if boxes.device == torch.device("cpu"):
         keep = []
         unique_labels = torch.unique(labels)
         print(unique_labels)
@@ -67,9 +66,9 @@ def boxlist_ml_nms(boxlist, nms_thresh, max_proposals=-1,
             keep += keep_j
     else:
         keep = _box_ml_nms(boxes, scores, labels.float(), nms_thresh)
-        
+
     if max_proposals > 0:
-        keep = keep[: max_proposals]
+        keep = keep[:max_proposals]
     boxlist = boxlist[keep]
 
     return boxlist.convert(mode)
@@ -109,8 +108,7 @@ def boxlist_iou(boxlist1, boxlist2):
       https://github.com/chainer/chainercv/blob/master/chainercv/utils/bbox/bbox_iou.py
     """
     if boxlist1.size != boxlist2.size:
-        raise RuntimeError(
-                "boxlists should have same image size, got {}, {}".format(boxlist1, boxlist2))
+        raise RuntimeError("boxlists should have same image size, got {}, {}".format(boxlist1, boxlist2))
 
     N = len(boxlist1)
     M = len(boxlist2)
@@ -145,6 +143,7 @@ def _cat(tensors, dim=0):
     else:
         return cat_boxlist(tensors)
 
+
 def cat_boxlist(bboxes):
     """
     Concatenates a list of BoxList (having the same image size) into a
@@ -174,11 +173,16 @@ def cat_boxlist(bboxes):
     return cat_boxes
 
 
-def getUnionBBox(aBB, bBB, margin = 10):
-    assert aBB.size==bBB.size
-    assert aBB.mode==bBB.mode
+def getUnionBBox(aBB, bBB, margin=10):
+    assert aBB.size == bBB.size
+    assert aBB.mode == bBB.mode
     ih, iw = aBB.size
-    union_boxes = torch.cat([(torch.min(aBB.bbox[:,[0,1]], bBB.bbox[:,[0,1]]) - margin).clamp(min=0), \
-        (torch.max(aBB.bbox[:,[2]], bBB.bbox[:,[2]]) + margin).clamp(max=iw), \
-        (torch.max(aBB.bbox[:,[3]], bBB.bbox[:,[3]]) + margin).clamp(max=ih)], dim=1)
+    union_boxes = torch.cat(
+        [
+            (torch.min(aBB.bbox[:, [0, 1]], bBB.bbox[:, [0, 1]]) - margin).clamp(min=0),
+            (torch.max(aBB.bbox[:, [2]], bBB.bbox[:, [2]]) + margin).clamp(max=iw),
+            (torch.max(aBB.bbox[:, [3]], bBB.bbox[:, [3]]) + margin).clamp(max=ih),
+        ],
+        dim=1,
+    )
     return BoxList(union_boxes, aBB.size, mode=aBB.mode)

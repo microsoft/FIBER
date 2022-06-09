@@ -16,9 +16,7 @@ from maskrcnn_benchmark.structures.keypoint import keypoints_to_heat_map
 
 def project_keypoints_to_heatmap(keypoints, proposals, discretization_size):
     proposals = proposals.convert("xyxy")
-    return keypoints_to_heat_map(
-        keypoints.keypoints, proposals.bbox, discretization_size
-    )
+    return keypoints_to_heat_map(keypoints.keypoints, proposals.bbox, discretization_size)
 
 
 def cat_boxlist_with_keypoints(boxlists):
@@ -42,12 +40,8 @@ def _within_box(points, boxes):
     boxes: Nx4
     output: NxK
     """
-    x_within = (points[..., 0] >= boxes[:, 0, None]) & (
-        points[..., 0] <= boxes[:, 2, None]
-    )
-    y_within = (points[..., 1] >= boxes[:, 1, None]) & (
-        points[..., 1] <= boxes[:, 3, None]
-    )
+    x_within = (points[..., 0] >= boxes[:, 0, None]) & (points[..., 0] <= boxes[:, 2, None])
+    y_within = (points[..., 1] >= boxes[:, 1, None]) & (points[..., 1] <= boxes[:, 3, None])
     return x_within & y_within
 
 
@@ -80,9 +74,7 @@ class KeypointRCNNLossComputation(object):
         labels = []
         keypoints = []
         for proposals_per_image, targets_per_image in zip(proposals, targets):
-            matched_targets = self.match_targets_to_proposals(
-                proposals_per_image, targets_per_image
-            )
+            matched_targets = self.match_targets_to_proposals(proposals_per_image, targets_per_image)
             matched_idxs = matched_targets.get_field("matched_idxs")
 
             labels_per_image = matched_targets.get_field("labels")
@@ -95,9 +87,7 @@ class KeypointRCNNLossComputation(object):
             labels_per_image[neg_inds] = 0
 
             keypoints_per_image = matched_targets.get_field("keypoints")
-            within_box = _within_box(
-                keypoints_per_image.keypoints, matched_targets.bbox
-            )
+            within_box = _within_box(keypoints_per_image.keypoints, matched_targets.bbox)
             vis_kp = keypoints_per_image.keypoints[..., 2] > 0
             is_visible = (within_box & vis_kp).sum(1) > 0
 
@@ -124,17 +114,13 @@ class KeypointRCNNLossComputation(object):
 
         proposals = list(proposals)
         # add corresponding label and regression_targets information to the bounding boxes
-        for labels_per_image, keypoints_per_image, proposals_per_image in zip(
-            labels, keypoints, proposals
-        ):
+        for labels_per_image, keypoints_per_image, proposals_per_image in zip(labels, keypoints, proposals):
             proposals_per_image.add_field("labels", labels_per_image)
             proposals_per_image.add_field("keypoints", keypoints_per_image)
 
         # distributed sampled proposals, that were obtained on all feature maps
         # concatenated via the fg_bg_sampler, into individual feature map levels
-        for img_idx, (pos_inds_img, neg_inds_img) in enumerate(
-            zip(sampled_pos_inds, sampled_neg_inds)
-        ):
+        for img_idx, (pos_inds_img, neg_inds_img) in enumerate(zip(sampled_pos_inds, sampled_neg_inds)):
             img_sampled_inds = torch.nonzero(pos_inds_img).squeeze(1)
             proposals_per_image = proposals[img_idx][img_sampled_inds]
             proposals[img_idx] = proposals_per_image

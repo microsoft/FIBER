@@ -29,21 +29,17 @@ def bbox_overlaps(anchors, gt_boxes):
     N = anchors.size(0)
     K = gt_boxes.size(0)
 
-    gt_boxes_area = ((gt_boxes[:, 2] - gt_boxes[:, 0] + 1) *
-                     (gt_boxes[:, 3] - gt_boxes[:, 1] + 1)).view(1, K)
+    gt_boxes_area = ((gt_boxes[:, 2] - gt_boxes[:, 0] + 1) * (gt_boxes[:, 3] - gt_boxes[:, 1] + 1)).view(1, K)
 
-    anchors_area = ((anchors[:, 2] - anchors[:, 0] + 1) *
-                    (anchors[:, 3] - anchors[:, 1] + 1)).view(N, 1)
+    anchors_area = ((anchors[:, 2] - anchors[:, 0] + 1) * (anchors[:, 3] - anchors[:, 1] + 1)).view(N, 1)
 
     boxes = anchors.view(N, 1, 4).expand(N, K, 4)
     query_boxes = gt_boxes.view(1, K, 4).expand(N, K, 4)
 
-    iw = (torch.min(boxes[:, :, 2], query_boxes[:, :, 2]) -
-          torch.max(boxes[:, :, 0], query_boxes[:, :, 0]) + 1)
+    iw = torch.min(boxes[:, :, 2], query_boxes[:, :, 2]) - torch.max(boxes[:, :, 0], query_boxes[:, :, 0]) + 1
     iw[iw < 0] = 0
 
-    ih = (torch.min(boxes[:, :, 3], query_boxes[:, :, 3]) -
-          torch.max(boxes[:, :, 1], query_boxes[:, :, 1]) + 1)
+    ih = torch.min(boxes[:, :, 3], query_boxes[:, :, 3]) - torch.max(boxes[:, :, 1], query_boxes[:, :, 1]) + 1
     ih[ih < 0] = 0
 
     ua = anchors_area + gt_boxes_area - (iw * ih)
@@ -56,8 +52,9 @@ def bbox_overlaps(anchors, gt_boxes):
 # todo: if ordering of classes, attributes, relations changed
 # todo make sure to re-write the obj_classes.txt/rel_classes.txt files
 
+
 def _box_filter(boxes, must_overlap=False):
-    """ Only include boxes that overlap as possible relations.
+    """Only include boxes that overlap as possible relations.
     If no overlapping boxes, use all of them."""
     overlaps = bbox_overlaps(boxes, boxes).numpy() > 0
     np.fill_diagonal(overlaps, 0)
@@ -80,9 +77,17 @@ class VGTSVDataset(TSVYamlDataset):
     Generic TSV dataset format for Object Detection.
     """
 
-    def __init__(self, yaml_file, extra_fields=None, transforms=None,
-                 is_load_label=True, filter_duplicate_rels=True,
-                 relation_on=False, cv2_output=False, **kwargs):
+    def __init__(
+        self,
+        yaml_file,
+        extra_fields=None,
+        transforms=None,
+        is_load_label=True,
+        filter_duplicate_rels=True,
+        relation_on=False,
+        cv2_output=False,
+        **kwargs
+    ):
         if extra_fields is None:
             extra_fields = []
         self.transforms = transforms
@@ -93,51 +98,53 @@ class VGTSVDataset(TSVYamlDataset):
         ignore_attrs = self.cfg.get("ignore_attrs", None)
         # construct those maps
         jsondict_file = find_file_path_in_yaml(self.cfg.get("jsondict", None), self.root)
-        jsondict = json.load(open(jsondict_file, 'r'))
+        jsondict = json.load(open(jsondict_file, "r"))
 
         # self.linelist_file
-        if 'train' in op.basename(self.linelist_file):
+        if "train" in op.basename(self.linelist_file):
             self.split = "train"
-        elif 'test' in op.basename(self.linelist_file) \
-                or 'val' in op.basename(self.linelist_file) \
-                or 'valid' in op.basename(self.linelist_file):
+        elif (
+            "test" in op.basename(self.linelist_file)
+            or "val" in op.basename(self.linelist_file)
+            or "valid" in op.basename(self.linelist_file)
+        ):
             self.split = "test"
         else:
             raise ValueError("Split must be one of [train, test], but get {}!".format(self.linelist_file))
-        self.filter_duplicate_rels = filter_duplicate_rels and self.split == 'train'
+        self.filter_duplicate_rels = filter_duplicate_rels and self.split == "train"
 
-        self.class_to_ind = jsondict['label_to_idx']
-        self.ind_to_class = jsondict['idx_to_label']
-        self.class_to_ind['__background__'] = 0
-        self.ind_to_class['0'] = '__background__'
+        self.class_to_ind = jsondict["label_to_idx"]
+        self.ind_to_class = jsondict["idx_to_label"]
+        self.class_to_ind["__background__"] = 0
+        self.ind_to_class["0"] = "__background__"
         self.classes = sort_key_by_val(self.class_to_ind)
-        assert (all([self.classes[i] == self.ind_to_class[str(i)] for i in range(len(self.classes))]))
+        assert all([self.classes[i] == self.ind_to_class[str(i)] for i in range(len(self.classes))])
 
         # writing obj classes to disk for Neural Motif model building.
         obj_classes_out_fn = op.splitext(self.label_file)[0] + ".obj_classes.txt"
         if not op.isfile(obj_classes_out_fn):
-            with open(obj_classes_out_fn, 'w') as f:
+            with open(obj_classes_out_fn, "w") as f:
                 for item in self.classes:
                     f.write("%s\n" % item)
 
-        self.attribute_to_ind = jsondict['attribute_to_idx']
-        self.ind_to_attribute = jsondict['idx_to_attribute']
-        self.attribute_to_ind['__no_attribute__'] = 0
-        self.ind_to_attribute['0'] = '__no_attribute__'
+        self.attribute_to_ind = jsondict["attribute_to_idx"]
+        self.ind_to_attribute = jsondict["idx_to_attribute"]
+        self.attribute_to_ind["__no_attribute__"] = 0
+        self.ind_to_attribute["0"] = "__no_attribute__"
         self.attributes = sort_key_by_val(self.attribute_to_ind)
-        assert (all([self.attributes[i] == self.ind_to_attribute[str(i)] for i in range(len(self.attributes))]))
+        assert all([self.attributes[i] == self.ind_to_attribute[str(i)] for i in range(len(self.attributes))])
 
-        self.relation_to_ind = jsondict['predicate_to_idx']
-        self.ind_to_relation = jsondict['idx_to_predicate']
-        self.relation_to_ind['__no_relation__'] = 0
-        self.ind_to_relation['0'] = '__no_relation__'
+        self.relation_to_ind = jsondict["predicate_to_idx"]
+        self.ind_to_relation = jsondict["idx_to_predicate"]
+        self.relation_to_ind["__no_relation__"] = 0
+        self.ind_to_relation["0"] = "__no_relation__"
         self.relations = sort_key_by_val(self.relation_to_ind)
-        assert (all([self.relations[i] == self.ind_to_relation[str(i)] for i in range(len(self.relations))]))
+        assert all([self.relations[i] == self.ind_to_relation[str(i)] for i in range(len(self.relations))])
 
         # writing rel classes to disk for Neural Motif Model building.
-        rel_classes_out_fn = op.splitext(self.label_file)[0] + '.rel_classes.txt'
+        rel_classes_out_fn = op.splitext(self.label_file)[0] + ".rel_classes.txt"
         if not op.isfile(rel_classes_out_fn):
-            with open(rel_classes_out_fn, 'w') as f:
+            with open(rel_classes_out_fn, "w") as f:
                 for item in self.relations:
                     f.write("%s\n" % item)
 
@@ -147,15 +154,13 @@ class VGTSVDataset(TSVYamlDataset):
         # self.labelmap_dec = load_labelmap_file(labelmap_file)
         if self.is_load_label:
             self.label_loader = BoxLabelLoader(
-                labelmap=self.labelmap,
-                extra_fields=extra_fields,
-                ignore_attrs=ignore_attrs
+                labelmap=self.labelmap, extra_fields=extra_fields, ignore_attrs=ignore_attrs
             )
 
         # get frequency prior for relations
         if self.relation_on:
             self.freq_prior_file = op.splitext(self.label_file)[0] + ".freq_prior.npy"
-            if self.split == 'train' and not op.exists(self.freq_prior_file):
+            if self.split == "train" and not op.exists(self.freq_prior_file):
                 print("Computing frequency prior matrix...")
                 fg_matrix, bg_matrix = self._get_freq_prior()
                 prob_matrix = fg_matrix.astype(np.float32)
@@ -165,21 +170,20 @@ class VGTSVDataset(TSVYamlDataset):
                 np.save(self.freq_prior_file, prob_matrix)
 
     def _get_freq_prior(self, must_overlap=False):
-        fg_matrix = np.zeros((
-            len(self.classes),
-            len(self.classes),
-            len(self.relations)
-        ), dtype=np.int64)
+        fg_matrix = np.zeros((len(self.classes), len(self.classes), len(self.relations)), dtype=np.int64)
 
-        bg_matrix = np.zeros((
-            len(self.classes),
-            len(self.classes),
-        ), dtype=np.int64)
+        bg_matrix = np.zeros(
+            (
+                len(self.classes),
+                len(self.classes),
+            ),
+            dtype=np.int64,
+        )
 
         for ex_ind in range(self.__len__()):
             target = self.get_groundtruth(ex_ind)
-            gt_classes = target.get_field('labels').numpy()
-            gt_relations = target.get_field('relation_labels').numpy()
+            gt_classes = target.get_field("labels").numpy()
+            gt_relations = target.get_field("relation_labels").numpy()
             gt_boxes = target.bbox
 
             # For the foreground, we'll just look at everything
@@ -189,8 +193,7 @@ class VGTSVDataset(TSVYamlDataset):
                     fg_matrix[o1, o2, gtr] += 1
 
                 # For the background, get all of the things that overlap.
-                o1o2_total = gt_classes[np.array(
-                    _box_filter(gt_boxes, must_overlap=must_overlap), dtype=int)]
+                o1o2_total = gt_classes[np.array(_box_filter(gt_boxes, must_overlap=must_overlap), dtype=int)]
                 for (o1, o2) in o1o2_total:
                     bg_matrix[o1, o2] += 1
             except IndexError as e:
@@ -206,7 +209,7 @@ class VGTSVDataset(TSVYamlDataset):
         # target: BoxList from label_loader
         if self.filter_duplicate_rels:
             # Filter out dupes!
-            assert self.split == 'train'
+            assert self.split == "train"
             all_rel_sets = collections.defaultdict(list)
             for (o0, o1, r) in relation_triplets:
                 all_rel_sets[(o0, o1)].append(r)
@@ -227,9 +230,9 @@ class VGTSVDataset(TSVYamlDataset):
 
     def get_target_from_annotations(self, annotations, img_size, idx):
         if self.is_load_label and annotations:
-            target = self.label_loader(annotations['objects'], img_size)
+            target = self.label_loader(annotations["objects"], img_size)
             # make sure no boxes are removed
-            assert (len(annotations['objects']) == len(target))
+            assert len(annotations["objects"]) == len(target)
             if self.split in ["val", "test"]:
                 # add the difficult field
                 target.add_field("difficult", torch.zeros(len(target), dtype=torch.int32))

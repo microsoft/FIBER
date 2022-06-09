@@ -36,30 +36,20 @@ class BaseDataModule(LightningDataModule):
         self.image_only = _config["image_only"]
 
         self.train_transform_keys = (
-            ["default_train"]
-            if len(_config["train_transform_keys"]) == 0
-            else _config["train_transform_keys"]
+            ["default_train"] if len(_config["train_transform_keys"]) == 0 else _config["train_transform_keys"]
         )
 
         self.val_transform_keys = (
-            ["default_val"]
-            if len(_config["val_transform_keys"]) == 0
-            else _config["val_transform_keys"]
+            ["default_val"] if len(_config["val_transform_keys"]) == 0 else _config["val_transform_keys"]
         )
 
         tokenizer = _config["tokenizer"]
         self.tokenizer = get_pretrained_tokenizer(tokenizer)
         self.vocab_size = self.tokenizer.vocab_size
 
-        collator = (
-            DataCollatorForWholeWordMask
-            if _config["whole_word_masking"]
-            else DataCollatorForLanguageModeling
-        )
+        collator = DataCollatorForWholeWordMask if _config["whole_word_masking"] else DataCollatorForLanguageModeling
 
-        self.mlm_collator = collator(
-            tokenizer=self.tokenizer, mlm=True, mlm_probability=_config["mlm_prob"]
-        )
+        self.mlm_collator = collator(tokenizer=self.tokenizer, mlm=True, mlm_probability=_config["mlm_prob"])
         self.setup_flag = False
 
     @property

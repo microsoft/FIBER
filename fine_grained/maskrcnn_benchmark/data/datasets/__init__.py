@@ -17,7 +17,23 @@ from .lvis import LvisDetection
 from .pseudo_data import PseudoData
 from .phrasecut import PhrasecutDetection
 
-__all__ = ["COCODataset", "TSVDataset", "ODTSVDataset", "ConcatDataset", "PascalVOCDataset", "Background",
-           "ModulatedDataset", "MixedDataset", "CocoDetection", "FlickrDataset", "RefExpDataset", "GQADataset",
-           "CocoDetectionTSV", "CocoGrounding", "CaptionTSV", "LvisDetection", "PseudoData", "PhrasecutDetection"
-           ]
+__all__ = [
+    "COCODataset",
+    "TSVDataset",
+    "ODTSVDataset",
+    "ConcatDataset",
+    "PascalVOCDataset",
+    "Background",
+    "ModulatedDataset",
+    "MixedDataset",
+    "CocoDetection",
+    "FlickrDataset",
+    "RefExpDataset",
+    "GQADataset",
+    "CocoDetectionTSV",
+    "CocoGrounding",
+    "CaptionTSV",
+    "LvisDetection",
+    "PseudoData",
+    "PhrasecutDetection",
+]

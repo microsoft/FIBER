@@ -14,6 +14,7 @@ from ..roi_heads import build_roi_heads
 
 import timeit
 
+
 class GeneralizedRCNN(nn.Module):
     """
     Main class for Generalized R-CNN. Currently supports boxes and masks.
@@ -38,7 +39,7 @@ class GeneralizedRCNN(nn.Module):
 
         if cfg.MODEL.LINEAR_PROB:
             assert cfg.MODEL.BACKBONE.FREEZE, "For linear probing, backbone should be frozen!"
-            if hasattr(self.backbone, 'fpn'):
+            if hasattr(self.backbone, "fpn"):
                 assert cfg.MODEL.FPN.FREEZE, "For linear probing, FPN should be frozen!"
         self.linear_prob = cfg.MODEL.LINEAR_PROB
 
@@ -60,11 +61,11 @@ class GeneralizedRCNN(nn.Module):
         if self.linear_prob:
             if self.rpn is not None:
                 for key, value in self.rpn.named_parameters():
-                    if not ('bbox_pred' in key or 'cls_logits' in key or 'centerness' in key or 'cosine_scale' in key):
+                    if not ("bbox_pred" in key or "cls_logits" in key or "centerness" in key or "cosine_scale" in key):
                         value.requires_grad = False
             if self.roi_heads is not None:
                 for key, value in self.roi_heads.named_parameters():
-                    if not ('bbox_pred' in key or 'cls_logits' in key or 'centerness' in key or 'cosine_scale' in key):
+                    if not ("bbox_pred" in key or "cls_logits" in key or "centerness" in key or "cosine_scale" in key):
                         value.requires_grad = False
 
     def forward(self, images, targets=None):
@@ -83,9 +84,12 @@ class GeneralizedRCNN(nn.Module):
         if self.training and targets is None:
             raise ValueError("In training mode, targets should be passed")
 
-        if self.DEBUG: debug_info = {}
-        if self.DEBUG: debug_info['input_size'] = images[0].size()
-        if self.DEBUG: tic = timeit.time.perf_counter()
+        if self.DEBUG:
+            debug_info = {}
+        if self.DEBUG:
+            debug_info["input_size"] = images[0].size()
+        if self.DEBUG:
+            tic = timeit.time.perf_counter()
 
         if self.ONNX:
             features = self.backbone(images)
@@ -93,15 +97,21 @@ class GeneralizedRCNN(nn.Module):
             images = to_image_list(images)
             features = self.backbone(images.tensors)
 
-        if self.DEBUG: debug_info['feat_time'] = timeit.time.perf_counter() - tic
-        if self.DEBUG: debug_info['feat_size'] = [feat.size() for feat in features]
-        if self.DEBUG: tic = timeit.time.perf_counter()
+        if self.DEBUG:
+            debug_info["feat_time"] = timeit.time.perf_counter() - tic
+        if self.DEBUG:
+            debug_info["feat_size"] = [feat.size() for feat in features]
+        if self.DEBUG:
+            tic = timeit.time.perf_counter()
 
         proposals, proposal_losses = self.rpn(images, features, targets)
 
-        if self.DEBUG: debug_info['rpn_time'] = timeit.time.perf_counter() - tic
-        if self.DEBUG: debug_info['#rpn'] = [prop for prop in proposals]
-        if self.DEBUG: tic = timeit.time.perf_counter()
+        if self.DEBUG:
+            debug_info["rpn_time"] = timeit.time.perf_counter() - tic
+        if self.DEBUG:
+            debug_info["#rpn"] = [prop for prop in proposals]
+        if self.DEBUG:
+            tic = timeit.time.perf_counter()
 
         if self.roi_heads:
             x, result, detector_losses = self.roi_heads(features, proposals, targets)
@@ -111,9 +121,12 @@ class GeneralizedRCNN(nn.Module):
             result = proposals
             detector_losses = {}
 
-        if self.DEBUG: debug_info['rcnn_time'] = timeit.time.perf_counter() - tic
-        if self.DEBUG: debug_info['#rcnn'] = result
-        if self.DEBUG: return result, debug_info
+        if self.DEBUG:
+            debug_info["rcnn_time"] = timeit.time.perf_counter() - tic
+        if self.DEBUG:
+            debug_info["#rcnn"] = result
+        if self.DEBUG:
+            return result, debug_info
 
         if self.training:
             losses = {}

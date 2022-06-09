@@ -11,12 +11,12 @@ def normalized_positive_map(positive_map):
 
 
 def pad_tensor_given_dim_length(tensor, dim, length, padding_value=0, batch_first=True):
-    new_size = list(tensor.size()[:dim]) + [length] + list(tensor.size()[dim + 1:])
+    new_size = list(tensor.size()[:dim]) + [length] + list(tensor.size()[dim + 1 :])
     out_tensor = tensor.data.new(*new_size).fill_(padding_value)
     if batch_first:
-        out_tensor[:, :tensor.size(1), ...] = tensor
+        out_tensor[:, : tensor.size(1), ...] = tensor
     else:
-        out_tensor[:tensor.size(0), ...] = tensor
+        out_tensor[: tensor.size(0), ...] = tensor
     return out_tensor
 
 
@@ -38,10 +38,7 @@ def gather_tensors(tensor):
     # gathered_normalized_img_emb = [torch.zeros_like(normalized_img_emb) for _ in range(total)]
     # torch.distributed.all_gather(gathered_normalized_img_emb, normalized_img_emb)
 
-    tensors_gather = [
-        torch.zeros_like(tensor)
-        for _ in range(total)
-    ]
+    tensors_gather = [torch.zeros_like(tensor) for _ in range(total)]
     torch.distributed.all_gather(tensors_gather, tensor, async_op=False)
 
     # need to do this to restore propagation of the gradients

@@ -32,30 +32,22 @@ def concat_box_prediction_layers(box_regression, box_cls=None, token_logits=None
     # same format as the labels. Note that the labels are computed for
     # all feature levels concatenated, so we keep the same representation
     # for the objectness and the box_regression
-    for box_cls_per_level, box_regression_per_level in zip(
-            box_cls, box_regression
-    ):
+    for box_cls_per_level, box_regression_per_level in zip(box_cls, box_regression):
         N, AxC, H, W = box_cls_per_level.shape
         Ax4 = box_regression_per_level.shape[1]
         A = Ax4 // 4
         C = AxC // A
-        box_cls_per_level = permute_and_flatten(
-            box_cls_per_level, N, A, C, H, W
-        )
+        box_cls_per_level = permute_and_flatten(box_cls_per_level, N, A, C, H, W)
         box_cls_flattened.append(box_cls_per_level)
 
-        box_regression_per_level = permute_and_flatten(
-            box_regression_per_level, N, A, 4, H, W
-        )
+        box_regression_per_level = permute_and_flatten(box_regression_per_level, N, A, 4, H, W)
         box_regression_flattened.append(box_regression_per_level)
 
     if token_logits is not None:
         for token_logit_per_level in token_logits:
             N, AXT, H, W = token_logit_per_level.shape
             T = AXT // A
-            token_logit_per_level = permute_and_flatten(
-                token_logit_per_level, N, A, T, H, W
-            )
+            token_logit_per_level = permute_and_flatten(token_logit_per_level, N, A, T, H, W)
             token_logit_flattened.append(token_logit_per_level)
 
     # concatenate on the first dimension (representing the feature levels), to

@@ -24,7 +24,9 @@ def config():
     seed = 0
     datasets = ["coco", "vg", "sbu", "gcc"]
     loss_names = _loss_names({"itm": 1, "mlm": 1, "itc": 1})
-    batch_size = 4096  # this is a desired batch size; pl trainer will accumulate gradients when per step batch is smaller.
+    batch_size = (
+        4096  # this is a desired batch size; pl trainer will accumulate gradients when per step batch is smaller.
+    )
 
     # Image setting
     train_transform_keys = ["square"]
@@ -42,7 +44,7 @@ def config():
     max_text_len = 40
     tokenizer = "roberta-base"
     vocab_size = 50265
-    whole_word_masking = False # note that whole_word_masking does not work for RoBERTa
+    whole_word_masking = False  # note that whole_word_masking does not work for RoBERTa
     mlm_prob = 0.15
     draw_false_text = 0
     input_text_embed_size = 768
@@ -54,7 +56,7 @@ def config():
     mlp_ratio = 4
     drop_rate = 0.1
     num_fuse_block = 6
-    itc_pooler = True # does not make a difference
+    itc_pooler = True  # does not make a difference
 
     # Optimizer Setting
     optim_type = "adamw"
@@ -89,6 +91,7 @@ def config():
     num_workers = 8
     precision = 32
 
+
 @ex.named_config
 def task_pretrain_mlm_itm_itc():
     exp_name = "mlm_itm_itc"
@@ -105,6 +108,7 @@ def task_pretrain_mlm_itm_itc():
     lr_mult_cross_modal = 5
     lr_mult_head = 5
     val_check_interval = 1.0
+
 
 @ex.named_config
 def task_finetune_nlvr2():
@@ -125,6 +129,7 @@ def task_finetune_nlvr2():
     image_size = 384
     pretrained_vit = False
 
+
 @ex.named_config
 def task_finetune_vqa():
     exp_name = "finetune_vqa"
@@ -144,6 +149,7 @@ def task_finetune_vqa():
     image_size = 576
     pretrained_vit = False
 
+
 @ex.named_config
 def task_finetune_irtr_itc_coco():
     exp_name = "finetune_irtr_itc_coco"
@@ -161,6 +167,7 @@ def task_finetune_irtr_itc_coco():
     val_transform_keys = ["square"]
     image_size = 576
     pretrained_vit = False
+
 
 @ex.named_config
 def task_finetune_irtr_itc_f30k():
@@ -180,6 +187,7 @@ def task_finetune_irtr_itc_f30k():
     image_size = 576
     pretrained_vit = False
     resolution_before = 576
+
 
 @ex.named_config
 def task_finetune_irtr_itm_coco():
@@ -201,6 +209,7 @@ def task_finetune_irtr_itm_coco():
     get_recall_metric_itc = False
     pretrained_vit = False
 
+
 @ex.named_config
 def task_finetune_irtr_itm_f30k():
     exp_name = "finetune_irtr_itm_f30k"
@@ -221,6 +230,7 @@ def task_finetune_irtr_itm_f30k():
     get_recall_metric_itc = False
     pretrained_vit = False
 
+
 @ex.named_config
 def task_finetune_caption_mle_coco():
     exp_name = "finetune_caption_mle_coco"
@@ -238,6 +248,7 @@ def task_finetune_caption_mle_coco():
     val_transform_keys = ["square"]
     image_size = 576
     pretrained_vit = False
+
 
 @ex.named_config
 def task_finetune_caption_gold_coco():
@@ -258,6 +269,7 @@ def task_finetune_caption_gold_coco():
     resolution_before = 576
     pretrained_vit = False
 
+
 @ex.named_config
 def task_finetune_caption_cider_coco():
     exp_name = "finetune_caption_cider_coco"
@@ -276,4 +288,4 @@ def task_finetune_caption_cider_coco():
     image_size = 576
     resolution_before = 576
     pretrained_vit = False
-    cider_path = 'coco-train-words.p'
+    cider_path = "coco-train-words.p"

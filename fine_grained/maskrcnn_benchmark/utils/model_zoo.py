@@ -17,7 +17,7 @@ from maskrcnn_benchmark.utils.comm import synchronize
 
 # very similar to https://github.com/pytorch/pytorch/blob/master/torch/utils/model_zoo.py
 # but with a few improvements and modifications
-def cache_url(url, model_dir='model', progress=True):
+def cache_url(url, model_dir="model", progress=True):
     r"""Loads the Torch serialized object at the given URL.
     If the object is already present in `model_dir`, it's deserialized and
     returned. The filename part of the URL should follow the naming convention

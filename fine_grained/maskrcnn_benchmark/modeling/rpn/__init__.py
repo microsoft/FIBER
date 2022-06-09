@@ -7,13 +7,14 @@ from .atss import ATSSModule
 from .dyhead import DyHeadModule
 from .vldyhead import VLDyHeadModule
 
-_RPN_META_ARCHITECTURES = {"RPN": RPNModule,
-                           "RETINA": RetinaNetModule,
-                           "FCOS": FCOSModule,
-                           "ATSS": ATSSModule,
-                           "DYHEAD": DyHeadModule,
-                           "VLDYHEAD": VLDyHeadModule
-                           }
+_RPN_META_ARCHITECTURES = {
+    "RPN": RPNModule,
+    "RETINA": RetinaNetModule,
+    "FCOS": FCOSModule,
+    "ATSS": ATSSModule,
+    "DYHEAD": DyHeadModule,
+    "VLDYHEAD": VLDyHeadModule,
+}
 
 
 def build_rpn(cfg):

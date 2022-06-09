@@ -13,12 +13,11 @@ def findContours(*args, **kwargs):
     Returns:
         contours, hierarchy
     """
-    if cv2.__version__.startswith('4'):
+    if cv2.__version__.startswith("4"):
         contours, hierarchy = cv2.findContours(*args, **kwargs)
-    elif cv2.__version__.startswith('3'):
+    elif cv2.__version__.startswith("3"):
         _, contours, hierarchy = cv2.findContours(*args, **kwargs)
     else:
-        raise AssertionError(
-            'cv2 must be either version 3 or 4 to call this method')
+        raise AssertionError("cv2 must be either version 3 or 4 to call this method")
 
     return contours, hierarchy

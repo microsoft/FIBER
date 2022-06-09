@@ -42,14 +42,14 @@ def reduce_loss_dict(all_loss_dict):
 
 
 def do_train(
-        model,
-        data_loader,
-        optimizer,
-        scheduler,
-        checkpointer,
-        device,
-        checkpoint_period,
-        arguments,
+    model,
+    data_loader,
+    optimizer,
+    scheduler,
+    checkpointer,
+    device,
+    checkpoint_period,
+    arguments,
 ):
     logger = logging.getLogger("maskrcnn_benchmark.trainer")
     logger.info("Start training")
@@ -67,7 +67,7 @@ def do_train(
         all_task_loss_dict = []
         for task, (images, targets, _) in enumerate(task_loader, 1):
             if all(len(target) < 1 for target in targets):
-                logger.warning('Sampled all negative batches, skip')
+                logger.warning("Sampled all negative batches, skip")
                 continue
 
             images = images.to(device)
@@ -120,8 +120,4 @@ def do_train(
 
     total_training_time = time.time() - start_training_time
     total_time_str = str(datetime.timedelta(seconds=total_training_time))
-    logger.info(
-        "Total training time: {} ({:.4f} s / it)".format(
-            total_time_str, total_training_time / (max_iter)
-        )
-    )
+    logger.info("Total training time: {} ({:.4f} s / it)".format(total_time_str, total_training_time / (max_iter)))

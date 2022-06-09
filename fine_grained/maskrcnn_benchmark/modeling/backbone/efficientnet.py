@@ -14,8 +14,7 @@ import torch.nn.functional as F
 from maskrcnn_benchmark.layers import SEBlock, swish
 
 
-def round_channels(channels,
-                   divisor=8):
+def round_channels(channels, divisor=8):
     """
     Round weighted channel number (make divisible operation).
 
@@ -37,10 +36,7 @@ def round_channels(channels,
     return rounded_channels
 
 
-def calc_tf_padding(x,
-                    kernel_size,
-                    stride=1,
-                    dilation=1):
+def calc_tf_padding(x, kernel_size, stride=1, dilation=1):
     """
     Calculate TF-same like padding size.
 
@@ -97,22 +93,25 @@ class ConvBlock(nn.Module):
     activation : function or str or None, default nn.ReLU(inplace=True)
         Activation function or name of activation function.
     """
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 stride,
-                 padding,
-                 dilation=1,
-                 groups=1,
-                 bias=False,
-                 use_bn=True,
-                 bn_eps=1e-5,
-                 activation=nn.ReLU(inplace=True)):
+
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        stride,
+        padding,
+        dilation=1,
+        groups=1,
+        bias=False,
+        use_bn=True,
+        bn_eps=1e-5,
+        activation=nn.ReLU(inplace=True),
+    ):
         super(ConvBlock, self).__init__()
-        self.activate = (activation is not None)
+        self.activate = activation is not None
         self.use_bn = use_bn
-        self.use_pad = (isinstance(padding, (list, tuple)) and (len(padding) == 4))
+        self.use_pad = isinstance(padding, (list, tuple)) and (len(padding) == 4)
 
         if self.use_pad:
             self.pad = nn.ZeroPad2d(padding=padding)
@@ -125,11 +124,10 @@ class ConvBlock(nn.Module):
             padding=padding,
             dilation=dilation,
             groups=groups,
-            bias=bias)
+            bias=bias,
+        )
         if self.use_bn:
-            self.bn = nn.BatchNorm2d(
-                num_features=out_channels,
-                eps=bn_eps)
+            self.bn = nn.BatchNorm2d(num_features=out_channels, eps=bn_eps)
         if self.activate:
             self.activ = activation
 
@@ -144,15 +142,17 @@ class ConvBlock(nn.Module):
         return x
 
 
-def conv1x1_block(in_channels,
-                  out_channels,
-                  stride=1,
-                  padding=0,
-                  groups=1,
-                  bias=False,
-                  use_bn=True,
-                  bn_eps=1e-5,
-                  activation=nn.ReLU(inplace=True)):
+def conv1x1_block(
+    in_channels,
+    out_channels,
+    stride=1,
+    padding=0,
+    groups=1,
+    bias=False,
+    use_bn=True,
+    bn_eps=1e-5,
+    activation=nn.ReLU(inplace=True),
+):
     """
     1x1 version of the standard convolution block.
 
@@ -187,19 +187,22 @@ def conv1x1_block(in_channels,
         bias=bias,
         use_bn=use_bn,
         bn_eps=bn_eps,
-        activation=activation)
+        activation=activation,
+    )
 
 
-def conv3x3_block(in_channels,
-                  out_channels,
-                  stride=1,
-                  padding=1,
-                  dilation=1,
-                  groups=1,
-                  bias=False,
-                  use_bn=True,
-                  bn_eps=1e-5,
-                  activation=nn.ReLU(inplace=True)):
+def conv3x3_block(
+    in_channels,
+    out_channels,
+    stride=1,
+    padding=1,
+    dilation=1,
+    groups=1,
+    bias=False,
+    use_bn=True,
+    bn_eps=1e-5,
+    activation=nn.ReLU(inplace=True),
+):
     """
     3x3 version of the standard convolution block.
 
@@ -237,17 +240,20 @@ def conv3x3_block(in_channels,
         bias=bias,
         use_bn=use_bn,
         bn_eps=bn_eps,
-        activation=activation)
+        activation=activation,
+    )
 
 
-def dwconv3x3_block(in_channels,
-                    out_channels,
-                    stride=1,
-                    padding=1,
-                    dilation=1,
-                    bias=False,
-                    bn_eps=1e-5,
-                    activation=nn.ReLU(inplace=True)):
+def dwconv3x3_block(
+    in_channels,
+    out_channels,
+    stride=1,
+    padding=1,
+    dilation=1,
+    bias=False,
+    bn_eps=1e-5,
+    activation=nn.ReLU(inplace=True),
+):
     """
     3x3 depthwise version of the standard convolution block.
 
@@ -281,17 +287,20 @@ def dwconv3x3_block(in_channels,
         bias=bias,
         use_bn=True,
         bn_eps=bn_eps,
-        activation=activation)
+        activation=activation,
+    )
 
 
-def dwconv5x5_block(in_channels,
-                    out_channels,
-                    stride=1,
-                    padding=2,
-                    dilation=1,
-                    bias=False,
-                    bn_eps=1e-5,
-                    activation=nn.ReLU(inplace=True)):
+def dwconv5x5_block(
+    in_channels,
+    out_channels,
+    stride=1,
+    padding=2,
+    dilation=1,
+    bias=False,
+    bn_eps=1e-5,
+    activation=nn.ReLU(inplace=True),
+):
     """
     5x5 depthwise version of the standard convolution block.
 
@@ -325,7 +334,8 @@ def dwconv5x5_block(in_channels,
         bias=bias,
         use_bn=True,
         bn_eps=bn_eps,
-        activation=activation)
+        activation=activation,
+    )
 
 
 class EffiDwsConvUnit(nn.Module):
@@ -348,13 +358,8 @@ class EffiDwsConvUnit(nn.Module):
     tf_mode : bool
         Whether to use TF-like mode.
     """
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 stride,
-                 bn_eps,
-                 activation,
-                 tf_mode):
+
+    def __init__(self, in_channels, out_channels, stride, bn_eps, activation, tf_mode):
         super(EffiDwsConvUnit, self).__init__()
         self.tf_mode = tf_mode
         self.residual = (in_channels == out_channels) and (stride == 1)
@@ -364,16 +369,10 @@ class EffiDwsConvUnit(nn.Module):
             out_channels=in_channels,
             padding=(0 if tf_mode else 1),
             bn_eps=bn_eps,
-            activation=activation)
-        self.se = SEBlock(
-            channels=in_channels,
-            reduction=4,
-            mid_activation=activation)
-        self.pw_conv = conv1x1_block(
-            in_channels=in_channels,
-            out_channels=out_channels,
-            bn_eps=bn_eps,
-            activation=None)
+            activation=activation,
+        )
+        self.se = SEBlock(channels=in_channels, reduction=4, mid_activation=activation)
+        self.pw_conv = conv1x1_block(in_channels=in_channels, out_channels=out_channels, bn_eps=bn_eps, activation=None)
 
     def forward(self, x):
         if self.residual:
@@ -413,16 +412,10 @@ class EffiInvResUnit(nn.Module):
     tf_mode : bool
         Whether to use TF-like mode.
     """
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 stride,
-                 exp_factor,
-                 se_factor,
-                 bn_eps,
-                 activation,
-                 tf_mode):
+
+    def __init__(
+        self, in_channels, out_channels, kernel_size, stride, exp_factor, se_factor, bn_eps, activation, tf_mode
+    ):
         super(EffiInvResUnit, self).__init__()
         self.kernel_size = kernel_size
         self.stride = stride
@@ -433,27 +426,19 @@ class EffiInvResUnit(nn.Module):
         dwconv_block_fn = dwconv3x3_block if kernel_size == 3 else (dwconv5x5_block if kernel_size == 5 else None)
 
         self.conv1 = conv1x1_block(
-            in_channels=in_channels,
-            out_channels=mid_channels,
-            bn_eps=bn_eps,
-            activation=activation)
+            in_channels=in_channels, out_channels=mid_channels, bn_eps=bn_eps, activation=activation
+        )
         self.conv2 = dwconv_block_fn(
             in_channels=mid_channels,
             out_channels=mid_channels,
             stride=stride,
             padding=(0 if tf_mode else (kernel_size // 2)),
             bn_eps=bn_eps,
-            activation=activation)
+            activation=activation,
+        )
         if self.use_se:
-            self.se = SEBlock(
-                channels=mid_channels,
-                reduction=(exp_factor * se_factor),
-                mid_activation=activation)
-        self.conv3 = conv1x1_block(
-            in_channels=mid_channels,
-            out_channels=out_channels,
-            bn_eps=bn_eps,
-            activation=None)
+            self.se = SEBlock(channels=mid_channels, reduction=(exp_factor * se_factor), mid_activation=activation)
+        self.conv3 = conv1x1_block(in_channels=mid_channels, out_channels=out_channels, bn_eps=bn_eps, activation=None)
 
     def forward(self, x):
         if self.residual:
@@ -488,12 +473,7 @@ class EffiInitBlock(nn.Module):
         Whether to use TF-like mode.
     """
 
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 bn_eps,
-                 activation,
-                 tf_mode):
+    def __init__(self, in_channels, out_channels, bn_eps, activation, tf_mode):
         super(EffiInitBlock, self).__init__()
         self.tf_mode = tf_mode
 
@@ -503,7 +483,8 @@ class EffiInitBlock(nn.Module):
             stride=2,
             padding=(0 if tf_mode else 1),
             bn_eps=bn_eps,
-            activation=activation)
+            activation=activation,
+        )
 
     def forward(self, x):
         if self.tf_mode:
@@ -544,16 +525,19 @@ class EfficientNet(nn.Module):
     num_classes : int, default 1000
         Number of classification classes.
     """
-    def __init__(self,
-                 cfg,
-                 channels,
-                 init_block_channels,
-                 kernel_sizes,
-                 strides_per_stage,
-                 expansion_factors,
-                 tf_mode=False,
-                 bn_eps=1e-5,
-                 in_channels=3):
+
+    def __init__(
+        self,
+        cfg,
+        channels,
+        init_block_channels,
+        kernel_sizes,
+        strides_per_stage,
+        expansion_factors,
+        tf_mode=False,
+        bn_eps=1e-5,
+        in_channels=3,
+    ):
         super(EfficientNet, self).__init__()
         activation = swish()
 
@@ -565,7 +549,8 @@ class EfficientNet(nn.Module):
             out_channels=init_block_channels,
             bn_eps=bn_eps,
             activation=activation,
-            tf_mode=tf_mode)
+            tf_mode=tf_mode,
+        )
         self.features.add_module("init_block", stem)
         self.stages.append(stem)
 
@@ -579,26 +564,34 @@ class EfficientNet(nn.Module):
                 expansion_factor = expansion_factors_per_stage[j]
                 stride = strides_per_stage[i] if (j == 0) else 1
                 if i == 0:
-                    stage.add_module("unit{}".format(j + 1), EffiDwsConvUnit(
-                        in_channels=in_channels,
-                        out_channels=out_channels,
-                        stride=stride,
-                        bn_eps=bn_eps,
-                        activation=activation,
-                        tf_mode=tf_mode))
+                    stage.add_module(
+                        "unit{}".format(j + 1),
+                        EffiDwsConvUnit(
+                            in_channels=in_channels,
+                            out_channels=out_channels,
+                            stride=stride,
+                            bn_eps=bn_eps,
+                            activation=activation,
+                            tf_mode=tf_mode,
+                        ),
+                    )
                 else:
-                    stage.add_module("unit{}".format(j + 1), EffiInvResUnit(
-                        in_channels=in_channels,
-                        out_channels=out_channels,
-                        kernel_size=kernel_size,
-                        stride=stride,
-                        exp_factor=expansion_factor,
-                        se_factor=4,
-                        bn_eps=bn_eps,
-                        activation=activation,
-                        tf_mode=tf_mode))
+                    stage.add_module(
+                        "unit{}".format(j + 1),
+                        EffiInvResUnit(
+                            in_channels=in_channels,
+                            out_channels=out_channels,
+                            kernel_size=kernel_size,
+                            stride=stride,
+                            exp_factor=expansion_factor,
+                            se_factor=4,
+                            bn_eps=bn_eps,
+                            activation=activation,
+                            tf_mode=tf_mode,
+                        ),
+                    )
                 in_channels = out_channels
-            if i>0:
+            if i > 0:
                 self.out_channels.append(out_channels)
             self.features.add_module("stage{}".format(i + 1), stage)
             self.stages.append(stage)
@@ -617,12 +610,12 @@ class EfficientNet(nn.Module):
         res = []
         for i, stage in enumerate(self.stages):
             x = stage(x)
-            if i>1:
+            if i > 1:
                 res.append(x)
         return res
 
 
-def get_efficientnet(cfg, version, tf_mode = True, bn_eps=1e-5, **kwargs):
+def get_efficientnet(cfg, version, tf_mode=True, bn_eps=1e-5, **kwargs):
     if version == "b0":
         depth_factor = 1.0
         width_factor = 1.0
@@ -665,14 +658,27 @@ def get_efficientnet(cfg, version, tf_mode = True, bn_eps=1e-5, **kwargs):
     channels_per_layers = [round_channels(ci * width_factor) for ci in channels_per_layers]
 
     from functools import reduce
-    channels = reduce(lambda x, y: x + [[y[0]] * y[1]] if y[2] != 0 else x[:-1] + [x[-1] + [y[0]] * y[1]],
-                      zip(channels_per_layers, layers, downsample), [])
-    kernel_sizes = reduce(lambda x, y: x + [[y[0]] * y[1]] if y[2] != 0 else x[:-1] + [x[-1] + [y[0]] * y[1]],
-                          zip(kernel_sizes_per_layers, layers, downsample), [])
-    expansion_factors = reduce(lambda x, y: x + [[y[0]] * y[1]] if y[2] != 0 else x[:-1] + [x[-1] + [y[0]] * y[1]],
-                               zip(expansion_factors_per_layers, layers, downsample), [])
-    strides_per_stage = reduce(lambda x, y: x + [[y[0]] * y[1]] if y[2] != 0 else x[:-1] + [x[-1] + [y[0]] * y[1]],
-                               zip(strides_per_stage, layers, downsample), [])
+
+    channels = reduce(
+        lambda x, y: x + [[y[0]] * y[1]] if y[2] != 0 else x[:-1] + [x[-1] + [y[0]] * y[1]],
+        zip(channels_per_layers, layers, downsample),
+        [],
+    )
+    kernel_sizes = reduce(
+        lambda x, y: x + [[y[0]] * y[1]] if y[2] != 0 else x[:-1] + [x[-1] + [y[0]] * y[1]],
+        zip(kernel_sizes_per_layers, layers, downsample),
+        [],
+    )
+    expansion_factors = reduce(
+        lambda x, y: x + [[y[0]] * y[1]] if y[2] != 0 else x[:-1] + [x[-1] + [y[0]] * y[1]],
+        zip(expansion_factors_per_layers, layers, downsample),
+        [],
+    )
+    strides_per_stage = reduce(
+        lambda x, y: x + [[y[0]] * y[1]] if y[2] != 0 else x[:-1] + [x[-1] + [y[0]] * y[1]],
+        zip(strides_per_stage, layers, downsample),
+        [],
+    )
     strides_per_stage = [si[0] for si in strides_per_stage]
 
     init_block_channels = round_channels(init_block_channels * width_factor)
@@ -686,6 +692,7 @@ def get_efficientnet(cfg, version, tf_mode = True, bn_eps=1e-5, **kwargs):
         expansion_factors=expansion_factors,
         tf_mode=tf_mode,
         bn_eps=bn_eps,
-        **kwargs)
+        **kwargs
+    )
 
     return net

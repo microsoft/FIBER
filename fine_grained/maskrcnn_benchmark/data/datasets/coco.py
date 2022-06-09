@@ -17,6 +17,7 @@ from maskrcnn_benchmark.structures.keypoint import PersonKeypoints
 from maskrcnn_benchmark.config import cfg
 import pdb
 
+
 def _count_visible_keypoints(anno):
     return sum(sum(1 for v in ann["keypoints"][2::3] if v > 0) for ann in anno)
 
@@ -48,9 +49,9 @@ def pil_loader(path, retry=5):
     ri = 0
     while ri < retry:
         try:
-            with open(path, 'rb') as f:
+            with open(path, "rb") as f:
                 img = Image.open(f)
-                return img.convert('RGB')
+                return img.convert("RGB")
         except:
             ri += 1
 
@@ -77,6 +78,7 @@ class CocoDetection(data.Dataset):
 
     def __init__(self, root, annFile, transform=None, target_transform=None):
         from pycocotools.coco import COCO
+
         self.root = root
         self.coco = COCO(annFile)
         self.ids = list(self.coco.imgs.keys())
@@ -99,7 +101,7 @@ class CocoDetection(data.Dataset):
         target = coco.loadAnns(ann_ids)
 
         meta = coco.loadImgs(img_id)[0]
-        path = meta['file_name']
+        path = meta["file_name"]
         img = pil_loader(os.path.join(self.root, path))
 
         if self.transform is not None:
@@ -117,21 +119,30 @@ class CocoDetection(data.Dataset):
         return len(self.ids)
 
     def __repr__(self):
-        fmt_str = 'Dataset ' + self.__class__.__name__ + '\n'
-        fmt_str += '    Number of datapoints: {}\n'.format(self.__len__())
-        fmt_str += '    Root Location: {}\n'.format(self.root)
-        tmp = '    Transforms (if any): '
-        fmt_str += '{0}{1}\n'.format(tmp, self.transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
-        tmp = '    Target Transforms (if any): '
-        fmt_str += '{0}{1}'.format(tmp, self.target_transform.__repr__().replace('\n', '\n' + ' ' * len(tmp)))
+        fmt_str = "Dataset " + self.__class__.__name__ + "\n"
+        fmt_str += "    Number of datapoints: {}\n".format(self.__len__())
+        fmt_str += "    Root Location: {}\n".format(self.root)
+        tmp = "    Transforms (if any): "
+        fmt_str += "{0}{1}\n".format(tmp, self.transform.__repr__().replace("\n", "\n" + " " * len(tmp)))
+        tmp = "    Target Transforms (if any): "
+        fmt_str += "{0}{1}".format(tmp, self.target_transform.__repr__().replace("\n", "\n" + " " * len(tmp)))
         return fmt_str
 
 
 class COCODataset(CocoDetection):
-    def __init__(self, ann_file, root, remove_images_without_annotations, transforms=None, ignore_crowd=True,
-                 max_box=-1,
-                 few_shot=0, one_hot=False, override_category=None, **kwargs
-                 ):
+    def __init__(
+        self,
+        ann_file,
+        root,
+        remove_images_without_annotations,
+        transforms=None,
+        ignore_crowd=True,
+        max_box=-1,
+        few_shot=0,
+        one_hot=False,
+        override_category=None,
+        **kwargs
+    ):
         super(COCODataset, self).__init__(root, ann_file)
         # sort indices for reproducible results
         self.ids = sorted(self.ids)
@@ -151,36 +162,33 @@ class COCODataset(CocoDetection):
 
         if few_shot:
             ids = []
-            cats_freq = [few_shot]*len(self.coco.cats.keys())
-            if 'shuffle_seed' in kwargs and kwargs['shuffle_seed'] != 0:
+            cats_freq = [few_shot] * len(self.coco.cats.keys())
+            if "shuffle_seed" in kwargs and kwargs["shuffle_seed"] != 0:
                 import random
-                random.Random(kwargs['shuffle_seed']).shuffle(self.ids)
-                print("Shuffle the dataset with random seed: ", kwargs['shuffle_seed'])
+
+                random.Random(kwargs["shuffle_seed"]).shuffle(self.ids)
+                print("Shuffle the dataset with random seed: ", kwargs["shuffle_seed"])
             for img_id in self.ids:
                 if isinstance(img_id, str):
                     ann_ids = self.coco.getAnnIds(imgIds=[img_id], iscrowd=None)
                 else:
                     ann_ids = self.coco.getAnnIds(imgIds=img_id, iscrowd=None)
                 anno = self.coco.loadAnns(ann_ids)
-                cat = set([ann['category_id'] for ann in anno]) #set/tuple corresponde to instance/image level
-                is_needed = sum([cats_freq[c-1]>0 for c in cat])
+                cat = set([ann["category_id"] for ann in anno])  # set/tuple corresponde to instance/image level
+                is_needed = sum([cats_freq[c - 1] > 0 for c in cat])
                 if is_needed:
                     ids.append(img_id)
                     for c in cat:
-                        cats_freq[c-1] -= 1
+                        cats_freq[c - 1] -= 1
                     # print(cat, cats_freq)
             self.ids = ids
-        
+
         if override_category is not None:
             self.coco.dataset["categories"] = override_category
             print("Override category: ", override_category)
 
-        self.json_category_id_to_contiguous_id = {
-            v: i + 1 for i, v in enumerate(self.coco.getCatIds())
-        }
-        self.contiguous_category_id_to_json_id = {
-            v: k for k, v in self.json_category_id_to_contiguous_id.items()
-        }
+        self.json_category_id_to_contiguous_id = {v: i + 1 for i, v in enumerate(self.coco.getCatIds())}
+        self.contiguous_category_id_to_json_id = {v: k for k, v in self.json_category_id_to_contiguous_id.items()}
         self.id_to_img_map = {k: v for k, v in enumerate(self.ids)}
         self.transforms = transforms
         self.ignore_crowd = ignore_crowd
@@ -191,13 +199,12 @@ class COCODataset(CocoDetection):
         categories = self.coco.dataset["categories"]
         label_list = {}
         for index, i in enumerate(categories):
-            if not no_background or (i["name"] != "__background__" and i['id'] != 0):
+            if not no_background or (i["name"] != "__background__" and i["id"] != 0):
                 label_list[self.json_category_id_to_contiguous_id[i["id"]]] = i["name"]
         return label_list
 
     def __getitem__(self, idx):
 
-        
         img, anno = super(COCODataset, self).__getitem__(idx)
 
         # filter crowd annotations
@@ -225,7 +232,7 @@ class COCODataset(CocoDetection):
 
         if anno and "segmentation" in anno[0]:
             masks = [obj["segmentation"] for obj in anno]
-            masks = SegmentationMask(masks, img.size, mode='poly')
+            masks = SegmentationMask(masks, img.size, mode="poly")
             target.add_field("masks", masks)
 
         if anno and "cbox" in anno[0]:
@@ -236,7 +243,7 @@ class COCODataset(CocoDetection):
 
         if anno and "keypoints" in anno[0]:
             keypoints = []
-            gt_keypoint = self.coco.cats[1]['keypoints']  # <TODO> a better way to get keypoint description
+            gt_keypoint = self.coco.cats[1]["keypoints"]  # <TODO> a better way to get keypoint description
             use_keypoint = cfg.MODEL.ROI_KEYPOINT_HEAD.KEYPOINT_NAME
             for obj in anno:
                 if len(use_keypoint) > 0:

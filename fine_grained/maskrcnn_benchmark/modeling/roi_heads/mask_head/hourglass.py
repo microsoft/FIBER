@@ -49,11 +49,11 @@ class Hourglass(nn.Module):
         self.n = n
         # Recursive hourglass
         if self.n > 1:
-            self.low2 = Hourglass(n-1, nf, gn=gn)
+            self.low2 = Hourglass(n - 1, nf, gn=gn)
         else:
             self.low2 = Residual(nf, nf, gn)
         self.low3 = Residual(nf, f, gn)
-        self.up2 = nn.Upsample(scale_factor=2, mode='nearest')
+        self.up2 = nn.Upsample(scale_factor=2, mode="nearest")
 
     def forward(self, x):
         up1 = self.up1(x)

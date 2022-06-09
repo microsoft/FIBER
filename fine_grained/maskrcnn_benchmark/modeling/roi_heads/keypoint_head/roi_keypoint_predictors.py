@@ -17,17 +17,13 @@ class KeypointRCNNPredictor(nn.Module):
             stride=2,
             padding=deconv_kernel // 2 - 1,
         )
-        nn.init.kaiming_normal_(
-            self.kps_score_lowres.weight, mode="fan_out", nonlinearity="relu"
-        )
+        nn.init.kaiming_normal_(self.kps_score_lowres.weight, mode="fan_out", nonlinearity="relu")
         nn.init.constant_(self.kps_score_lowres.bias, 0)
         self.up_scale = 2
 
     def forward(self, x):
         x = self.kps_score_lowres(x)
-        x = layers.interpolate(
-            x, scale_factor=self.up_scale, mode="bilinear", align_corners=False
-        )
+        x = layers.interpolate(x, scale_factor=self.up_scale, mode="bilinear", align_corners=False)
         return x
 
 

@@ -9,7 +9,6 @@ from maskrcnn_benchmark.layers import Conv2d
 from maskrcnn_benchmark.modeling.make_layers import make_conv3x3
 
 
-
 class MaskRCNNFPNFeatureExtractor(nn.Module):
     """
     Heads for FPN for classification
@@ -43,9 +42,7 @@ class MaskRCNNFPNFeatureExtractor(nn.Module):
         self.blocks = []
         for layer_idx, layer_features in enumerate(layers, 1):
             layer_name = "mask_fcn{}".format(layer_idx)
-            module = make_conv3x3(next_feature, layer_features, 
-                dilation=dilation, stride=1, use_gn=use_gn
-            )
+            module = make_conv3x3(next_feature, layer_features, dilation=dilation, stride=1, use_gn=use_gn)
             self.add_module(layer_name, module)
             next_feature = layer_features
             self.blocks.append(layer_name)
@@ -88,7 +85,7 @@ class HourglassFPNFeatureExtractor(nn.Module):
         layers = cfg.MODEL.ROI_MASK_HEAD.CONV_LAYERS
         scale = cfg.MODEL.ROI_MASK_HEAD.HG_SCALE
 
-        assert input_size==layers[0]
+        assert input_size == layers[0]
         self.blocks = []
         for layer_idx, layer_features in enumerate(layers, 1):
             layer_name = "mask_hg{}".format(layer_idx)

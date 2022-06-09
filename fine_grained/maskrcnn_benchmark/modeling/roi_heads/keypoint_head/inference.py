@@ -72,9 +72,7 @@ def heatmaps_to_keypoints(maps, rois):
             roi_map_height = heights_ceil[i]
         width_correction = widths[i] / roi_map_width
         height_correction = heights[i] / roi_map_height
-        roi_map = cv2.resize(
-            maps[i], (roi_map_width, roi_map_height), interpolation=cv2.INTER_CUBIC
-        )
+        roi_map = cv2.resize(maps[i], (roi_map_width, roi_map_height), interpolation=cv2.INTER_CUBIC)
         # Bring back to CHW
         roi_map = np.transpose(roi_map, [2, 0, 1])
         # roi_map_probs = scores_to_probs(roi_map.copy())
@@ -109,9 +107,7 @@ class Keypointer(object):
             boxes = [boxes]
         assert len(boxes) == 1
 
-        result, scores = heatmaps_to_keypoints(
-            masks.detach().cpu().numpy(), boxes[0].bbox.cpu().numpy()
-        )
+        result, scores = heatmaps_to_keypoints(masks.detach().cpu().numpy(), boxes[0].bbox.cpu().numpy())
         return torch.from_numpy(result).to(masks.device), torch.as_tensor(scores, device=masks.device)
 
 

@@ -6,20 +6,44 @@ import torch.nn.functional as F
 
 def conv7x7(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """7x7 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=7, stride=stride,
-                     padding=3*dilation, groups=groups, bias=False, dilation=dilation)
+    return nn.Conv2d(
+        in_planes,
+        out_planes,
+        kernel_size=7,
+        stride=stride,
+        padding=3 * dilation,
+        groups=groups,
+        bias=False,
+        dilation=dilation,
+    )
 
 
 def conv5x5(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """5x5 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=5, stride=stride,
-                     padding=2*dilation, groups=groups, bias=False, dilation=dilation)
+    return nn.Conv2d(
+        in_planes,
+        out_planes,
+        kernel_size=5,
+        stride=stride,
+        padding=2 * dilation,
+        groups=groups,
+        bias=False,
+        dilation=dilation,
+    )
 
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """3x3 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=dilation, groups=groups, bias=False, dilation=dilation)
+    return nn.Conv2d(
+        in_planes,
+        out_planes,
+        kernel_size=3,
+        stride=stride,
+        padding=dilation,
+        groups=groups,
+        bias=False,
+        dilation=dilation,
+    )
 
 
 def conv1x1(in_planes, out_planes, stride=1):
@@ -33,6 +57,7 @@ def maxpool(**kwargs):
 
 def avgpool(**kwargs):
     return nn.AvgPool2d(kernel_size=3, stride=2, padding=1)
+
 
 def dropout(prob):
     return nn.Dropout(prob)

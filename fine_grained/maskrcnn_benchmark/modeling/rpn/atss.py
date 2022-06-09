@@ -12,7 +12,6 @@ from .anchor_generator import make_anchor_generator_complex
 
 
 class BoxCoder(object):
-
     def __init__(self, cfg):
         self.cfg = cfg
 
@@ -29,7 +28,7 @@ class BoxCoder(object):
         gt_ctr_x = (gt_boxes[:, 2] + gt_boxes[:, 0]) / 2
         gt_ctr_y = (gt_boxes[:, 3] + gt_boxes[:, 1]) / 2
 
-        wx, wy, ww, wh = (10., 10., 5., 5.)
+        wx, wy, ww, wh = (10.0, 10.0, 5.0, 5.0)
         targets_dx = wx * (gt_ctr_x - ex_ctr_x) / ex_widths
         targets_dy = wy * (gt_ctr_y - ex_ctr_y) / ex_heights
         targets_dw = ww * torch.log(gt_widths / ex_widths)
@@ -48,15 +47,15 @@ class BoxCoder(object):
         ctr_x = (anchors[:, 2] + anchors[:, 0]) / 2
         ctr_y = (anchors[:, 3] + anchors[:, 1]) / 2
 
-        wx, wy, ww, wh = (10., 10., 5., 5.)
+        wx, wy, ww, wh = (10.0, 10.0, 5.0, 5.0)
         dx = preds[:, 0::4] / wx
         dy = preds[:, 1::4] / wy
         dw = preds[:, 2::4] / ww
         dh = preds[:, 3::4] / wh
 
         # Prevent sending too large values into torch.exp()
-        dw = torch.clamp(dw, max=math.log(1000. / 16))
-        dh = torch.clamp(dh, max=math.log(1000. / 16))
+        dw = torch.clamp(dw, max=math.log(1000.0 / 16))
+        dh = torch.clamp(dh, max=math.log(1000.0 / 16))
 
         pred_ctr_x = dx * widths[:, None] + ctr_x[:, None]
         pred_ctr_y = dy * heights[:, None] + ctr_y[:, None]
@@ -89,21 +88,13 @@ class ATSSHead(torch.nn.Module):
         cls_tower = []
         bbox_tower = []
         for i in range(cfg.MODEL.ATSS.NUM_CONVS):
-            if use_dcn_in_tower and \
-                    i == cfg.MODEL.ATSS.NUM_CONVS - 1:
+            if use_dcn_in_tower and i == cfg.MODEL.ATSS.NUM_CONVS - 1:
                 conv_func = DFConv2d
             else:
                 conv_func = nn.Conv2d
 
             cls_tower.append(
-                conv_func(
-                    in_channels if i==0 else channels,
-                    channels,
-                    kernel_size=3,
-                    stride=1,
-                    padding=1,
-                    bias=True
-                )
+                conv_func(in_channels if i == 0 else channels, channels, kernel_size=3, stride=1, padding=1, bias=True)
             )
             if use_gn:
                 cls_tower.append(nn.GroupNorm(32, channels))
@@ -117,14 +108,7 @@ class ATSSHead(torch.nn.Module):
                 cls_tower.append(nn.ReLU())
 
             bbox_tower.append(
-                conv_func(
-                    in_channels if i == 0 else channels,
-                    channels,
-                    kernel_size=3,
-                    stride=1,
-                    padding=1,
-                    bias=True
-                )
+                conv_func(in_channels if i == 0 else channels, channels, kernel_size=3, stride=1, padding=1, bias=True)
             )
             if use_gn:
                 bbox_tower.append(nn.GroupNorm(32, channels))
@@ -137,25 +121,14 @@ class ATSSHead(torch.nn.Module):
             else:
                 bbox_tower.append(nn.ReLU())
 
-        self.add_module('cls_tower', nn.Sequential(*cls_tower))
-        self.add_module('bbox_tower', nn.Sequential(*bbox_tower))
-        self.cls_logits = nn.Conv2d(
-            channels, num_anchors * num_classes, kernel_size=3, stride=1,
-            padding=1
-        )
-        self.bbox_pred = nn.Conv2d(
-            channels, num_anchors * 4, kernel_size=3, stride=1,
-            padding=1
-        )
-        self.centerness = nn.Conv2d(
-            channels, num_anchors * 1, kernel_size=3, stride=1,
-            padding=1
-        )
+        self.add_module("cls_tower", nn.Sequential(*cls_tower))
+        self.add_module("bbox_tower", nn.Sequential(*bbox_tower))
+        self.cls_logits = nn.Conv2d(channels, num_anchors * num_classes, kernel_size=3, stride=1, padding=1)
+        self.bbox_pred = nn.Conv2d(channels, num_anchors * 4, kernel_size=3, stride=1, padding=1)
+        self.centerness = nn.Conv2d(channels, num_anchors * 1, kernel_size=3, stride=1, padding=1)
 
         # initialization
-        for modules in [self.cls_tower, self.bbox_tower,
-                        self.cls_logits, self.bbox_pred,
-                        self.centerness]:
+        for modules in [self.cls_tower, self.bbox_tower, self.cls_logits, self.bbox_pred, self.centerness]:
             for l in modules.modules():
                 if isinstance(l, nn.Conv2d):
                     torch.nn.init.normal_(l.weight, std=0.01)
@@ -186,7 +159,6 @@ class ATSSHead(torch.nn.Module):
 
 
 class ATSSModule(torch.nn.Module):
-
     def __init__(self, cfg):
         super(ATSSModule, self).__init__()
         self.cfg = cfg
@@ -200,7 +172,7 @@ class ATSSModule(torch.nn.Module):
     def forward(self, images, features, targets=None):
         box_cls, box_regression, centerness = self.head(features)
         anchors = self.anchor_generator(images, features)
- 
+
         if self.training:
             return self._forward_train(box_cls, box_regression, centerness, targets, anchors)
         else:
@@ -210,11 +182,7 @@ class ATSSModule(torch.nn.Module):
         loss_box_cls, loss_box_reg, loss_centerness = self.loss_evaluator(
             box_cls, box_regression, centerness, targets, anchors
         )
-        losses = {
-            "loss_cls": loss_box_cls,
-            "loss_reg": loss_box_reg,
-            "loss_centerness": loss_centerness
-        }
+        losses = {"loss_cls": loss_box_cls, "loss_reg": loss_box_reg, "loss_centerness": loss_centerness}
         if self.cfg.MODEL.RPN_ONLY:
             return None, losses
         else:
@@ -223,8 +191,8 @@ class ATSSModule(torch.nn.Module):
             for b, a in zip(boxes, anchors):
                 a = cat_boxlist(a)
                 b.add_field("visibility", torch.ones(b.bbox.shape[0], dtype=torch.bool, device=b.bbox.device))
-                del b.extra_fields['scores']
-                del b.extra_fields['labels']
+                del b.extra_fields["scores"]
+                del b.extra_fields["labels"]
                 train_boxes.append(cat_boxlist([b, a]))
             return train_boxes, losses
 

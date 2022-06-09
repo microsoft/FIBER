@@ -44,25 +44,24 @@ def make_arrow(root, dataset_root):
         for c in cap:
             iid2captions[c["image_id"]].append(c)
 
-    paths = list(glob(f"{root}/images/VG_100K/*.jpg")) + list(
-        glob(f"{root}/images/VG_100K_2/*.jpg")
-    )
+    paths = list(glob(f"{root}/images/VG_100K/*.jpg")) + list(glob(f"{root}/images/VG_100K_2/*.jpg"))
     random.shuffle(paths)
-    caption_paths = [
-        path for path in paths if int(path.split("/")[-1][:-4]) in iid2captions
-    ]
+    caption_paths = [path for path in paths if int(path.split("/")[-1][:-4]) in iid2captions]
 
     if len(paths) == len(caption_paths):
         print("all images have caption annotations")
     else:
         print("not all images have caption annotations")
     print(
-        len(paths), len(caption_paths), len(iid2captions),
+        len(paths),
+        len(caption_paths),
+        len(iid2captions),
     )
 
     bs = [path2rest(path, iid2captions) for path in tqdm(caption_paths)]
     dataframe = pd.DataFrame(
-        bs, columns=["image", "caption", "width", "height", "x", "y", "image_id"],
+        bs,
+        columns=["image", "caption", "width", "height", "x", "y", "image_id"],
     )
     table = pa.Table.from_pandas(dataframe)
 

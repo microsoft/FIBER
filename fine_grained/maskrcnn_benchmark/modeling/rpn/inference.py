@@ -13,6 +13,7 @@ from maskrcnn_benchmark.structures.boxlist_ops import remove_small_boxes
 from ..utils import permute_and_flatten
 import pdb
 
+
 class RPNPostProcessor(torch.nn.Module):
     """
     Performs post-processing on the outputs of the RPN boxes, before feeding the
@@ -20,14 +21,7 @@ class RPNPostProcessor(torch.nn.Module):
     """
 
     def __init__(
-            self,
-            pre_nms_top_n,
-            post_nms_top_n,
-            nms_thresh,
-            min_size,
-            box_coder=None,
-            fpn_post_nms_top_n=None,
-            onnx=False
+        self, pre_nms_top_n, post_nms_top_n, nms_thresh, min_size, box_coder=None, fpn_post_nms_top_n=None, onnx=False
     ):
         """
         Arguments:
@@ -69,10 +63,7 @@ class RPNPostProcessor(torch.nn.Module):
         for gt_box in gt_boxes:
             gt_box.add_field("objectness", torch.ones(len(gt_box), device=device))
 
-        proposals = [
-            cat_boxlist((proposal, gt_box))
-            for proposal, gt_box in zip(proposals, gt_boxes)
-        ]
+        proposals = [cat_boxlist((proposal, gt_box)) for proposal, gt_box in zip(proposals, gt_boxes)]
 
         return proposals
 
@@ -104,9 +95,7 @@ class RPNPostProcessor(torch.nn.Module):
         concat_anchors = torch.cat([a.bbox for a in anchors], dim=0)
         concat_anchors = concat_anchors.reshape(N, -1, 4)[batch_idx, topk_idx]
 
-        proposals = self.box_coder.decode(
-            box_regression.view(-1, 4), concat_anchors.view(-1, 4)
-        )
+        proposals = self.box_coder.decode(box_regression.view(-1, 4), concat_anchors.view(-1, 4))
 
         proposals = proposals.view(N, -1, 4)
 
@@ -167,9 +156,7 @@ class RPNPostProcessor(torch.nn.Module):
         # TODO resolve this difference and make it consistent. It should be per image,
         # and not per batch
         if self.training:
-            objectness = torch.cat(
-                [boxlist.get_field("objectness") for boxlist in boxlists], dim=0
-            )
+            objectness = torch.cat([boxlist.get_field("objectness") for boxlist in boxlists], dim=0)
             box_sizes = [len(boxlist) for boxlist in boxlists]
             post_nms_top_n = min(self.fpn_post_nms_top_n, len(objectness))
             _, inds_sorted = torch.topk(objectness, post_nms_top_n, dim=0, sorted=True)
@@ -182,9 +169,7 @@ class RPNPostProcessor(torch.nn.Module):
             for i in range(num_images):
                 objectness = boxlists[i].get_field("objectness")
                 post_nms_top_n = min(self.fpn_post_nms_top_n, len(objectness))
-                _, inds_sorted = torch.topk(
-                    objectness, post_nms_top_n, dim=0, sorted=True
-                )
+                _, inds_sorted = torch.topk(objectness, post_nms_top_n, dim=0, sorted=True)
                 boxlists[i] = boxlists[i][inds_sorted]
         return boxlists
 
@@ -209,7 +194,7 @@ def make_rpn_postprocessor(config, rpn_box_coder, is_train):
         min_size=min_size,
         box_coder=rpn_box_coder,
         fpn_post_nms_top_n=fpn_post_nms_top_n,
-        onnx=onnx
+        onnx=onnx,
     )
     return box_selector
 
@@ -221,14 +206,14 @@ class RetinaPostProcessor(torch.nn.Module):
     """
 
     def __init__(
-            self,
-            pre_nms_thresh,
-            pre_nms_top_n,
-            nms_thresh,
-            fpn_post_nms_top_n,
-            min_size,
-            num_classes,
-            box_coder=None,
+        self,
+        pre_nms_thresh,
+        pre_nms_top_n,
+        nms_thresh,
+        fpn_post_nms_top_n,
+        min_size,
+        num_classes,
+        box_coder=None,
     ):
         """
         Arguments:
@@ -249,7 +234,7 @@ class RetinaPostProcessor(torch.nn.Module):
         self.num_classes = num_classes
 
         if box_coder is None:
-            box_coder = BoxCoder(weights=(10., 10., 5., 5.))
+            box_coder = BoxCoder(weights=(10.0, 10.0, 5.0, 5.0))
         self.box_coder = box_coder
 
     def forward_for_single_feature_map(self, anchors, box_cls, box_regression):
@@ -279,13 +264,9 @@ class RetinaPostProcessor(torch.nn.Module):
         pre_nms_top_n = pre_nms_top_n.clamp(max=self.pre_nms_top_n)
 
         results = []
-        for per_box_cls, per_box_regression, per_pre_nms_top_n, \
-            per_candidate_inds, per_anchors in zip(
-            box_cls,
-            box_regression,
-            pre_nms_top_n,
-            candidate_inds,
-            anchors):
+        for per_box_cls, per_box_regression, per_pre_nms_top_n, per_candidate_inds, per_anchors in zip(
+            box_cls, box_regression, pre_nms_top_n, candidate_inds, anchors
+        ):
             # Sort and select TopN
             # TODO most of this can be made out of the loop for
             # all images.
@@ -294,19 +275,16 @@ class RetinaPostProcessor(torch.nn.Module):
             # per image.
             per_box_cls = per_box_cls[per_candidate_inds]
 
-            per_box_cls, top_k_indices = \
-                per_box_cls.topk(per_pre_nms_top_n, sorted=False)
+            per_box_cls, top_k_indices = per_box_cls.topk(per_pre_nms_top_n, sorted=False)
 
-            per_candidate_nonzeros = \
-                per_candidate_inds.nonzero()[top_k_indices, :]
+            per_candidate_nonzeros = per_candidate_inds.nonzero()[top_k_indices, :]
 
             per_box_loc = per_candidate_nonzeros[:, 0]
             per_class = per_candidate_nonzeros[:, 1]
             per_class += 1
 
             detections = self.box_coder.decode(
-                per_box_regression[per_box_loc, :].view(-1, 4),
-                per_anchors.bbox[per_box_loc, :].view(-1, 4)
+                per_box_regression[per_box_loc, :].view(-1, 4), per_anchors.bbox[per_box_loc, :].view(-1, 4)
             )
 
             boxlist = BoxList(detections, per_anchors.size, mode="xyxy")
@@ -339,15 +317,10 @@ class RetinaPostProcessor(torch.nn.Module):
                 boxes_j = boxes[inds, :].view(-1, 4)
                 boxlist_for_class = BoxList(boxes_j, boxlist.size, mode="xyxy")
                 boxlist_for_class.add_field("scores", scores_j)
-                boxlist_for_class = boxlist_nms(
-                    boxlist_for_class, self.nms_thresh,
-                    score_field="scores"
-                )
+                boxlist_for_class = boxlist_nms(boxlist_for_class, self.nms_thresh, score_field="scores")
                 num_labels = len(boxlist_for_class)
                 boxlist_for_class.add_field(
-                    "labels", torch.full((num_labels,), j,
-                                         dtype=torch.int64,
-                                         device=scores.device)
+                    "labels", torch.full((num_labels,), j, dtype=torch.int64, device=scores.device)
                 )
                 result.append(boxlist_for_class)
 
@@ -357,10 +330,7 @@ class RetinaPostProcessor(torch.nn.Module):
             # Limit to max_per_image detections **over all classes**
             if number_of_detections > self.fpn_post_nms_top_n > 0:
                 cls_scores = result.get_field("scores")
-                image_thresh, _ = torch.kthvalue(
-                    cls_scores.cpu(),
-                    number_of_detections - self.fpn_post_nms_top_n + 1
-                )
+                image_thresh, _ = torch.kthvalue(cls_scores.cpu(), number_of_detections - self.fpn_post_nms_top_n + 1)
                 keep = cls_scores >= image_thresh.item()
                 keep = torch.nonzero(keep).squeeze(1)
                 result = result[keep]
@@ -418,14 +388,14 @@ class FCOSPostProcessor(torch.nn.Module):
     """
 
     def __init__(
-            self,
-            pre_nms_thresh,
-            pre_nms_top_n,
-            nms_thresh,
-            fpn_post_nms_top_n,
-            min_size,
-            num_classes,
-            bbox_aug_enabled=False
+        self,
+        pre_nms_thresh,
+        pre_nms_top_n,
+        nms_thresh,
+        fpn_post_nms_top_n,
+        min_size,
+        num_classes,
+        bbox_aug_enabled=False,
     ):
         """
         Arguments:
@@ -446,10 +416,7 @@ class FCOSPostProcessor(torch.nn.Module):
         self.num_classes = num_classes
         self.bbox_aug_enabled = bbox_aug_enabled
 
-    def forward_for_single_feature_map(
-            self, locations, box_cls,
-            box_regression, centerness,
-            image_sizes):
+    def forward_for_single_feature_map(self, locations, box_cls, box_regression, centerness, image_sizes):
         """
         Arguments:
             anchors: list[BoxList]
@@ -490,22 +457,24 @@ class FCOSPostProcessor(torch.nn.Module):
             per_pre_nms_top_n = pre_nms_top_n[i]
 
             if per_candidate_inds.sum().item() > per_pre_nms_top_n.item():
-                per_box_cls, top_k_indices = \
-                    per_box_cls.topk(per_pre_nms_top_n, sorted=False)
+                per_box_cls, top_k_indices = per_box_cls.topk(per_pre_nms_top_n, sorted=False)
                 per_class = per_class[top_k_indices]
                 per_box_regression = per_box_regression[top_k_indices]
                 per_locations = per_locations[top_k_indices]
 
-            detections = torch.stack([
-                per_locations[:, 0] - per_box_regression[:, 0],
-                per_locations[:, 1] - per_box_regression[:, 1],
-                per_locations[:, 0] + per_box_regression[:, 2],
-                per_locations[:, 1] + per_box_regression[:, 3],
-            ], dim=1)
+            detections = torch.stack(
+                [
+                    per_locations[:, 0] - per_box_regression[:, 0],
+                    per_locations[:, 1] - per_box_regression[:, 1],
+                    per_locations[:, 0] + per_box_regression[:, 2],
+                    per_locations[:, 1] + per_box_regression[:, 3],
+                ],
+                dim=1,
+            )
 
             h, w = image_sizes[i]
             boxlist = BoxList(detections, (int(w), int(h)), mode="xyxy")
-            boxlist.add_field('centers', per_locations)
+            boxlist.add_field("centers", per_locations)
             boxlist.add_field("labels", per_class)
             boxlist.add_field("scores", torch.sqrt(per_box_cls))
             boxlist = boxlist.clip_to_image(remove_empty=False)
@@ -527,11 +496,7 @@ class FCOSPostProcessor(torch.nn.Module):
         """
         sampled_boxes = []
         for _, (l, o, b, c) in enumerate(zip(locations, box_cls, box_regression, centerness)):
-            sampled_boxes.append(
-                self.forward_for_single_feature_map(
-                    l, o, b, c, image_sizes
-                )
-            )
+            sampled_boxes.append(self.forward_for_single_feature_map(l, o, b, c, image_sizes))
 
         boxlists = list(zip(*sampled_boxes))
         boxlists = [cat_boxlist(boxlist) for boxlist in boxlists]
@@ -555,10 +520,7 @@ class FCOSPostProcessor(torch.nn.Module):
             # Limit to max_per_image detections **over all classes**
             if number_of_detections > self.fpn_post_nms_top_n > 0:
                 cls_scores = result.get_field("scores")
-                image_thresh, _ = torch.kthvalue(
-                    cls_scores.cpu(),
-                    number_of_detections - self.fpn_post_nms_top_n + 1
-                )
+                image_thresh, _ = torch.kthvalue(cls_scores.cpu(), number_of_detections - self.fpn_post_nms_top_n + 1)
                 keep = cls_scores >= image_thresh.item()
                 keep = torch.nonzero(keep).squeeze(1)
                 result = result[keep]
@@ -591,18 +553,18 @@ def make_fcos_postprocessor(config, is_train=False):
 
 class ATSSPostProcessor(torch.nn.Module):
     def __init__(
-            self,
-            pre_nms_thresh,
-            pre_nms_top_n,
-            nms_thresh,
-            fpn_post_nms_top_n,
-            min_size,
-            num_classes,
-            box_coder,
-            bbox_aug_enabled=False,
-            bbox_aug_vote=False,
-            score_agg='MEAN',
-            mdetr_style_aggregate_class_num=-1
+        self,
+        pre_nms_thresh,
+        pre_nms_top_n,
+        nms_thresh,
+        fpn_post_nms_top_n,
+        min_size,
+        num_classes,
+        box_coder,
+        bbox_aug_enabled=False,
+        bbox_aug_vote=False,
+        score_agg="MEAN",
+        mdetr_style_aggregate_class_num=-1,
     ):
         super(ATSSPostProcessor, self).__init__()
         self.pre_nms_thresh = pre_nms_thresh
@@ -617,12 +579,16 @@ class ATSSPostProcessor(torch.nn.Module):
         self.score_agg = score_agg
         self.mdetr_style_aggregate_class_num = mdetr_style_aggregate_class_num
 
-    def forward_for_single_feature_map(self, box_regression, centerness, anchors,
-                                       box_cls=None,
-                                       token_logits=None,
-                                       dot_product_logits=None,
-                                       positive_map=None,
-                                       ):
+    def forward_for_single_feature_map(
+        self,
+        box_regression,
+        centerness,
+        anchors,
+        box_cls=None,
+        token_logits=None,
+        dot_product_logits=None,
+        positive_map=None,
+    ):
 
         N, _, H, W = box_regression.shape
 
@@ -636,23 +602,24 @@ class ATSSPostProcessor(torch.nn.Module):
 
         # put in the same format as anchors
         if box_cls is not None:
-            #print('Classification.')
+            # print('Classification.')
             box_cls = permute_and_flatten(box_cls, N, A, C, H, W)
             box_cls = box_cls.sigmoid()
 
         # binary focal loss version
         if token_logits is not None:
-            #print('Token.')
+            # print('Token.')
             token_logits = permute_and_flatten(token_logits, N, A, T, H, W)
             token_logits = token_logits.sigmoid()
             # turn back to original classes
-            scores = convert_grounding_to_od_logits(logits=token_logits, box_cls=box_cls, positive_map=positive_map,
-                                                    score_agg=self.score_agg)
+            scores = convert_grounding_to_od_logits(
+                logits=token_logits, box_cls=box_cls, positive_map=positive_map, score_agg=self.score_agg
+            )
             box_cls = scores
 
         # binary dot product focal version
         if dot_product_logits is not None:
-            #print('Dot Product.')
+            # print('Dot Product.')
             dot_product_logits = dot_product_logits.sigmoid()
             if self.mdetr_style_aggregate_class_num != -1:
                 scores = convert_grounding_to_od_logits_v2(
@@ -660,11 +627,12 @@ class ATSSPostProcessor(torch.nn.Module):
                     num_class=self.mdetr_style_aggregate_class_num,
                     positive_map=positive_map,
                     score_agg=self.score_agg,
-                    disable_minus_one=False)
+                    disable_minus_one=False,
+                )
             else:
-                scores = convert_grounding_to_od_logits(logits=dot_product_logits, box_cls=box_cls,
-                                                        positive_map=positive_map,
-                                                        score_agg=self.score_agg)
+                scores = convert_grounding_to_od_logits(
+                    logits=dot_product_logits, box_cls=box_cls, positive_map=positive_map, score_agg=self.score_agg
+                )
             box_cls = scores
 
         box_regression = permute_and_flatten(box_regression, N, A, 4, H, W)
@@ -683,8 +651,9 @@ class ATSSPostProcessor(torch.nn.Module):
 
         results = []
 
-        for per_box_cls, per_box_regression, per_pre_nms_top_n, per_candidate_inds, per_anchors \
-                in zip(box_cls, box_regression, pre_nms_top_n, candidate_inds, anchors):
+        for per_box_cls, per_box_regression, per_pre_nms_top_n, per_candidate_inds, per_anchors in zip(
+            box_cls, box_regression, pre_nms_top_n, candidate_inds, anchors
+        ):
             per_box_cls = per_box_cls[per_candidate_inds]
 
             per_box_cls, top_k_indices = per_box_cls.topk(per_pre_nms_top_n, sorted=False)
@@ -697,8 +666,7 @@ class ATSSPostProcessor(torch.nn.Module):
             # print(per_class)
 
             detections = self.box_coder.decode(
-                per_box_regression[per_box_loc, :].view(-1, 4),
-                per_anchors.bbox[per_box_loc, :].view(-1, 4)
+                per_box_regression[per_box_loc, :].view(-1, 4), per_anchors.bbox[per_box_loc, :].view(-1, 4)
             )
 
             boxlist = BoxList(detections, per_anchors.size, mode="xyxy")
@@ -710,12 +678,16 @@ class ATSSPostProcessor(torch.nn.Module):
 
         return results
 
-    def forward(self, box_regression, centerness, anchors,
-                box_cls=None,
-                token_logits=None,
-                dot_product_logits=None,
-                positive_map=None,
-                ):
+    def forward(
+        self,
+        box_regression,
+        centerness,
+        anchors,
+        box_cls=None,
+        token_logits=None,
+        dot_product_logits=None,
+        positive_map=None,
+    ):
         sampled_boxes = []
         anchors = list(zip(*anchors))
         for idx, (b, c, a) in enumerate(zip(box_regression, centerness, anchors)):
@@ -729,9 +701,7 @@ class ATSSPostProcessor(torch.nn.Module):
             if dot_product_logits is not None:
                 d = dot_product_logits[idx]
 
-            sampled_boxes.append(
-                self.forward_for_single_feature_map(b, c, a, o, t, d, positive_map)
-            )
+            sampled_boxes.append(self.forward_for_single_feature_map(b, c, a, o, t, d, positive_map))
 
         boxlists = list(zip(*sampled_boxes))
         boxlists = [cat_boxlist(boxlist) for boxlist in boxlists]
@@ -759,7 +729,7 @@ class ATSSPostProcessor(torch.nn.Module):
                     # TODO: confirm with Pengchuan and Xiyang, torch.kthvalue is not implemented for 'Half'
                     # cls_scores.cpu(),
                     cls_scores.cpu().float(),
-                    number_of_detections - self.fpn_post_nms_top_n + 1
+                    number_of_detections - self.fpn_post_nms_top_n + 1,
                 )
                 keep = cls_scores >= image_thresh.item()
                 keep = torch.nonzero(keep).squeeze(1)
@@ -779,18 +749,17 @@ def convert_grounding_to_od_logits(logits, box_cls, positive_map, score_agg=None
         elif score_agg == "MAX":
             # torch.max() returns (values, indices)
             for label_j in positive_map:
-                scores[:, :, label_j - 1] = logits[:, :, torch.LongTensor(positive_map[label_j])].max(-1)[
-                    0]
+                scores[:, :, label_j - 1] = logits[:, :, torch.LongTensor(positive_map[label_j])].max(-1)[0]
         elif score_agg == "ONEHOT":
             # one hot
-            scores = logits[:, :, :len(positive_map)]
+            scores = logits[:, :, : len(positive_map)]
         else:
             raise NotImplementedError
     return scores
 
 
-def convert_grounding_to_od_logits_v2(logits, num_class, positive_map, score_agg=None, disable_minus_one = True):
-    
+def convert_grounding_to_od_logits_v2(logits, num_class, positive_map, score_agg=None, disable_minus_one=True):
+
     scores = torch.zeros(logits.shape[0], logits.shape[1], num_class).to(logits.device)
     # 256 -> 80, average for each class
     if positive_map is not None:
@@ -800,7 +769,9 @@ def convert_grounding_to_od_logits_v2(logits, num_class, positive_map, score_agg
                 locations_label_j = positive_map[label_j]
                 if isinstance(locations_label_j, int):
                     locations_label_j = [locations_label_j]
-                scores[:, :, label_j if disable_minus_one else label_j - 1] = logits[:, :, torch.LongTensor(locations_label_j)].mean(-1)
+                scores[:, :, label_j if disable_minus_one else label_j - 1] = logits[
+                    :, :, torch.LongTensor(locations_label_j)
+                ].mean(-1)
         elif score_agg == "POWER":
             for label_j in positive_map:
                 locations_label_j = positive_map[label_j]
@@ -808,19 +779,21 @@ def convert_grounding_to_od_logits_v2(logits, num_class, positive_map, score_agg
                     locations_label_j = [locations_label_j]
 
                 probability = torch.prod(logits[:, :, torch.LongTensor(locations_label_j)], dim=-1).squeeze(-1)
-                probability = torch.pow(probability, 1/len(locations_label_j))
+                probability = torch.pow(probability, 1 / len(locations_label_j))
                 scores[:, :, label_j if disable_minus_one else label_j - 1] = probability
         elif score_agg == "MAX":
             # torch.max() returns (values, indices)
             for label_j in positive_map:
-                scores[:, :, label_j if disable_minus_one else label_j - 1] = logits[:, :, torch.LongTensor(positive_map[label_j])].max(-1)[
-                    0]
+                scores[:, :, label_j if disable_minus_one else label_j - 1] = logits[
+                    :, :, torch.LongTensor(positive_map[label_j])
+                ].max(-1)[0]
         elif score_agg == "ONEHOT":
             # one hot
-            scores = logits[:, :, :len(positive_map)]
+            scores = logits[:, :, : len(positive_map)]
         else:
             raise NotImplementedError
     return scores
+
 
 def make_atss_postprocessor(config, box_coder, is_train=False):
     pre_nms_thresh = config.MODEL.ATSS.INFERENCE_TH
@@ -844,7 +817,7 @@ def make_atss_postprocessor(config, box_coder, is_train=False):
         box_coder=box_coder,
         bbox_aug_enabled=config.TEST.USE_MULTISCALE,
         score_agg=score_agg,
-        mdetr_style_aggregate_class_num=config.TEST.MDETR_STYLE_AGGREGATE_CLASS_NUM
+        mdetr_style_aggregate_class_num=config.TEST.MDETR_STYLE_AGGREGATE_CLASS_NUM,
     )
 
     return box_selector

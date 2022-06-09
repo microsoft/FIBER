@@ -7,12 +7,7 @@ from .dyrelu import h_sigmoid, DYReLU
 
 
 class Conv3x3Norm(torch.nn.Module):
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 stride,
-                 deformable=False,
-                 use_gn=False):
+    def __init__(self, in_channels, out_channels, stride, deformable=False, use_gn=False):
         super(Conv3x3Norm, self).__init__()
 
         if deformable:
@@ -33,14 +28,15 @@ class Conv3x3Norm(torch.nn.Module):
 
 
 class DyConv(nn.Module):
-    def __init__(self,
-                 in_channels=256,
-                 out_channels=256,
-                 conv_func=Conv3x3Norm,
-                 use_dyfuse=True,
-                 use_dyrelu=False,
-                 use_deform=False
-                 ):
+    def __init__(
+        self,
+        in_channels=256,
+        out_channels=256,
+        conv_func=Conv3x3Norm,
+        use_dyfuse=True,
+        use_dyrelu=False,
+        use_deform=False,
+    ):
         super(DyConv, self).__init__()
 
         self.DyConv = nn.ModuleList()
@@ -50,9 +46,8 @@ class DyConv(nn.Module):
 
         if use_dyfuse:
             self.AttnConv = nn.Sequential(
-                nn.AdaptiveAvgPool2d(1),
-                nn.Conv2d(in_channels, 1, kernel_size=1),
-                nn.ReLU(inplace=True))
+                nn.AdaptiveAvgPool2d(1), nn.Conv2d(in_channels, 1, kernel_size=1), nn.ReLU(inplace=True)
+            )
             self.h_sigmoid = h_sigmoid()
         else:
             self.AttnConv = None
@@ -98,8 +93,11 @@ class DyConv(nn.Module):
             if level > 0:
                 temp_fea.append(self.DyConv[2](x[level - 1], **conv_args))
             if level < len(x) - 1:
-                temp_fea.append(F.upsample_bilinear(self.DyConv[0](x[level + 1], **conv_args),
-                                                    size=[feature.size(2), feature.size(3)]))
+                temp_fea.append(
+                    F.upsample_bilinear(
+                        self.DyConv[0](x[level + 1], **conv_args), size=[feature.size(2), feature.size(3)]
+                    )
+                )
             mean_fea = torch.mean(torch.stack(temp_fea), dim=0, keepdim=False)
 
             if self.AttnConv is not None:
@@ -123,13 +121,13 @@ class DyHead(nn.Module):
     def __init__(self, cfg, in_channels):
         super(DyHead, self).__init__()
         self.cfg = cfg
-        channels    = cfg.MODEL.DYHEAD.CHANNELS
-        use_gn      = cfg.MODEL.DYHEAD.USE_GN
-        use_dyrelu  = cfg.MODEL.DYHEAD.USE_DYRELU
-        use_dyfuse  = cfg.MODEL.DYHEAD.USE_DYFUSE
-        use_deform  = cfg.MODEL.DYHEAD.USE_DFCONV
+        channels = cfg.MODEL.DYHEAD.CHANNELS
+        use_gn = cfg.MODEL.DYHEAD.USE_GN
+        use_dyrelu = cfg.MODEL.DYHEAD.USE_DYRELU
+        use_dyfuse = cfg.MODEL.DYHEAD.USE_DYFUSE
+        use_deform = cfg.MODEL.DYHEAD.USE_DFCONV
 
-        conv_func = lambda i,o,s : Conv3x3Norm(i,o,s,deformable=use_deform,use_gn=use_gn)
+        conv_func = lambda i, o, s: Conv3x3Norm(i, o, s, deformable=use_deform, use_gn=use_gn)
 
         dyhead_tower = []
         for i in range(cfg.MODEL.DYHEAD.NUM_CONVS):
@@ -140,11 +138,11 @@ class DyHead(nn.Module):
                     conv_func=conv_func,
                     use_dyrelu=use_dyrelu,
                     use_dyfuse=use_dyfuse,
-                    use_deform=use_deform
+                    use_deform=use_deform,
                 )
             )
 
-        self.add_module('dyhead_tower', nn.Sequential(*dyhead_tower))
+        self.add_module("dyhead_tower", nn.Sequential(*dyhead_tower))
 
     def forward(self, x):
         dyhead_tower = self.dyhead_tower(x)

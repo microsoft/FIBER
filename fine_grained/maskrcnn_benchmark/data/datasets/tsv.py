@@ -1,6 +1,7 @@
 import os
 import os.path as op
 import json
+
 # import logging
 import base64
 import yaml
@@ -16,7 +17,7 @@ from .box_label_loader import LabelLoader
 def load_linelist_file(linelist_file):
     if linelist_file is not None:
         line_list = []
-        with open(linelist_file, 'r') as fp:
+        with open(linelist_file, "r") as fp:
             for i in fp:
                 line_list.append(int(i.strip()))
         return line_list
@@ -25,13 +26,13 @@ def load_linelist_file(linelist_file):
 def img_from_base64(imagestring):
     try:
         img = Image.open(io.BytesIO(base64.b64decode(imagestring)))
-        return img.convert('RGB')
+        return img.convert("RGB")
     except ValueError:
         return None
 
 
 def load_from_yaml_file(yaml_file):
-    with open(yaml_file, 'r') as fp:
+    with open(yaml_file, "r") as fp:
         return yaml.load(fp, Loader=yaml.CLoader)
 
 
@@ -42,14 +43,12 @@ def find_file_path_in_yaml(fname, root):
         elif op.isfile(op.join(root, fname)):
             return op.join(root, fname)
         else:
-            raise FileNotFoundError(
-                errno.ENOENT, os.strerror(errno.ENOENT), op.join(root, fname)
-            )
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), op.join(root, fname))
 
 
 def create_lineidx(filein, idxout):
-    idxout_tmp = idxout + '.tmp'
-    with open(filein, 'r') as tsvin, open(idxout_tmp, 'w') as tsvout:
+    idxout_tmp = idxout + ".tmp"
+    with open(filein, "r") as tsvin, open(idxout_tmp, "w") as tsvout:
         fsize = os.fstat(tsvin.fileno()).st_size
         fpos = 0
         while fpos != fsize:
@@ -63,19 +62,19 @@ def read_to_character(fp, c):
     result = []
     while True:
         s = fp.read(32)
-        assert s != ''
+        assert s != ""
         if c in s:
             result.append(s[: s.index(c)])
             break
         else:
             result.append(s)
-    return ''.join(result)
+    return "".join(result)
 
 
 class TSVFile(object):
     def __init__(self, tsv_file, generate_lineidx=False):
         self.tsv_file = tsv_file
-        self.lineidx = op.splitext(tsv_file)[0] + '.lineidx'
+        self.lineidx = op.splitext(tsv_file)[0] + ".lineidx"
         self._fp = None
         self._lineidx = None
         # the process always keeps the process which opens the file.
@@ -108,14 +107,14 @@ class TSVFile(object):
             # logging.info('{}-{}'.format(self.tsv_file, idx))
             raise
         self._fp.seek(pos)
-        return [s.strip() for s in self._fp.readline().split('\t')]
+        return [s.strip() for s in self._fp.readline().split("\t")]
 
     def seek_first_column(self, idx):
         self._ensure_tsv_opened()
         self._ensure_lineidx_loaded()
         pos = self._lineidx[idx]
         self._fp.seek(pos)
-        return read_to_character(self._fp, '\t')
+        return read_to_character(self._fp, "\t")
 
     def get_key(self, idx):
         return self.seek_first_column(idx)
@@ -129,22 +128,22 @@ class TSVFile(object):
     def _ensure_lineidx_loaded(self):
         if self._lineidx is None:
             # logging.info('loading lineidx: {}'.format(self.lineidx))
-            with open(self.lineidx, 'r') as fp:
+            with open(self.lineidx, "r") as fp:
                 self._lineidx = [int(i.strip()) for i in fp.readlines()]
 
     def _ensure_tsv_opened(self):
         if self._fp is None:
-            self._fp = open(self.tsv_file, 'r')
+            self._fp = open(self.tsv_file, "r")
             self.pid = os.getpid()
 
         if self.pid != os.getpid():
             # logging.info('re-open {} because the process id changed'.format(self.tsv_file))
-            self._fp = open(self.tsv_file, 'r')
+            self._fp = open(self.tsv_file, "r")
             self.pid = os.getpid()
 
 
-class CompositeTSVFile():
-    def __init__(self, file_list, seq_file, root='.'):
+class CompositeTSVFile:
+    def __init__(self, file_list, seq_file, root="."):
         if isinstance(file_list, str):
             self.file_list = load_list_file(file_list)
         else:
@@ -159,7 +158,7 @@ class CompositeTSVFile():
     def get_key(self, index):
         idx_source, idx_row = self.seq[index]
         k = self.tsvs[idx_source].get_key(idx_row)
-        return '_'.join([self.file_list[idx_source], k])
+        return "_".join([self.file_list[idx_source], k])
 
     def num_rows(self):
         return len(self.seq)
@@ -172,33 +171,32 @@ class CompositeTSVFile():
         return len(self.seq)
 
     def initialize(self):
-        '''
+        """
         this function has to be called in init function if cache_policy is
         enabled. Thus, let's always call it in init funciton to make it simple.
-        '''
+        """
         if self.initialized:
             return
         self.seq = []
-        with open(self.seq_file, 'r') as fp:
+        with open(self.seq_file, "r") as fp:
             for line in fp:
-                parts = line.strip().split('\t')
+                parts = line.strip().split("\t")
                 self.seq.append([int(parts[0]), int(parts[1])])
         self.tsvs = [TSVFile(op.join(self.root, f)) for f in self.file_list]
         self.initialized = True
 
 
 def load_list_file(fname):
-    with open(fname, 'r') as fp:
+    with open(fname, "r") as fp:
         lines = fp.readlines()
     result = [line.strip() for line in lines]
-    if len(result) > 0 and result[-1] == '':
+    if len(result) > 0 and result[-1] == "":
         result = result[:-1]
     return result
 
 
 class TSVDataset(object):
-    def __init__(self, img_file, label_file=None, hw_file=None,
-                 linelist_file=None, imageid2idx_file=None):
+    def __init__(self, img_file, label_file=None, hw_file=None, linelist_file=None, imageid2idx_file=None):
         """Constructor.
         Args:
             img_file: Image file with image key and base64 encoded image str.
@@ -219,7 +217,7 @@ class TSVDataset(object):
         self.line_list = load_linelist_file(linelist_file)
         self.imageid2idx = None
         if imageid2idx_file is not None:
-            self.imageid2idx = json.load(open(imageid2idx_file, 'r'))
+            self.imageid2idx = json.load(open(imageid2idx_file, "r"))
 
         self.transforms = None
 
@@ -302,7 +300,7 @@ class TSVDataset(object):
                     return data
             except ValueError:
                 # list of strings representing height and width in order
-                hw_str = row[1].split(' ')
+                hw_str = row[1].split(" ")
                 hw_dict = {"height": int(hw_str[0]), "width": int(hw_str[1])}
                 return hw_dict
 
@@ -324,8 +322,7 @@ class TSVDataset(object):
 
 
 class TSVYamlDataset(TSVDataset):
-    """ TSVDataset taking a Yaml file for easy function call
-    """
+    """TSVDataset taking a Yaml file for easy function call"""
 
     def __init__(self, yaml_file, root=None, replace_clean_label=False):
         print("Reading {}".format(yaml_file))
@@ -334,21 +331,17 @@ class TSVYamlDataset(TSVDataset):
             self.root = root
         else:
             self.root = op.dirname(yaml_file)
-        img_file = find_file_path_in_yaml(self.cfg['img'], self.root)
-        label_file = find_file_path_in_yaml(self.cfg.get('label', None),
-                                            self.root)
-        hw_file = find_file_path_in_yaml(self.cfg.get('hw', None), self.root)
-        linelist_file = find_file_path_in_yaml(self.cfg.get('linelist', None),
-                                               self.root)
-        imageid2idx_file = find_file_path_in_yaml(self.cfg.get('imageid2idx', None),
-                                               self.root)
+        img_file = find_file_path_in_yaml(self.cfg["img"], self.root)
+        label_file = find_file_path_in_yaml(self.cfg.get("label", None), self.root)
+        hw_file = find_file_path_in_yaml(self.cfg.get("hw", None), self.root)
+        linelist_file = find_file_path_in_yaml(self.cfg.get("linelist", None), self.root)
+        imageid2idx_file = find_file_path_in_yaml(self.cfg.get("imageid2idx", None), self.root)
 
         if replace_clean_label:
-            assert ("raw_label" in label_file)
+            assert "raw_label" in label_file
             label_file = label_file.replace("raw_label", "clean_label")
 
-        super(TSVYamlDataset, self).__init__(
-            img_file, label_file, hw_file, linelist_file, imageid2idx_file)
+        super(TSVYamlDataset, self).__init__(img_file, label_file, hw_file, linelist_file, imageid2idx_file)
 
 
 class ODTSVDataset(TSVYamlDataset):
@@ -356,8 +349,7 @@ class ODTSVDataset(TSVYamlDataset):
     Generic TSV dataset format for Object Detection.
     """
 
-    def __init__(self, yaml_file, extra_fields=(), transforms=None,
-                 is_load_label=True, **kwargs):
+    def __init__(self, yaml_file, extra_fields=(), transforms=None, is_load_label=True, **kwargs):
         if yaml_file is None:
             return
         super(ODTSVDataset, self).__init__(yaml_file)
@@ -369,17 +361,13 @@ class ODTSVDataset(TSVYamlDataset):
 
         if self.is_load_label:
             # construct maps
-            jsondict_file = find_file_path_in_yaml(
-                self.cfg.get("labelmap", None), self.root
-            )
+            jsondict_file = find_file_path_in_yaml(self.cfg.get("labelmap", None), self.root)
             if jsondict_file is None:
-                jsondict_file = find_file_path_in_yaml(
-                    self.cfg.get("jsondict", None), self.root
-                )
+                jsondict_file = find_file_path_in_yaml(self.cfg.get("jsondict", None), self.root)
             if "json" in jsondict_file:
-                jsondict = json.load(open(jsondict_file, 'r'))
+                jsondict = json.load(open(jsondict_file, "r"))
                 if "label_to_idx" not in jsondict:
-                    jsondict = {'label_to_idx': jsondict}
+                    jsondict = {"label_to_idx": jsondict}
             elif "tsv" in jsondict_file:
                 label_to_idx = {}
                 counter = 1
@@ -387,21 +375,21 @@ class ODTSVDataset(TSVYamlDataset):
                     for line in f:
                         label_to_idx[line.strip()] = counter
                         counter += 1
-                jsondict = {'label_to_idx': label_to_idx}
+                jsondict = {"label_to_idx": label_to_idx}
             else:
-                assert (0)
+                assert 0
 
             self.labelmap = {}
-            self.class_to_ind = jsondict['label_to_idx']
-            self.class_to_ind['__background__'] = 0
+            self.class_to_ind = jsondict["label_to_idx"]
+            self.class_to_ind["__background__"] = 0
             self.ind_to_class = {v: k for k, v in self.class_to_ind.items()}
-            self.labelmap['class_to_ind'] = self.class_to_ind
+            self.labelmap["class_to_ind"] = self.class_to_ind
 
             if self.attribute_on:
-                self.attribute_to_ind = jsondict['attribute_to_idx']
-                self.attribute_to_ind['__no_attribute__'] = 0
+                self.attribute_to_ind = jsondict["attribute_to_idx"]
+                self.attribute_to_ind["__no_attribute__"] = 0
                 self.ind_to_attribute = {v: k for k, v in self.attribute_to_ind.items()}
-                self.labelmap['attribute_to_ind'] = self.attribute_to_ind
+                self.labelmap["attribute_to_ind"] = self.attribute_to_ind
 
             self.label_loader = LabelLoader(
                 labelmap=self.labelmap,
@@ -412,7 +400,7 @@ class ODTSVDataset(TSVYamlDataset):
         if isinstance(annotations, list):
             annotations = {"objects": annotations}
         if self.is_load_label:
-            return self.label_loader(annotations['objects'], img_size)
+            return self.label_loader(annotations["objects"], img_size)
 
     def apply_transforms(self, img, target=None):
         if self.transforms is not None:

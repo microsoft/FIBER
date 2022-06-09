@@ -21,7 +21,7 @@ def im_detect_bbox_aug(model, images, device, captions=None, positive_map_label_
             boxlists_ts[i].append(boxlist_t.resize(images[i].size))
 
     # Compute detections at different scales
-    if len(cfg.TEST.RANGES)==len(cfg.TEST.SCALES):
+    if len(cfg.TEST.RANGES) == len(cfg.TEST.SCALES):
         keep_ranges = cfg.TEST.RANGES
     else:
         keep_ranges = [None for _ in cfg.TEST.SCALES]
@@ -29,7 +29,11 @@ def im_detect_bbox_aug(model, images, device, captions=None, positive_map_label_
     for scale, keep_range in zip(cfg.TEST.SCALES, keep_ranges):
         max_size = cfg.TEST.MAX_SIZE
         boxlists_scl = im_detect_bbox_scale(
-            model, images, scale, max_size, device,
+            model,
+            images,
+            scale,
+            max_size,
+            device,
             captions=captions,
             positive_map_label_to_token=positive_map_label_to_token,
         )
@@ -39,10 +43,14 @@ def im_detect_bbox_aug(model, images, device, captions=None, positive_map_label_
 
         if cfg.TEST.FLIP:
             boxlists_scl_hf = im_detect_bbox_scale(
-                model, images, scale, max_size, device,
+                model,
+                images,
+                scale,
+                max_size,
+                device,
                 captions=captions,
                 positive_map_label_to_token=positive_map_label_to_token,
-                hflip=True
+                hflip=True,
             )
             if keep_range is not None:
                 boxlists_scl_hf = remove_boxes(boxlists_scl_hf, *keep_range)
@@ -52,98 +60,99 @@ def im_detect_bbox_aug(model, images, device, captions=None, positive_map_label_
     boxlists = []
     for i, boxlist_ts in enumerate(boxlists_ts):
         bbox = torch.cat([boxlist_t.bbox for boxlist_t in boxlist_ts])
-        scores = torch.cat([boxlist_t.get_field('scores') for boxlist_t in boxlist_ts])
-        labels = torch.cat([boxlist_t.get_field('labels') for boxlist_t in boxlist_ts])
+        scores = torch.cat([boxlist_t.get_field("scores") for boxlist_t in boxlist_ts])
+        labels = torch.cat([boxlist_t.get_field("labels") for boxlist_t in boxlist_ts])
         boxlist = BoxList(bbox, boxlist_ts[0].size, boxlist_ts[0].mode)
-        boxlist.add_field('scores', scores)
-        boxlist.add_field('labels', labels)
+        boxlist.add_field("scores", scores)
+        boxlist.add_field("labels", labels)
         boxlists.append(boxlist)
     results = merge_result_from_multi_scales(boxlists)
     return results
 
 
-def im_detect_bbox(model, images, target_scale, target_max_size, device,
-                   captions=None,
-                   positive_map_label_to_token=None
-                   ):
+def im_detect_bbox(
+    model, images, target_scale, target_max_size, device, captions=None, positive_map_label_to_token=None
+):
     """
     Performs bbox detection on the original image.
     """
-    if cfg.INPUT.FORMAT is not '':
+    if cfg.INPUT.FORMAT is not "":
         input_format = cfg.INPUT.FORMAT
     elif cfg.INPUT.TO_BGR255:
-        input_format = 'bgr255'
-    transform = T.Compose([
-        T.Resize(target_scale, target_max_size),
-        T.ToTensor(),
-        T.Normalize(
-            mean=cfg.INPUT.PIXEL_MEAN, std=cfg.INPUT.PIXEL_STD, format=input_format
-        )
-    ])
+        input_format = "bgr255"
+    transform = T.Compose(
+        [
+            T.Resize(target_scale, target_max_size),
+            T.ToTensor(),
+            T.Normalize(mean=cfg.INPUT.PIXEL_MEAN, std=cfg.INPUT.PIXEL_STD, format=input_format),
+        ]
+    )
     images = [transform(image) for image in images]
     images = to_image_list(images, cfg.DATALOADER.SIZE_DIVISIBILITY)
     if captions is None:
         return model(images.to(device))
     else:
-        return model(images.to(device),
-                     captions=captions,
-                     positive_map=positive_map_label_to_token
-                     )
+        return model(images.to(device), captions=captions, positive_map=positive_map_label_to_token)
 
 
-def im_detect_bbox_hflip(model, images, target_scale, target_max_size, device,
-                         captions=None,
-                         positive_map_label_to_token=None
-                         ):
+def im_detect_bbox_hflip(
+    model, images, target_scale, target_max_size, device, captions=None, positive_map_label_to_token=None
+):
     """
     Performs bbox detection on the horizontally flipped image.
     Function signature is the same as for im_detect_bbox.
     """
-    if cfg.INPUT.FORMAT is not '':
+    if cfg.INPUT.FORMAT is not "":
         input_format = cfg.INPUT.FORMAT
     elif cfg.INPUT.TO_BGR255:
-        input_format = 'bgr255'
-    transform = T.Compose([
-        T.Resize(target_scale, target_max_size),
-        T.RandomHorizontalFlip(1.0),
-        T.ToTensor(),
-        T.Normalize(
-            mean=cfg.INPUT.PIXEL_MEAN, std=cfg.INPUT.PIXEL_STD, format=input_format
-        )
-    ])
+        input_format = "bgr255"
+    transform = T.Compose(
+        [
+            T.Resize(target_scale, target_max_size),
+            T.RandomHorizontalFlip(1.0),
+            T.ToTensor(),
+            T.Normalize(mean=cfg.INPUT.PIXEL_MEAN, std=cfg.INPUT.PIXEL_STD, format=input_format),
+        ]
+    )
     images = [transform(image) for image in images]
     images = to_image_list(images, cfg.DATALOADER.SIZE_DIVISIBILITY)
     if captions is None:
         boxlists = model(images.to(device))
     else:
-        boxlists = model(images.to(device),
-                         captions=captions,
-                         positive_map=positive_map_label_to_token
-                         )
+        boxlists = model(images.to(device), captions=captions, positive_map=positive_map_label_to_token)
 
     # Invert the detections computed on the flipped image
     boxlists_inv = [boxlist.transpose(0) for boxlist in boxlists]
     return boxlists_inv
 
 
-def im_detect_bbox_scale(model, images, target_scale, target_max_size, device,
-                         captions=None,
-                         positive_map_label_to_token=None,
-                         hflip=False):
+def im_detect_bbox_scale(
+    model, images, target_scale, target_max_size, device, captions=None, positive_map_label_to_token=None, hflip=False
+):
     """
     Computes bbox detections at the given scale.
     Returns predictions in the scaled image space.
     """
     if hflip:
-        boxlists_scl = im_detect_bbox_hflip(model, images, target_scale, target_max_size, device,
-                                            captions=captions,
-                                            positive_map_label_to_token=positive_map_label_to_token
-                                            )
+        boxlists_scl = im_detect_bbox_hflip(
+            model,
+            images,
+            target_scale,
+            target_max_size,
+            device,
+            captions=captions,
+            positive_map_label_to_token=positive_map_label_to_token,
+        )
     else:
-        boxlists_scl = im_detect_bbox(model, images, target_scale, target_max_size, device,
-                                      captions=captions,
-                                      positive_map_label_to_token=positive_map_label_to_token
-                                      )
+        boxlists_scl = im_detect_bbox(
+            model,
+            images,
+            target_scale,
+            target_max_size,
+            device,
+            captions=captions,
+            positive_map_label_to_token=positive_map_label_to_token,
+        )
     return boxlists_scl
 
 
@@ -184,7 +193,9 @@ def merge_result_from_multi_scales(boxlists):
             boxes_j = boxes[inds, :].view(-1, 4)
             boxlist_for_class = BoxList(boxes_j, boxlist.size, mode="xyxy")
             boxlist_for_class.add_field("scores", scores_j)
-            boxlist_for_class = boxlist_nms(boxlist_for_class, cfg.TEST.TH, score_field="scores", nms_type=cfg.TEST.SPECIAL_NMS)
+            boxlist_for_class = boxlist_nms(
+                boxlist_for_class, cfg.TEST.TH, score_field="scores", nms_type=cfg.TEST.SPECIAL_NMS
+            )
             num_labels = len(boxlist_for_class)
             boxlist_for_class.add_field("labels", torch.full((num_labels,), j, dtype=torch.int64, device=scores.device))
             result.append(boxlist_for_class)
@@ -195,10 +206,7 @@ def merge_result_from_multi_scales(boxlists):
         # Limit to max_per_image detections **over all classes**
         if number_of_detections > cfg.TEST.PRE_NMS_TOP_N > 0:
             cls_scores = result.get_field("scores")
-            image_thresh, _ = torch.kthvalue(
-                cls_scores.cpu(),
-                number_of_detections - cfg.TEST.PRE_NMS_TOP_N + 1
-            )
+            image_thresh, _ = torch.kthvalue(cls_scores.cpu(), number_of_detections - cfg.TEST.PRE_NMS_TOP_N + 1)
             keep = cls_scores >= image_thresh.item()
             keep = torch.nonzero(keep).squeeze(1)
             result = result[keep]
@@ -206,7 +214,7 @@ def merge_result_from_multi_scales(boxlists):
     return results
 
 
-def boxlist_nms(boxlist, thresh, max_proposals=-1, score_field="scores", nms_type='nms'):
+def boxlist_nms(boxlist, thresh, max_proposals=-1, score_field="scores", nms_type="nms"):
     if thresh <= 0:
         return boxlist
     mode = boxlist.mode
@@ -214,26 +222,26 @@ def boxlist_nms(boxlist, thresh, max_proposals=-1, score_field="scores", nms_typ
     boxes = boxlist.bbox
     score = boxlist.get_field(score_field)
 
-    if nms_type == 'vote':
+    if nms_type == "vote":
         boxes_vote, scores_vote = bbox_vote(boxes, score, thresh)
         if len(boxes_vote) > 0:
             boxlist.bbox = boxes_vote
-            boxlist.extra_fields['scores'] = scores_vote
-    elif nms_type == 'soft-vote':
+            boxlist.extra_fields["scores"] = scores_vote
+    elif nms_type == "soft-vote":
         boxes_vote, scores_vote = soft_bbox_vote(boxes, score, thresh)
         if len(boxes_vote) > 0:
             boxlist.bbox = boxes_vote
-            boxlist.extra_fields['scores'] = scores_vote
-    elif nms_type == 'soft-nms':
+            boxlist.extra_fields["scores"] = scores_vote
+    elif nms_type == "soft-nms":
         keep, new_score = soft_nms(boxes.cpu(), score.cpu(), thresh, 0.95)
         if max_proposals > 0:
-            keep = keep[: max_proposals]
+            keep = keep[:max_proposals]
         boxlist = boxlist[keep]
-        boxlist.extra_fields['scores'] = new_score
+        boxlist.extra_fields["scores"] = new_score
     else:
         keep = nms(boxes, score, thresh)
         if max_proposals > 0:
-            keep = keep[: max_proposals]
+            keep = keep[:max_proposals]
         boxlist = boxlist[keep]
     return boxlist.convert(mode)
 

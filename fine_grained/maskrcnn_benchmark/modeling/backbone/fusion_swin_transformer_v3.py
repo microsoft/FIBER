@@ -191,7 +191,11 @@ class WindowAttention(nn.Module):
             k_text = torch.repeat_interleave(k_text, nW, dim=0)
             v_text = torch.repeat_interleave(v_text, nW, dim=0)
             # TODO: remove q_text
-            q_i2t = self.qkv_i2t(self.norm_i2t_i(x)).reshape(B_, N, 1, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+            q_i2t = (
+                self.qkv_i2t(self.norm_i2t_i(x))
+                .reshape(B_, N, 1, self.num_heads, C // self.num_heads)
+                .permute(2, 0, 3, 1, 4)
+            )
             q_i2t = q_i2t[0]
 
             # image to text attention
@@ -810,7 +814,9 @@ class FusionSwinTransformer(nn.Module):
         # self.cross_modal_image_transform3 = nn.Linear(1024, 768)
         self.add_linear_layer = add_linear_layer
         if self.add_linear_layer:
-            self.tunable_linear = torch.nn.Linear(self.language_backbone.body.cfg.MODEL.LANGUAGE_BACKBONE.LANG_DIM, 1000, bias=False)
+            self.tunable_linear = torch.nn.Linear(
+                self.language_backbone.body.cfg.MODEL.LANGUAGE_BACKBONE.LANG_DIM, 1000, bias=False
+            )
             self.tunable_linear.weight.data.fill_(0.0)
 
     def forward(
@@ -842,7 +848,7 @@ class FusionSwinTransformer(nn.Module):
         )
 
         if self.add_linear_layer:
-            text_embeds = self.tunable_linear.weight[:text_embeds.size(1), :].unsqueeze(0) + text_embeds
+            text_embeds = self.tunable_linear.weight[: text_embeds.size(1), :].unsqueeze(0) + text_embeds
 
         outs = []
         # Pass the text through the first 10 layers
@@ -873,7 +879,9 @@ class FusionSwinTransformer(nn.Module):
                     image_embeds = blk(image_embeds, attn_mask)
             else:
                 if not torch.jit.is_scripting() and self.backbone.body.layers[num_pre_vision].use_checkpoint:
-                    fused_image_embeds = checkpoint.checkpoint(blk, image_embeds, attn_mask, text_embeds, extended_text_masks)
+                    fused_image_embeds = checkpoint.checkpoint(
+                        blk, image_embeds, attn_mask, text_embeds, extended_text_masks
+                    )
                 else:
                     fused_image_embeds = blk(image_embeds, attn_mask, text_embeds, extended_text_masks)
                 text_embeds = self.language_backbone.body.model.encoder.layer[blk_cnt - num_pre_block + num_pre_text](

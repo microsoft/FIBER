@@ -25,12 +25,14 @@ class RNNEnoder(nn.Module):
         self.embedding = nn.Embedding(self.vocab_size, self.word_embedding_size)
         self.input_dropout = nn.Dropout(self.input_dropout_p)
         self.mlp = nn.Sequential(nn.Linear(self.word_embedding_size, self.word_vec_size), nn.ReLU())
-        self.rnn = getattr(nn, self.rnn_type.upper())(self.word_vec_size,
-                                                      self.hidden_size,
-                                                      self.n_layers,
-                                                      batch_first=True,
-                                                      bidirectional=self.bidirectional,
-                                                      dropout=self.dropout_p)
+        self.rnn = getattr(nn, self.rnn_type.upper())(
+            self.word_vec_size,
+            self.hidden_size,
+            self.n_layers,
+            batch_first=True,
+            bidirectional=self.bidirectional,
+            dropout=self.dropout_p,
+        )
         self.num_dirs = 2 if self.bidirectional else 1
 
     def forward(self, input, mask=None):
@@ -40,21 +42,21 @@ class RNNEnoder(nn.Module):
         # embedding
         output, hidden, embedded, final_output = self.RNNEncode(word_id)
         return {
-            'hidden': hidden,
-            'output': output,
-            'embedded': embedded,
-            'final_output': final_output,
+            "hidden": hidden,
+            "output": output,
+            "embedded": embedded,
+            "final_output": final_output,
         }
 
     def encode(self, input_labels):
         """
-                Inputs:
-                - input_labels: Variable long (batch, seq_len)
-                Outputs:
-                - output  : Variable float (batch, max_len, hidden_size * num_dirs)
-                - hidden  : Variable float (batch, num_layers * num_dirs * hidden_size)
-                - embedded: Variable float (batch, max_len, word_vec_size)
-                """
+        Inputs:
+        - input_labels: Variable long (batch, seq_len)
+        Outputs:
+        - output  : Variable float (batch, max_len, hidden_size * num_dirs)
+        - hidden  : Variable float (batch, num_layers * num_dirs * hidden_size)
+        - embedded: Variable float (batch, max_len, word_vec_size)
+        """
         device = input_labels.device
         if self.variable_length:
             input_lengths_list, sorted_lengths_list, sort_idxs, recover_idxs = self.sort_inputs(input_labels)
@@ -66,9 +68,7 @@ class RNNEnoder(nn.Module):
 
         if self.variable_length:
             if self.variable_length:
-                embedded = nn.utils.rnn.pack_padded_sequence(embedded, \
-                                                             sorted_lengths_list, \
-                                                             batch_first=True)
+                embedded = nn.utils.rnn.pack_padded_sequence(embedded, sorted_lengths_list, batch_first=True)
         # forward rnn
         self.rnn.flatten_parameters()
         output, hidden = self.rnn(embedded)
@@ -76,17 +76,19 @@ class RNNEnoder(nn.Module):
         # recover
         if self.variable_length:
             # recover embedded
-            embedded, _ = nn.utils.rnn.pad_packed_sequence(embedded,
-                                                           batch_first=True)  # (batch, max_len, word_vec_size)
+            embedded, _ = nn.utils.rnn.pad_packed_sequence(
+                embedded, batch_first=True
+            )  # (batch, max_len, word_vec_size)
             embedded = embedded[recover_idxs]
 
             # recover output
-            output, _ = nn.utils.rnn.pad_packed_sequence(output,
-                                                         batch_first=True)  # (batch, max_len, hidden_size * num_dir)
+            output, _ = nn.utils.rnn.pad_packed_sequence(
+                output, batch_first=True
+            )  # (batch, max_len, hidden_size * num_dir)
             output = output[recover_idxs]
 
             # recover hidden
-            if self.rnn_type == 'lstm':
+            if self.rnn_type == "lstm":
                 hidden = hidden[0]  # hidden state
             hidden = hidden[:, recover_idxs, :]  # (num_layers * num_dirs, batch, hidden_size)
             hidden = hidden.transpose(0, 1).contiguous()  # (batch, num_layers * num_dirs, hidden_size)

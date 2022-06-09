@@ -34,7 +34,7 @@ class BaseDataset(torch.utils.data.Dataset):
         self.transforms = keys_to_transforms(transform_keys, size=image_size)
         self.clip_transform = False
         for transform_key in transform_keys:
-            if 'clip' in transform_key:
+            if "clip" in transform_key:
                 self.clip_transform = True
                 break
         self.text_column_name = text_column_name
@@ -47,9 +47,7 @@ class BaseDataset(torch.utils.data.Dataset):
 
         if len(names) != 0:
             tables = [
-                pa.ipc.RecordBatchFileReader(
-                    pa.memory_map(f"{data_dir}/{name}.arrow", "r")
-                ).read_all()
+                pa.ipc.RecordBatchFileReader(pa.memory_map(f"{data_dir}/{name}.arrow", "r")).read_all()
                 for name in names
                 if os.path.isfile(f"{data_dir}/{name}.arrow")
             ]
@@ -64,14 +62,10 @@ class BaseDataset(torch.utils.data.Dataset):
                 self.all_texts = self.table[text_column_name].to_pandas().tolist()
                 if type(self.all_texts[0][0]) == str:
                     self.all_texts = (
-                        [list(set(texts)) for texts in self.all_texts]
-                        if remove_duplicate
-                        else self.all_texts
+                        [list(set(texts)) for texts in self.all_texts] if remove_duplicate else self.all_texts
                     )
-                else: #snli
-                    self.all_texts = (
-                        [[t[1].strip() for t in texts] for texts in self.all_texts]
-                    )
+                else:  # snli
+                    self.all_texts = [[t[1].strip() for t in texts] for texts in self.all_texts]
             else:
                 self.all_texts = list()
         else:
@@ -188,9 +182,7 @@ class BaseDataset(torch.utils.data.Dataset):
             img_sizes += [ii.shape for i in img if i is not None for ii in i]
 
         for size in img_sizes:
-            assert (
-                len(size) == 3
-            ), f"Collate error, an image should be in shape of (3, H, W), instead of given {size}"
+            assert len(size) == 3, f"Collate error, an image should be in shape of (3, H, W), instead of given {size}"
 
         if len(img_keys) != 0:
             max_height = max([i[1] for i in img_sizes])
@@ -200,10 +192,7 @@ class BaseDataset(torch.utils.data.Dataset):
             img = dict_batch[img_key]
             view_size = len(img[0])
 
-            new_images = [
-                torch.zeros(batch_size, 3, max_height, max_width)
-                for _ in range(view_size)
-            ]
+            new_images = [torch.zeros(batch_size, 3, max_height, max_width) for _ in range(view_size)]
 
             for bi in range(batch_size):
                 orig_batch = img[bi]

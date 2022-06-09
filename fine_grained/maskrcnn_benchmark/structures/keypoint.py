@@ -10,7 +10,7 @@ class Keypoints(object):
     def __init__(self, keypoints, size, mode=None):
         # FIXME remove check once we have better integration with device
         # in my version this would consistently return a CPU tensor
-        device = keypoints.device if isinstance(keypoints, torch.Tensor) else torch.device('cpu')
+        device = keypoints.device if isinstance(keypoints, torch.Tensor) else torch.device("cpu")
         keypoints = torch.as_tensor(keypoints, dtype=torch.float32, device=device)
         num_keypoints = keypoints.shape[0]
         if num_keypoints:
@@ -40,8 +40,7 @@ class Keypoints(object):
 
     def transpose(self, method):
         if method not in (FLIP_LEFT_RIGHT,):
-            raise NotImplementedError(
-                "Only FLIP_LEFT_RIGHT implemented")
+            raise NotImplementedError("Only FLIP_LEFT_RIGHT implemented")
 
         flip_inds = self.FLIP_INDS
         flipped_data = self.keypoints[:, flip_inds]
@@ -80,49 +79,51 @@ class Keypoints(object):
         return self.extra_fields[field]
 
     def __repr__(self):
-        s = self.__class__.__name__ + '('
-        s += 'num_instances={}, '.format(len(self.keypoints))
-        s += 'image_width={}, '.format(self.size[0])
-        s += 'image_height={})'.format(self.size[1])
+        s = self.__class__.__name__ + "("
+        s += "num_instances={}, ".format(len(self.keypoints))
+        s += "image_width={}, ".format(self.size[0])
+        s += "image_height={})".format(self.size[1])
         return s
 
 
 class PersonKeypoints(Keypoints):
     _NAMES = [
-        'nose',
-        'left_eye',
-        'right_eye',
-        'left_ear',
-        'right_ear',
-        'left_shoulder',
-        'right_shoulder',
-        'left_elbow',
-        'right_elbow',
-        'left_wrist',
-        'right_wrist',
-        'left_hip',
-        'right_hip',
-        'left_knee',
-        'right_knee',
-        'left_ankle',
-        'right_ankle'
+        "nose",
+        "left_eye",
+        "right_eye",
+        "left_ear",
+        "right_ear",
+        "left_shoulder",
+        "right_shoulder",
+        "left_elbow",
+        "right_elbow",
+        "left_wrist",
+        "right_wrist",
+        "left_hip",
+        "right_hip",
+        "left_knee",
+        "right_knee",
+        "left_ankle",
+        "right_ankle",
     ]
     _FLIP_MAP = {
-        'left_eye': 'right_eye',
-        'left_ear': 'right_ear',
-        'left_shoulder': 'right_shoulder',
-        'left_elbow': 'right_elbow',
-        'left_wrist': 'right_wrist',
-        'left_hip': 'right_hip',
-        'left_knee': 'right_knee',
-        'left_ankle': 'right_ankle'
+        "left_eye": "right_eye",
+        "left_ear": "right_ear",
+        "left_shoulder": "right_shoulder",
+        "left_elbow": "right_elbow",
+        "left_wrist": "right_wrist",
+        "left_hip": "right_hip",
+        "left_knee": "right_knee",
+        "left_ankle": "right_ankle",
     }
 
     def __init__(self, *args, **kwargs):
         super(PersonKeypoints, self).__init__(*args, **kwargs)
-        if len(cfg.MODEL.ROI_KEYPOINT_HEAD.KEYPOINT_NAME)>0:
+        if len(cfg.MODEL.ROI_KEYPOINT_HEAD.KEYPOINT_NAME) > 0:
             self.NAMES = cfg.MODEL.ROI_KEYPOINT_HEAD.KEYPOINT_NAME
-            self.FLIP_MAP = {l:r for l,r in PersonKeypoints._FLIP_MAP.items() if l in cfg.MODEL.ROI_KEYPOINT_HEAD.KEYPOINT_NAME}
+            self.FLIP_MAP = {
+                l: r for l, r in PersonKeypoints._FLIP_MAP.items() if l in cfg.MODEL.ROI_KEYPOINT_HEAD.KEYPOINT_NAME
+            }
         else:
             self.NAMES = PersonKeypoints._NAMES
             self.FLIP_MAP = PersonKeypoints._FLIP_MAP
@@ -133,11 +134,11 @@ class PersonKeypoints(Keypoints):
     def to_coco_format(self):
         coco_result = []
         for i in range(self.keypoints.shape[0]):
-            coco_kps = [0]*len(PersonKeypoints._NAMES)*3
+            coco_kps = [0] * len(PersonKeypoints._NAMES) * 3
             for ki, name in enumerate(self.NAMES):
-                coco_kps[3*PersonKeypoints._NAMES.index(name)] = self.keypoints[i,ki,0].item()
-                coco_kps[3*PersonKeypoints._NAMES.index(name)+1] = self.keypoints[i,ki,1].item()
-                coco_kps[3*PersonKeypoints._NAMES.index(name)+2] = self.keypoints[i,ki,2].item()
+                coco_kps[3 * PersonKeypoints._NAMES.index(name)] = self.keypoints[i, ki, 0].item()
+                coco_kps[3 * PersonKeypoints._NAMES.index(name) + 1] = self.keypoints[i, ki, 1].item()
+                coco_kps[3 * PersonKeypoints._NAMES.index(name) + 2] = self.keypoints[i, ki, 2].item()
             coco_result.append(coco_kps)
         return coco_result
 
@@ -148,30 +149,31 @@ class PersonKeypoints(Keypoints):
         flip_indices = [names.index(i) for i in flipped_names]
         return torch.tensor(flip_indices)
 
-
     def _kp_connections(self, keypoints):
         CONNECTIONS = [
-            ['left_eye', 'right_eye'],
-            ['left_eye', 'nose'],
-            ['right_eye', 'nose'],
-            ['right_eye', 'right_ear'],
-            ['left_eye', 'left_ear'],
-            ['right_shoulder', 'right_elbow'],
-            ['right_elbow', 'right_wrist'],
-            ['left_shoulder', 'left_elbow'],
-            ['left_elbow', 'left_wrist'],
-            ['right_hip', 'right_knee'],
-            ['right_knee', 'right_ankle'],
-            ['left_hip', 'left_knee'],
-            ['left_knee', 'left_ankle'],
-            ['right_shoulder', 'left_shoulder'],
-            ['right_hip', 'left_hip'],
+            ["left_eye", "right_eye"],
+            ["left_eye", "nose"],
+            ["right_eye", "nose"],
+            ["right_eye", "right_ear"],
+            ["left_eye", "left_ear"],
+            ["right_shoulder", "right_elbow"],
+            ["right_elbow", "right_wrist"],
+            ["left_shoulder", "left_elbow"],
+            ["left_elbow", "left_wrist"],
+            ["right_hip", "right_knee"],
+            ["right_knee", "right_ankle"],
+            ["left_hip", "left_knee"],
+            ["left_knee", "left_ankle"],
+            ["right_shoulder", "left_shoulder"],
+            ["right_hip", "left_hip"],
         ]
 
-        kp_lines = [[keypoints.index(conn[0]), keypoints.index(conn[1])] for conn in CONNECTIONS
-                    if conn[0] in self.NAMES and conn[1] in self.NAMES]
+        kp_lines = [
+            [keypoints.index(conn[0]), keypoints.index(conn[1])]
+            for conn in CONNECTIONS
+            if conn[0] in self.NAMES and conn[1] in self.NAMES
+        ]
         return kp_lines
-
 
 
 # TODO make this nicer, this is a direct translation from C2 (but removing the inner loop)

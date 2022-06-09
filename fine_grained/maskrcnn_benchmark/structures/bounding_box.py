@@ -19,18 +19,12 @@ class BoxList(object):
     def __init__(self, bbox, image_size, mode="xyxy"):
         device = bbox.device if isinstance(bbox, torch.Tensor) else torch.device("cpu")
         # only do as_tensor if isn't a "no-op", because it hurts JIT tracing
-        if (not isinstance(bbox, torch.Tensor)
-                or bbox.dtype != torch.float32 or bbox.device != device):
+        if not isinstance(bbox, torch.Tensor) or bbox.dtype != torch.float32 or bbox.device != device:
             bbox = torch.as_tensor(bbox, dtype=torch.float32, device=device)
         if bbox.ndimension() != 2:
-            raise ValueError(
-                "bbox should have 2 dimensions, got {}".format(bbox.ndimension())
-            )
+            raise ValueError("bbox should have 2 dimensions, got {}".format(bbox.ndimension()))
         if bbox.size(-1) != 4:
-            raise ValueError(
-                "last dimenion of bbox should have a "
-                "size of 4, got {}".format(bbox.size(-1))
-            )
+            raise ValueError("last dimenion of bbox should have a " "size of 4, got {}".format(bbox.size(-1)))
         if mode not in ("xyxy", "xywh"):
             raise ValueError("mode should be 'xyxy' or 'xywh'")
 
@@ -41,9 +35,9 @@ class BoxList(object):
 
     # note: _jit_wrap/_jit_unwrap only work if the keys and the sizes don't change in between
     def _jit_unwrap(self):
-        return (self.bbox,) + tuple(f for f in (self.get_field(field)
-                                    for field in sorted(self.fields()))
-                                    if isinstance(f, torch.Tensor))
+        return (self.bbox,) + tuple(
+            f for f in (self.get_field(field) for field in sorted(self.fields())) if isinstance(f, torch.Tensor)
+        )
 
     def _jit_wrap(self, input_stream):
         self.bbox = input_stream[0]
@@ -84,9 +78,7 @@ class BoxList(object):
         else:
             TO_REMOVE = 1
             # NOTE: explicitly specify dim to avoid tracing error in GPU
-            bbox = torch.cat(
-                (xmin, ymin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE), dim=1
-            )
+            bbox = torch.cat((xmin, ymin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE), dim=1)
             bbox = BoxList(bbox, self.size, mode=mode)
         bbox._copy_extra_fields(self)
         return bbox
@@ -133,9 +125,7 @@ class BoxList(object):
         scaled_xmax = xmax * ratio_width
         scaled_ymin = ymin * ratio_height
         scaled_ymax = ymax * ratio_height
-        scaled_box = torch.cat(
-            (scaled_xmin, scaled_ymin, scaled_xmax, scaled_ymax), dim=-1
-        )
+        scaled_box = torch.cat((scaled_xmin, scaled_ymin, scaled_xmax, scaled_ymax), dim=-1)
         bbox = BoxList(scaled_box, size, mode="xyxy")
         # bbox._copy_extra_fields(self)
         for k, v in self.extra_fields.items():
@@ -154,9 +144,7 @@ class BoxList(object):
           :py:attr:`PIL.Image.TRANSPOSE` or :py:attr:`PIL.Image.TRANSVERSE`.
         """
         if method not in (FLIP_LEFT_RIGHT, FLIP_TOP_BOTTOM):
-            raise NotImplementedError(
-                "Only FLIP_LEFT_RIGHT and FLIP_TOP_BOTTOM implemented"
-            )
+            raise NotImplementedError("Only FLIP_LEFT_RIGHT and FLIP_TOP_BOTTOM implemented")
 
         image_width, image_height = self.size
         xmin, ymin, xmax, ymax = self._split_into_xyxy()
@@ -172,9 +160,7 @@ class BoxList(object):
             transposed_ymin = image_height - ymax
             transposed_ymax = image_height - ymin
 
-        transposed_boxes = torch.cat(
-            (transposed_xmin, transposed_ymin, transposed_xmax, transposed_ymax), dim=-1
-        )
+        transposed_boxes = torch.cat((transposed_xmin, transposed_ymin, transposed_xmax, transposed_ymax), dim=-1)
         bbox = BoxList(transposed_boxes, self.size, mode="xyxy")
         # bbox._copy_extra_fields(self)
         for k, v in self.extra_fields.items():
@@ -197,9 +183,7 @@ class BoxList(object):
         cropped_ymax = (ymax - box[1]).clamp(min=0, max=h)
 
         # TODO should I filter empty boxes here?
-        cropped_box = torch.cat(
-            (cropped_xmin, cropped_ymin, cropped_xmax, cropped_ymax), dim=-1
-        )
+        cropped_box = torch.cat((cropped_xmin, cropped_ymin, cropped_xmax, cropped_ymax), dim=-1)
         bbox = BoxList(cropped_box, (w, h), mode="xyxy")
         # bbox._copy_extra_fields(self)
         for k, v in self.extra_fields.items():
@@ -241,16 +225,16 @@ class BoxList(object):
         return self
 
     def area(self):
-        if self.mode == 'xyxy':
+        if self.mode == "xyxy":
             TO_REMOVE = 1
             box = self.bbox
             area = (box[:, 2] - box[:, 0] + TO_REMOVE) * (box[:, 3] - box[:, 1] + TO_REMOVE)
-        elif self.mode == 'xywh':
+        elif self.mode == "xywh":
             box = self.bbox
             area = box[:, 2] * box[:, 3]
         else:
             raise RuntimeError("Should not be here")
-            
+
         return area
 
     def copy_with_fields(self, fields):
@@ -268,20 +252,21 @@ class BoxList(object):
         s += "image_height={}, ".format(self.size[1])
         s += "mode={})".format(self.mode)
         return s
-    
+
     @staticmethod
     def concate_box_list(list_of_boxes):
-        boxes = torch.cat([i.bbox for i in list_of_boxes], dim = 0)
+        boxes = torch.cat([i.bbox for i in list_of_boxes], dim=0)
         extra_fields_keys = list(list_of_boxes[0].extra_fields.keys())
         extra_fields = {}
         for key in extra_fields_keys:
-            extra_fields[key] = torch.cat([i.extra_fields[key] for i in list_of_boxes], dim = 0)
+            extra_fields[key] = torch.cat([i.extra_fields[key] for i in list_of_boxes], dim=0)
 
         final = list_of_boxes[0].copy_with_fields(extra_fields_keys)
 
         final.bbox = boxes
         final.extra_fields = extra_fields
         return final
+
 
 @torch.jit.unused
 def _onnx_clip_boxes_to_image(boxes, size):
@@ -301,9 +286,9 @@ def _onnx_clip_boxes_to_image(boxes, size):
     boxes_x = boxes[..., 0::2]
     boxes_y = boxes[..., 1::2]
 
-    boxes_x = torch.max(boxes_x, torch.tensor(0., dtype=torch.float).to(device))
+    boxes_x = torch.max(boxes_x, torch.tensor(0.0, dtype=torch.float).to(device))
     boxes_x = torch.min(boxes_x, torch.tensor(size[1] - TO_REMOVE, dtype=torch.float).to(device))
-    boxes_y = torch.max(boxes_y, torch.tensor(0., dtype=torch.float).to(device))
+    boxes_y = torch.max(boxes_y, torch.tensor(0.0, dtype=torch.float).to(device))
     boxes_y = torch.min(boxes_y, torch.tensor(size[0] - TO_REMOVE, dtype=torch.float).to(device))
 
     clipped_boxes = torch.stack((boxes_x, boxes_y), dim=dim)

@@ -4,7 +4,7 @@ from . import transforms as T
 
 def build_transforms(cfg, is_train=True):
     if is_train:
-        if len(cfg.AUGMENT.MULT_MIN_SIZE_TRAIN)>0:
+        if len(cfg.AUGMENT.MULT_MIN_SIZE_TRAIN) > 0:
             min_size = cfg.AUGMENT.MULT_MIN_SIZE_TRAIN
         else:
             min_size = cfg.INPUT.MIN_SIZE_TRAIN
@@ -26,14 +26,12 @@ def build_transforms(cfg, is_train=True):
         flip_horizontal_prob = 0.0
 
     fix_res = cfg.INPUT.FIX_RES
-    if cfg.INPUT.FORMAT is not '':
+    if cfg.INPUT.FORMAT is not "":
         input_format = cfg.INPUT.FORMAT
     elif cfg.INPUT.TO_BGR255:
-        input_format = 'bgr255'
-    normalize_transform = T.Normalize(
-        mean=cfg.INPUT.PIXEL_MEAN, std=cfg.INPUT.PIXEL_STD, format=input_format
-    )
- 
+        input_format = "bgr255"
+    normalize_transform = T.Normalize(mean=cfg.INPUT.PIXEL_MEAN, std=cfg.INPUT.PIXEL_STD, format=input_format)
+
     transform = T.Compose(
         [
             T.Resize(min_size, max_size, restrict=fix_res),

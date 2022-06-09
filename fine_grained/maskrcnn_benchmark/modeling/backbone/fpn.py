@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+
 class FPN(nn.Module):
     """
     Module that adds FPN on top of a list of feature maps.
@@ -11,8 +12,15 @@ class FPN(nn.Module):
     """
 
     def __init__(
-        self, in_channels_list, out_channels, conv_block, top_blocks=None, drop_block=None, use_spp=False, use_pan=False,
-            return_swint_feature_before_fusion=False
+        self,
+        in_channels_list,
+        out_channels,
+        conv_block,
+        top_blocks=None,
+        drop_block=None,
+        use_spp=False,
+        use_pan=False,
+        return_swint_feature_before_fusion=False,
     ):
         """
         Arguments:
@@ -35,8 +43,8 @@ class FPN(nn.Module):
 
             if in_channels == 0:
                 continue
-            if idx==len(in_channels_list) and use_spp:
-                in_channels = in_channels*4
+            if idx == len(in_channels_list) and use_spp:
+                in_channels = in_channels * 4
             inner_block_module = conv_block(in_channels, out_channels, 1)
             layer_block_module = conv_block(out_channels, out_channels, 3, 1)
             self.add_module(inner_block, inner_block_module)
@@ -138,6 +146,7 @@ class LastLevelP6P7(nn.Module):
     """
     This module is used in RetinaNet to generate extra layers, P6 and P7.
     """
+
     def __init__(self, in_channels, out_channels):
         super(LastLevelP6P7, self).__init__()
         self.p6 = nn.Conv2d(in_channels, out_channels, 3, 2, 1)
@@ -163,5 +172,5 @@ class SPPLayer(nn.Module):
         x_2 = F.max_pool2d(x, 5, stride=1, padding=2)
         x_3 = F.max_pool2d(x, 9, stride=1, padding=4)
         x_4 = F.max_pool2d(x, 13, stride=1, padding=6)
-        out = torch.cat((x_1, x_2, x_3, x_4),dim=1)
+        out = torch.cat((x_1, x_2, x_3, x_4), dim=1)
         return out

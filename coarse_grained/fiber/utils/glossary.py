@@ -168,9 +168,7 @@ punct = [
 def normalize_word(token):
     _token = token
     for p in punct:
-        if (p + " " in token or " " + p in token) or (
-            re.search(comma_strip, token) != None
-        ):
+        if (p + " " in token or " " + p in token) or (re.search(comma_strip, token) != None):
             _token = _token.replace(p, "")
         else:
             _token = _token.replace(p, " ")

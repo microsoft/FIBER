@@ -31,7 +31,7 @@ class VQAv2DataModule(BaseDataModule):
         self.answer2id = {k: v for k, v in zip(all_answers, all_labels)}
         sorted_a2i = sorted(self.answer2id.items(), key=lambda x: x[1])
         self.num_class = max(self.answer2id.values()) + 1
-        
+
         self.id2answer = defaultdict(lambda: "unknown")
         for k, v in sorted_a2i:
             self.id2answer[v] = k

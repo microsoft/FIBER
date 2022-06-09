@@ -1,4 +1,3 @@
-
 import time
 import pickle
 import logging
@@ -10,7 +9,7 @@ import torch.nn as nn
 
 from collections import OrderedDict
 from yaml import safe_dump
-from yacs.config import load_cfg, CfgNode#, _to_dict
+from yacs.config import load_cfg, CfgNode  # , _to_dict
 from maskrcnn_benchmark.config import cfg
 from maskrcnn_benchmark.engine.inference import _accumulate_predictions_from_multiple_gpus
 from maskrcnn_benchmark.modeling.backbone.nas import get_layer_name
@@ -19,7 +18,7 @@ from maskrcnn_benchmark.data.datasets.evaluation import evaluate
 from maskrcnn_benchmark.utils.flops import profile
 
 
-choice = lambda x:x[np.random.randint(len(x))] if isinstance(x,tuple) else choice(tuple(x))
+choice = lambda x: x[np.random.randint(len(x))] if isinstance(x, tuple) else choice(tuple(x))
 
 
 def gather_candidates(all_candidates):
@@ -32,7 +31,7 @@ def gather_stats(all_candidates):
     all_candidates = all_gather(all_candidates)
     reduced_statcs = {}
     for candidates in all_candidates:
-        reduced_statcs.update(candidates) # will replace the existing key with last value if more than one exists
+        reduced_statcs.update(candidates)  # will replace the existing key with last value if more than one exists
     return reduced_statcs
 
 
@@ -45,17 +44,15 @@ def compute_on_dataset(model, rngs, data_loader, device=cfg.MODEL.DEVICE):
         with torch.no_grad():
             output = model(images.to(device), rngs=rngs)
             output = [o.to(cpu_device) for o in output]
-        results_dict.update(
-            {img_id: result for img_id, result in zip(image_ids, output)}
-        )
+        results_dict.update({img_id: result for img_id, result in zip(image_ids, output)})
     return results_dict
 
 
 def bn_statistic(model, rngs, data_loader, device=cfg.MODEL.DEVICE, max_iter=500):
     for name, param in model.named_buffers():
-        if 'running_mean' in name:
+        if "running_mean" in name:
             nn.init.constant_(param, 0)
-        if 'running_var' in name:
+        if "running_var" in name:
             nn.init.constant_(param, 1)
 
     model.train()
@@ -71,15 +68,15 @@ def bn_statistic(model, rngs, data_loader, device=cfg.MODEL.DEVICE, max_iter=500
 
 
 def inference(
-        model,
-        rngs,
-        data_loader,
-        iou_types=("bbox",),
-        box_only=False,
-        device="cuda",
-        expected_results=(),
-        expected_results_sigma_tol=4,
-        output_folder=None,
+    model,
+    rngs,
+    data_loader,
+    iou_types=("bbox",),
+    box_only=False,
+    device="cuda",
+    expected_results=(),
+    expected_results_sigma_tol=4,
+    output_folder=None,
 ):
 
     # convert to a torch.device for efficiency
@@ -100,10 +97,7 @@ def inference(
         expected_results_sigma_tol=expected_results_sigma_tol,
     )
 
-    return evaluate(dataset=dataset,
-                    predictions=predictions,
-                    output_folder=output_folder,
-                    **extra_args)
+    return evaluate(dataset=dataset, predictions=predictions, output_folder=output_folder, **extra_args)
 
 
 def fitness(cfg, model, rngs, val_loaders):
@@ -130,7 +124,7 @@ class EvolutionTrainer(object):
     def __init__(self, cfg, model, flops_limit=None, is_distributed=True):
 
         self.log_dir = cfg.OUTPUT_DIR
-        self.checkpoint_name = os.path.join(self.log_dir,'evolution.pth')
+        self.checkpoint_name = os.path.join(self.log_dir, "evolution.pth")
         self.is_distributed = is_distributed
 
         self.states = model.module.mix_nums if is_distributed else model.mix_nums
@@ -143,13 +137,13 @@ class EvolutionTrainer(object):
 
         self.max_epochs = cfg.SEARCH.MAX_EPOCH
         self.select_num = cfg.SEARCH.SELECT_NUM
-        self.population_num = cfg.SEARCH.POPULATION_NUM/get_world_size()
-        self.mutation_num = cfg.SEARCH.MUTATION_NUM/get_world_size()
-        self.crossover_num = cfg.SEARCH.CROSSOVER_NUM/get_world_size()
-        self.mutation_prob = cfg.SEARCH.MUTATION_PROB/get_world_size()
+        self.population_num = cfg.SEARCH.POPULATION_NUM / get_world_size()
+        self.mutation_num = cfg.SEARCH.MUTATION_NUM / get_world_size()
+        self.crossover_num = cfg.SEARCH.CROSSOVER_NUM / get_world_size()
+        self.mutation_prob = cfg.SEARCH.MUTATION_PROB / get_world_size()
 
-        self.keep_top_k = {self.select_num:[], 50:[]}
-        self.epoch=0
+        self.keep_top_k = {self.select_num: [], 50: []}
+        self.epoch = 0
         self.cfg = cfg
 
     def save_checkpoint(self):
@@ -158,36 +152,36 @@ class EvolutionTrainer(object):
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
         info = {}
-        info['candidates'] = self.candidates
-        info['vis_dict'] = self.vis_dict
-        info['keep_top_k'] = self.keep_top_k
-        info['epoch'] = self.epoch
+        info["candidates"] = self.candidates
+        info["vis_dict"] = self.vis_dict
+        info["keep_top_k"] = self.keep_top_k
+        info["epoch"] = self.epoch
         torch.save(info, self.checkpoint_name)
-        print('Save checkpoint to', self.checkpoint_name)
+        print("Save checkpoint to", self.checkpoint_name)
 
     def load_checkpoint(self):
         if not os.path.exists(self.checkpoint_name):
             return False
         info = torch.load(self.checkpoint_name)
-        self.candidates = info['candidates']
-        self.vis_dict = info['vis_dict']
-        self.keep_top_k = info['keep_top_k']
-        self.epoch = info['epoch']
-        print('Load checkpoint from', self.checkpoint_name)
+        self.candidates = info["candidates"]
+        self.vis_dict = info["vis_dict"]
+        self.keep_top_k = info["keep_top_k"]
+        self.epoch = info["epoch"]
+        print("Load checkpoint from", self.checkpoint_name)
         return True
 
     def legal(self, cand):
-        assert isinstance(cand,tuple) and len(cand)==len(self.states)
+        assert isinstance(cand, tuple) and len(cand) == len(self.states)
         if cand in self.vis_dict:
             return False
 
         if self.flops_limit is not None:
             net = self.model.module.backbone if self.is_distributed else self.model.backbone
             inp = (1, 3, 224, 224)
-            flops, params = profile(net, inp, extra_args={'paths': list(cand)})
-            flops = flops/1e6
-            print('flops:',flops)
-            if flops>self.flops_limit:
+            flops, params = profile(net, inp, extra_args={"paths": list(cand)})
+            flops = flops / 1e6
+            print("flops:", flops)
+            if flops > self.flops_limit:
                 return False
 
         return True
@@ -197,8 +191,8 @@ class EvolutionTrainer(object):
         # print('select ......')
         t = self.keep_top_k[k]
         t += candidates
-        t.sort(key=key,reverse=reverse)
-        self.keep_top_k[k]=t[:k]
+        t.sort(key=key, reverse=reverse)
+        self.keep_top_k[k] = t[:k]
 
     def eval_candidates(self, train_loader, val_loader):
         for cand in self.candidates:
@@ -212,11 +206,11 @@ class EvolutionTrainer(object):
             evals = fitness(cfg, model, list(cand), val_loader)
 
             if is_main_process():
-                acc = evals[0].results['bbox']['AP']
+                acc = evals[0].results["bbox"]["AP"]
                 self.vis_dict[cand] = acc
-                print('candiate ', cand)
-                print('time: {}s'.format(time.time() - t0))
-                print('acc ', acc)
+                print("candiate ", cand)
+                print("time: {}s".format(time.time() - t0))
+                print("acc ", acc)
 
     def stack_random_cand(self, random_func, *, batchsize=10):
         while True:
@@ -227,14 +221,14 @@ class EvolutionTrainer(object):
     def random_can(self, num):
         # print('random select ........')
         candidates = []
-        cand_iter = self.stack_random_cand(lambda:tuple(np.random.randint(i) for i in self.states))
-        while len(candidates)<num:
+        cand_iter = self.stack_random_cand(lambda: tuple(np.random.randint(i) for i in self.states))
+        while len(candidates) < num:
             cand = next(cand_iter)
 
             if not self.legal(cand):
                 continue
             candidates.append(cand)
-            #print('random {}/{}'.format(len(candidates),num))
+            # print('random {}/{}'.format(len(candidates),num))
 
         # print('random_num = {}'.format(len(candidates)))
         return candidates
@@ -244,23 +238,23 @@ class EvolutionTrainer(object):
         # print('mutation ......')
         res = []
         iter = 0
-        max_iters = mutation_num*10
+        max_iters = mutation_num * 10
 
         def random_func():
             cand = list(choice(self.keep_top_k[k]))
             for i in range(len(self.states)):
-                if np.random.random_sample()<m_prob:
+                if np.random.random_sample() < m_prob:
                     cand[i] = np.random.randint(self.states[i])
             return tuple(cand)
 
         cand_iter = self.stack_random_cand(random_func)
-        while len(res)<mutation_num and max_iters>0:
+        while len(res) < mutation_num and max_iters > 0:
             cand = next(cand_iter)
             if not self.legal(cand):
                 continue
             res.append(cand)
-            #print('mutation {}/{}'.format(len(res),mutation_num))
-            max_iters-=1
+            # print('mutation {}/{}'.format(len(res),mutation_num))
+            max_iters -= 1
 
         # print('mutation_num = {}'.format(len(res)))
         return res
@@ -273,18 +267,18 @@ class EvolutionTrainer(object):
         max_iters = 10 * crossover_num
 
         def random_func():
-            p1=choice(self.keep_top_k[k])
-            p2=choice(self.keep_top_k[k])
-            return tuple(choice([i,j]) for i,j in zip(p1,p2))
+            p1 = choice(self.keep_top_k[k])
+            p2 = choice(self.keep_top_k[k])
+            return tuple(choice([i, j]) for i, j in zip(p1, p2))
 
         cand_iter = self.stack_random_cand(random_func)
-        while len(res)<crossover_num and max_iters>0:
+        while len(res) < crossover_num and max_iters > 0:
             cand = next(cand_iter)
             if not self.legal(cand):
                 continue
             res.append(cand)
-            #print('crossover {}/{}'.format(len(res),crossover_num))
-            max_iters-=1
+            # print('crossover {}/{}'.format(len(res),crossover_num))
+            max_iters -= 1
 
         # print('crossover_num = {}'.format(len(res)))
         return res
@@ -295,17 +289,17 @@ class EvolutionTrainer(object):
         if not self.load_checkpoint():
             self.candidates = gather_candidates(self.random_can(self.population_num))
 
-        while self.epoch<self.max_epochs:
+        while self.epoch < self.max_epochs:
             self.eval_candidates(train_loader, val_loader)
             self.vis_dict = gather_stats(self.vis_dict)
 
-            self.update_top_k(self.candidates, k=self.select_num, key=lambda x:1-self.vis_dict[x])
-            self.update_top_k(self.candidates, k=50, key=lambda x:1-self.vis_dict[x])
+            self.update_top_k(self.candidates, k=self.select_num, key=lambda x: 1 - self.vis_dict[x])
+            self.update_top_k(self.candidates, k=50, key=lambda x: 1 - self.vis_dict[x])
 
             if is_main_process():
-                logger.info('Epoch {} : top {} result'.format(self.epoch+1, len(self.keep_top_k[self.select_num])))
-                for i,cand in enumerate(self.keep_top_k[self.select_num]):
-                    logger.info('     No.{} {} perf = {}'.format(i+1, cand, self.vis_dict[cand]))
+                logger.info("Epoch {} : top {} result".format(self.epoch + 1, len(self.keep_top_k[self.select_num])))
+                for i, cand in enumerate(self.keep_top_k[self.select_num]):
+                    logger.info("     No.{} {} perf = {}".format(i + 1, cand, self.vis_dict[cand]))
 
             mutation = gather_candidates(self.get_mutation(self.select_num, self.mutation_num, self.mutation_prob))
             crossover = gather_candidates(self.get_crossover(self.select_num, self.crossover_num))
@@ -313,11 +307,11 @@ class EvolutionTrainer(object):
 
             self.candidates = mutation + crossover + rand
 
-            self.epoch+=1
+            self.epoch += 1
             self.save_checkpoint()
 
     def save_candidates(self, cand, template):
-        paths = self.keep_top_k[self.select_num][cand-1]
+        paths = self.keep_top_k[self.select_num][cand - 1]
 
         with open(template, "r") as f:
             super_cfg = load_cfg(f)
@@ -338,20 +332,23 @@ class EvolutionTrainer(object):
         super_cfg.MODEL.BACKBONE.LAYER_SETUP = layer_setup
 
         cand_cfg = _to_dict(super_cfg)
-        del cand_cfg['MODEL']['BACKBONE']['LAYER_SEARCH']
-        with open(os.path.join(self.cfg.OUTPUT_DIR, os.path.basename(template)).replace('.yaml','_cand{}.yaml'.format(cand)), 'w') as f:
+        del cand_cfg["MODEL"]["BACKBONE"]["LAYER_SEARCH"]
+        with open(
+            os.path.join(self.cfg.OUTPUT_DIR, os.path.basename(template)).replace(".yaml", "_cand{}.yaml".format(cand)),
+            "w",
+        ) as f:
             f.writelines(safe_dump(cand_cfg))
 
         super_weight = self.supernet_state_dict
         cand_weight = OrderedDict()
-        cand_keys = ['layers.{}.ops.{}'.format(i, c) for i, c in enumerate(paths)]
+        cand_keys = ["layers.{}.ops.{}".format(i, c) for i, c in enumerate(paths)]
 
         for key, val in super_weight.items():
-            if 'ops' in key:
+            if "ops" in key:
                 for ck in cand_keys:
                     if ck in key:
-                        cand_weight[key.replace(ck,ck.split('.ops.')[0])] = val
+                        cand_weight[key.replace(ck, ck.split(".ops.")[0])] = val
             else:
                 cand_weight[key] = val
 
-        torch.save({'model':cand_weight}, os.path.join(self.cfg.OUTPUT_DIR, 'init_cand{}.pth'.format(cand)))
+        torch.save({"model": cand_weight}, os.path.join(self.cfg.OUTPUT_DIR, "init_cand{}.pth".format(cand)))

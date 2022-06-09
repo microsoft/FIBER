@@ -8,8 +8,9 @@ import torchvision
 import torch.utils.data as data
 from maskrcnn_benchmark.structures.bounding_box import BoxList
 
+
 class Background(data.Dataset):
-    """ Background
+    """Background
 
     Args:
         root (string): Root directory where images are downloaded to.
@@ -21,8 +22,8 @@ class Background(data.Dataset):
     def __init__(self, ann_file, root, remove_images_without_annotations=None, transforms=None):
         self.root = root
 
-        with open(ann_file, 'r') as f:
-            self.ids = json.load(f)['images']
+        with open(ann_file, "r") as f:
+            self.ids = json.load(f)["images"]
         self.transform = transforms
 
     def __getitem__(self, index):
@@ -34,14 +35,14 @@ class Background(data.Dataset):
             tuple: Tuple (image, target). target is the object returned by ``coco.loadAnns``.
         """
         im_info = self.ids[index]
-        path = im_info['file_name']
+        path = im_info["file_name"]
         fp = os.path.join(self.root, path)
 
-        img = Image.open(fp).convert('RGB')
+        img = Image.open(fp).convert("RGB")
         if self.transform is not None:
             img, _ = self.transform(img, None)
-        null_target = BoxList(torch.zeros((0,4)), (img.shape[-1], img.shape[-2]))
-        null_target.add_field('labels', torch.zeros(0))
+        null_target = BoxList(torch.zeros((0, 4)), (img.shape[-1], img.shape[-2]))
+        null_target.add_field("labels", torch.zeros(0))
 
         return img, null_target, index
 

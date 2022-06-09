@@ -34,17 +34,9 @@ def path2rest(path, split, annotations, label2ans):
     qids, qas = [a[0] for a in _annot], [a[1] for a in _annot]
     questions = [qa[0] for qa in qas]
     answers = [qa[1] for qa in qas] if "test" not in split else list(list())
-    answer_labels = (
-        [a["labels"] for a in answers] if "test" not in split else list(list())
-    )
-    answer_scores = (
-        [a["scores"] for a in answers] if "test" not in split else list(list())
-    )
-    answers = (
-        [[label2ans[l] for l in al] for al in answer_labels]
-        if "test" not in split
-        else list(list())
-    )
+    answer_labels = [a["labels"] for a in answers] if "test" not in split else list(list())
+    answer_scores = [a["scores"] for a in answers] if "test" not in split else list(list())
+    answers = [[label2ans[l] for l in al] for al in answer_labels] if "test" not in split else list(list())
 
     return [binary, questions, answers, answer_labels, answer_scores, iid, qids, split]
 
@@ -84,7 +76,8 @@ def make_arrow(root, dataset_root):
     all_major_answers = list()
 
     for split, annots in zip(
-        ["train", "val"], [annotations_train2014, annotations_val2014],
+        ["train", "val"],
+        [annotations_train2014, annotations_val2014],
     ):
         _annot = annotations[split]
         for q in tqdm(annots):
@@ -96,7 +89,8 @@ def make_arrow(root, dataset_root):
     label2ans = list(counter.keys())
 
     for split, annots in zip(
-        ["train", "val"], [annotations_train2014, annotations_val2014],
+        ["train", "val"],
+        [annotations_train2014, annotations_val2014],
     ):
         _annot = annotations[split]
         for q in tqdm(annots):
@@ -116,7 +110,10 @@ def make_arrow(root, dataset_root):
                 scores.append(score)
 
             _annot[q["image_id"]][q["question_id"]].append(
-                {"labels": labels, "scores": scores,}
+                {
+                    "labels": labels,
+                    "scores": scores,
+                }
             )
 
     for split in ["train", "val"]:
@@ -145,23 +142,19 @@ def make_arrow(root, dataset_root):
         }[split]
         paths = list(glob(f"{root}/{split_name}/*.jpg"))
         random.shuffle(paths)
-        annot_paths = [
-            path
-            for path in paths
-            if int(path.split("/")[-1].split("_")[-1][:-4]) in annot
-        ]
+        annot_paths = [path for path in paths if int(path.split("/")[-1].split("_")[-1][:-4]) in annot]
 
         if len(paths) == len(annot_paths):
             print("all images have caption annotations")
         else:
             print("not all images have caption annotations")
         print(
-            len(paths), len(annot_paths), len(annot),
+            len(paths),
+            len(annot_paths),
+            len(annot),
         )
 
-        bs = [
-            path2rest(path, split, annotations, label2ans) for path in tqdm(annot_paths)
-        ]
+        bs = [path2rest(path, split, annotations, label2ans) for path in tqdm(annot_paths)]
 
         dataframe = pd.DataFrame(
             bs,
@@ -184,9 +177,7 @@ def make_arrow(root, dataset_root):
             with pa.RecordBatchFileWriter(sink, table.schema) as writer:
                 writer.write_table(table)
 
-    table = pa.ipc.RecordBatchFileReader(
-        pa.memory_map(f"{dataset_root}/vqav2_val.arrow", "r")
-    ).read_all()
+    table = pa.ipc.RecordBatchFileReader(pa.memory_map(f"{dataset_root}/vqav2_val.arrow", "r")).read_all()
 
     pdtable = table.to_pandas()
 

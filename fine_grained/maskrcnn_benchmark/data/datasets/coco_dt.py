@@ -13,45 +13,47 @@ from .tsv import ODTSVDataset
 from pycocotools.coco import COCO
 from maskrcnn_benchmark.structures.bounding_box import BoxList
 import random
-from .od_to_grounding import convert_object_detection_to_grounding_optimized_for_od, check_for_positive_overflow, sanity_check_target_after_processing
+from .od_to_grounding import (
+    convert_object_detection_to_grounding_optimized_for_od,
+    check_for_positive_overflow,
+    sanity_check_target_after_processing,
+)
 
 
 class CocoDetectionTSV(ODTSVDataset):
-    def __init__(self,
-                 name,
-                 yaml_file,
-                 transforms,
-                 return_tokens,
-                 tokenizer,
-                 extra_fields,
-                 random_sample_negative=-1,
-                 add_detection_prompt=False,
-                 add_detection_prompt_advanced=False,
-                 use_od_data_aug=False,
-                 control_probabilities={},
-                 disable_shuffle=False,
-                 prompt_engineer_version="v2",
-                 prompt_limit_negative=-1,
-                 positive_question_probability=0.6,
-                 negative_question_probability=0.8,
-                 full_question_probability=0.5,
-                 disable_clip_to_image=False,
-                 separation_tokens=" ",
-                 no_mask_for_od=False,
-                 max_num_labels=-1,
-                 max_query_len=256,
-                 **kwargs
-                 ):
+    def __init__(
+        self,
+        name,
+        yaml_file,
+        transforms,
+        return_tokens,
+        tokenizer,
+        extra_fields,
+        random_sample_negative=-1,
+        add_detection_prompt=False,
+        add_detection_prompt_advanced=False,
+        use_od_data_aug=False,
+        control_probabilities={},
+        disable_shuffle=False,
+        prompt_engineer_version="v2",
+        prompt_limit_negative=-1,
+        positive_question_probability=0.6,
+        negative_question_probability=0.8,
+        full_question_probability=0.5,
+        disable_clip_to_image=False,
+        separation_tokens=" ",
+        no_mask_for_od=False,
+        max_num_labels=-1,
+        max_query_len=256,
+        **kwargs
+    ):
         super(CocoDetectionTSV, self).__init__(yaml_file, extra_fields, **kwargs)
 
         self._transforms = transforms
         self.name = name
         self.max_query_len = max_query_len
         self.prepare = ConvertCocoPolysToMask(
-            return_masks=False,
-            return_tokens=return_tokens,
-            tokenizer=tokenizer,
-            max_query_len=max_query_len
+            return_masks=False, return_tokens=return_tokens, tokenizer=tokenizer, max_query_len=max_query_len
         )
         self.tokenizer = tokenizer
 
@@ -80,7 +82,7 @@ class CocoDetectionTSV(ODTSVDataset):
         label_list = {}
         for index, i in enumerate(categories):
             # assert(index + 1 == i["id"])
-            if not no_background or (i["name"] != "__background__" and i['id'] != 0):
+            if not no_background or (i["name"] != "__background__" and i["id"] != 0):
                 label_list[i["id"]] = i["name"]
         return label_list
 
@@ -95,12 +97,19 @@ class CocoDetectionTSV(ODTSVDataset):
 
         original_box_num = len(target)
 
-        target, positive_caption_length = check_for_positive_overflow(target, self.ind_to_class, self.tokenizer, self.max_query_len-2) # leave some space for the special tokens
+        target, positive_caption_length = check_for_positive_overflow(
+            target, self.ind_to_class, self.tokenizer, self.max_query_len - 2
+        )  # leave some space for the special tokens
 
         if len(target) < original_box_num:
             print("WARNING: removed {} boxes due to positive caption overflow".format(original_box_num - len(target)))
 
-        annotations, caption, greenlight_span_for_masked_lm_objective, label_to_positions = convert_object_detection_to_grounding_optimized_for_od(
+        (
+            annotations,
+            caption,
+            greenlight_span_for_masked_lm_objective,
+            label_to_positions,
+        ) = convert_object_detection_to_grounding_optimized_for_od(
             target=target,
             image_id=image_id,
             ind_to_class=self.ind_to_class,
@@ -114,13 +123,18 @@ class CocoDetectionTSV(ODTSVDataset):
             max_num_labels=self.max_num_labels,
             positive_caption_length=positive_caption_length,
             tokenizer=self.tokenizer,
-            max_seq_length=self.max_query_len-2
+            max_seq_length=self.max_query_len - 2,
         )
 
         # assert(len(self.tokenizer.tokenize(caption)) <= self.max_query_len-2)
 
         # print(caption)
-        anno = {"image_id": image_id, "annotations": annotations, "caption": caption, "label_to_positions": label_to_positions}
+        anno = {
+            "image_id": image_id,
+            "annotations": annotations,
+            "caption": caption,
+            "label_to_positions": label_to_positions,
+        }
         anno["greenlight_span_for_masked_lm_objective"] = greenlight_span_for_masked_lm_objective
 
         if self.no_mask_for_od:
@@ -130,7 +144,7 @@ class CocoDetectionTSV(ODTSVDataset):
 
         if self._transforms is not None:
             img, target = self._transforms(img, target)
-        
+
         # add additional property
         for ann in anno:
             target.add_field(ann, anno[ann])

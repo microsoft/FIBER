@@ -24,9 +24,7 @@ def project_masks_on_boxes(segmentation_masks, proposals, discretization_size):
     M = discretization_size
     device = proposals.bbox.device
     proposals = proposals.convert("xyxy")
-    assert segmentation_masks.size == proposals.size, "{}, {}".format(
-        segmentation_masks, proposals
-    )
+    assert segmentation_masks.size == proposals.size, "{}, {}".format(segmentation_masks, proposals)
     # TODO put the proposals on the CPU, as the representation for the
     # masks is not efficient GPU-wise (possibly several small tensors for
     # representing a single instance mask)
@@ -76,9 +74,7 @@ class MaskRCNNLossComputation(object):
         masks = []
         positive_maps = []
         for proposals_per_image, targets_per_image in zip(proposals, targets):
-            matched_targets = self.match_targets_to_proposals(
-                proposals_per_image, targets_per_image
-            )
+            matched_targets = self.match_targets_to_proposals(proposals_per_image, targets_per_image)
             matched_idxs = matched_targets.get_field("matched_idxs")
 
             if self.vl_version:
@@ -111,9 +107,7 @@ class MaskRCNNLossComputation(object):
 
             positive_proposals = proposals_per_image[positive_inds]
 
-            masks_per_image = project_masks_on_boxes(
-                segmentation_masks, positive_proposals, self.discretization_size
-            )
+            masks_per_image = project_masks_on_boxes(segmentation_masks, positive_proposals, self.discretization_size)
 
             labels.append(labels_per_image)
             masks.append(masks_per_image)
@@ -151,16 +145,14 @@ class MaskRCNNLossComputation(object):
             for positive_ind in positive_inds:
                 positive_map = positive_maps[positive_ind]
                 # TODO: make sure for the softmax [NoObj] case
-                mask_logit_pos = mask_logits[positive_ind][torch.nonzero(positive_map).squeeze(1)].mean(dim=0, keepdim=True)
+                mask_logit_pos = mask_logits[positive_ind][torch.nonzero(positive_map).squeeze(1)].mean(
+                    dim=0, keepdim=True
+                )
                 mask_logits_pos.append(mask_logit_pos)
             mask_logits_pos = cat(mask_logits_pos, dim=0)
-            mask_loss = F.binary_cross_entropy_with_logits(
-                mask_logits_pos, mask_targets
-            )
+            mask_loss = F.binary_cross_entropy_with_logits(mask_logits_pos, mask_targets)
         else:
-            mask_loss = F.binary_cross_entropy_with_logits(
-                mask_logits[positive_inds, labels_pos], mask_targets
-            )
+            mask_loss = F.binary_cross_entropy_with_logits(mask_logits[positive_inds, labels_pos], mask_targets)
         return mask_loss
 
 
@@ -172,8 +164,7 @@ def make_roi_mask_loss_evaluator(cfg):
     )
 
     loss_evaluator = MaskRCNNLossComputation(
-        matcher, cfg.MODEL.ROI_MASK_HEAD.RESOLUTION,
-        vl_version=cfg.MODEL.ROI_MASK_HEAD.PREDICTOR.startswith("VL")
+        matcher, cfg.MODEL.ROI_MASK_HEAD.RESOLUTION, vl_version=cfg.MODEL.ROI_MASK_HEAD.PREDICTOR.startswith("VL")
     )
 
     return loss_evaluator

@@ -7,6 +7,8 @@ from maskrcnn_benchmark.modeling.utils import cat, concat_box_prediction_layers,
 from timm.models.layers import DropPath
 
 from transformers.activations import ACT2FN
+
+
 class BertPredictionHeadTransform(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -43,6 +45,7 @@ class BertLMPredictionHead(nn.Module):
         hidden_states = self.decoder(hidden_states)
         return hidden_states
 
+
 class FeatureResizer(nn.Module):
     """
     This class takes as input a set of embeddings of dimension C1 and outputs a set of
@@ -70,18 +73,20 @@ def _make_conv(input_dim, output_dim, k, stride=1):
     return nn.Sequential(
         nn.Conv2d(input_dim, output_dim, (k, k), padding=(pad, pad), stride=(stride, stride)),
         nn.BatchNorm2d(output_dim),
-        nn.ReLU(inplace=True)
+        nn.ReLU(inplace=True),
     )
 
 
 def _make_mlp(input_dim, output_dim, drop):
-    return nn.Sequential(nn.Linear(input_dim, output_dim),
-                         nn.BatchNorm1d(output_dim),
-                         nn.ReLU(inplace=True),
-                         nn.Dropout(drop),
-                         nn.Linear(output_dim, output_dim),
-                         nn.BatchNorm1d(output_dim),
-                         nn.ReLU(inplace=True))
+    return nn.Sequential(
+        nn.Linear(input_dim, output_dim),
+        nn.BatchNorm1d(output_dim),
+        nn.ReLU(inplace=True),
+        nn.Dropout(drop),
+        nn.Linear(output_dim, output_dim),
+        nn.BatchNorm1d(output_dim),
+        nn.ReLU(inplace=True),
+    )
 
 
 def _make_coord(batch, height, width):
@@ -93,27 +98,36 @@ def _make_coord(batch, height, width):
     yv_max = ((yv + 1).float() * 2 - height) / height
     xv_ctr = (xv_min + xv_max) / 2
     yv_ctr = (yv_min + yv_max) / 2
-    hmap = torch.ones(height, width) * (1. / height)
-    wmap = torch.ones(height, width) * (1. / width)
-    coord = torch.autograd.Variable(torch.cat([xv_min.unsqueeze(0), yv_min.unsqueeze(0), \
-                                               xv_max.unsqueeze(0), yv_max.unsqueeze(0), \
-                                               xv_ctr.unsqueeze(0), yv_ctr.unsqueeze(0), \
-                                               hmap.unsqueeze(0), wmap.unsqueeze(0)], dim=0))
+    hmap = torch.ones(height, width) * (1.0 / height)
+    wmap = torch.ones(height, width) * (1.0 / width)
+    coord = torch.autograd.Variable(
+        torch.cat(
+            [
+                xv_min.unsqueeze(0),
+                yv_min.unsqueeze(0),
+                xv_max.unsqueeze(0),
+                yv_max.unsqueeze(0),
+                xv_ctr.unsqueeze(0),
+                yv_ctr.unsqueeze(0),
+                hmap.unsqueeze(0),
+                wmap.unsqueeze(0),
+            ],
+            dim=0,
+        )
+    )
     coord = coord.unsqueeze(0).repeat(batch, 1, 1, 1)
     return coord
 
 
 def l1norm(X, dim, eps=1e-8):
-    """L1-normalize columns of X
-    """
+    """L1-normalize columns of X"""
     norm = torch.abs(X).sum(dim=dim, keepdim=True) + eps
     X = torch.div(X, norm)
     return X
 
 
 def l2norm(X, dim, eps=1e-8):
-    """L2-normalize columns of X
-    """
+    """L2-normalize columns of X"""
     norm = torch.pow(X, 2).sum(dim=dim, keepdim=True).sqrt() + eps
     X = torch.div(X, norm)
     return X
@@ -179,7 +193,7 @@ class BiMultiHeadAttention(nn.Module):
         self.l_dim = l_dim
 
         assert (
-                self.head_dim * self.num_heads == self.embed_dim
+            self.head_dim * self.num_heads == self.embed_dim
         ), f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`: {self.num_heads})."
         self.scale = self.head_dim ** (-0.5)
         self.dropout = dropout
@@ -241,32 +255,37 @@ class BiMultiHeadAttention(nn.Module):
 
         if self.stable_softmax_2d:
             attn_weights = attn_weights - attn_weights.max()
-        
+
         if self.clamp_min_for_underflow:
-            attn_weights = torch.clamp(attn_weights, min=-50000) # Do not increase -50000, data type half has quite limited range
+            attn_weights = torch.clamp(
+                attn_weights, min=-50000
+            )  # Do not increase -50000, data type half has quite limited range
         if self.clamp_max_for_overflow:
-            attn_weights = torch.clamp(attn_weights, max=50000) # Do not increase 50000, data type half has quite limited range
+            attn_weights = torch.clamp(
+                attn_weights, max=50000
+            )  # Do not increase 50000, data type half has quite limited range
 
         attn_weights_T = attn_weights.transpose(1, 2)
-        attn_weights_l = (attn_weights_T - torch.max(attn_weights_T, dim=-1, keepdim=True)[
-            0])
+        attn_weights_l = attn_weights_T - torch.max(attn_weights_T, dim=-1, keepdim=True)[0]
         if self.clamp_min_for_underflow:
-            attn_weights_l = torch.clamp(attn_weights_l, min=-50000) # Do not increase -50000, data type half has quite limited range
+            attn_weights_l = torch.clamp(
+                attn_weights_l, min=-50000
+            )  # Do not increase -50000, data type half has quite limited range
         if self.clamp_max_for_overflow:
-            attn_weights_l = torch.clamp(attn_weights_l, max=50000) # Do not increase 50000, data type half has quite limited range
+            attn_weights_l = torch.clamp(
+                attn_weights_l, max=50000
+            )  # Do not increase 50000, data type half has quite limited range
 
         attn_weights_l = attn_weights_l.softmax(dim=-1)
 
         if attention_mask_l is not None:
-            assert (attention_mask_l.dim() == 2)
+            assert attention_mask_l.dim() == 2
             attention_mask = attention_mask_l.unsqueeze(1).unsqueeze(1)
             attention_mask = attention_mask.expand(bsz, 1, tgt_len, src_len)
             attention_mask = attention_mask.masked_fill(attention_mask == 0, -9e15)
 
             if attention_mask.size() != (bsz, 1, tgt_len, src_len):
-                raise ValueError(
-                    f"Attention mask should be of size {(bsz, 1, tgt_len, src_len)}"
-                )
+                raise ValueError(f"Attention mask should be of size {(bsz, 1, tgt_len, src_len)}")
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len) + attention_mask
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
@@ -277,7 +296,6 @@ class BiMultiHeadAttention(nn.Module):
 
         attn_output_v = torch.bmm(attn_probs_v, value_l_states)
         attn_output_l = torch.bmm(attn_probs_l, value_v_states)
-
 
         if attn_output_v.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
             raise ValueError(
@@ -305,8 +323,18 @@ class BiMultiHeadAttention(nn.Module):
 
 # Bi-Direction MHA (text->image, image->text)
 class BiAttentionBlock(nn.Module):
-    def __init__(self, v_dim, l_dim, embed_dim, num_heads, hidden_dim=None, dropout=0.1,
-                 drop_path=.0, init_values=1e-4, cfg=None):
+    def __init__(
+        self,
+        v_dim,
+        l_dim,
+        embed_dim,
+        num_heads,
+        hidden_dim=None,
+        dropout=0.1,
+        drop_path=0.0,
+        init_values=1e-4,
+        cfg=None,
+    ):
         """
         Inputs:
             embed_dim - Dimensionality of input and attention feature vectors
@@ -320,15 +348,12 @@ class BiAttentionBlock(nn.Module):
         # pre layer norm
         self.layer_norm_v = nn.LayerNorm(v_dim)
         self.layer_norm_l = nn.LayerNorm(l_dim)
-        self.attn = BiMultiHeadAttention(v_dim=v_dim,
-                                         l_dim=l_dim,
-                                         embed_dim=embed_dim,
-                                         num_heads=num_heads,
-                                         dropout=dropout,
-                                         cfg=cfg)
+        self.attn = BiMultiHeadAttention(
+            v_dim=v_dim, l_dim=l_dim, embed_dim=embed_dim, num_heads=num_heads, dropout=dropout, cfg=cfg
+        )
 
         # add layer scale for training stability
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.gamma_v = nn.Parameter(init_values * torch.ones((v_dim)), requires_grad=True)
         self.gamma_l = nn.Parameter(init_values * torch.ones((l_dim)), requires_grad=True)
 
@@ -341,9 +366,20 @@ class BiAttentionBlock(nn.Module):
         l = l + self.drop_path(self.gamma_l * delta_l)
         return v, l
 
+
 class BiAttentionBlockForCheckpoint(nn.Module):
-    def __init__(self, v_dim, l_dim, embed_dim, num_heads, hidden_dim=None, dropout=0.1,
-                 drop_path=.0, init_values=1e-4, cfg=None):
+    def __init__(
+        self,
+        v_dim,
+        l_dim,
+        embed_dim,
+        num_heads,
+        hidden_dim=None,
+        dropout=0.1,
+        drop_path=0.0,
+        init_values=1e-4,
+        cfg=None,
+    ):
         """
         Inputs:
             embed_dim - Dimensionality of input and attention feature vectors
@@ -357,15 +393,12 @@ class BiAttentionBlockForCheckpoint(nn.Module):
         # pre layer norm
         self.layer_norm_v = nn.LayerNorm(v_dim)
         self.layer_norm_l = nn.LayerNorm(l_dim)
-        self.attn = BiMultiHeadAttention(v_dim=v_dim,
-                                         l_dim=l_dim,
-                                         embed_dim=embed_dim,
-                                         num_heads=num_heads,
-                                         dropout=dropout,
-                                         cfg=cfg)
+        self.attn = BiMultiHeadAttention(
+            v_dim=v_dim, l_dim=l_dim, embed_dim=embed_dim, num_heads=num_heads, dropout=dropout, cfg=cfg
+        )
 
         # add layer scale for training stability
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.gamma_v = nn.Parameter(init_values * torch.ones((v_dim)), requires_grad=True)
         self.gamma_l = nn.Parameter(init_values * torch.ones((l_dim)), requires_grad=True)
 
@@ -382,7 +415,7 @@ class BiAttentionBlockForCheckpoint(nn.Module):
             for ii, feat in enumerate([q0, q1, q2, q3, q4]):
                 bs, _, h, w = feat.shape
                 q = feat.flatten(2).transpose(1, 2)
-                
+
                 new_v, new_l = self.single_attention_call(q, l, attention_mask_l=attention_mask_l)
                 new_v = new_v.transpose(1, 2).contiguous().view(bs, -1, h, w)
                 lang_feat.append(new_l)
@@ -390,7 +423,7 @@ class BiAttentionBlockForCheckpoint(nn.Module):
             if self.cfg.MODEL.DYHEAD.FUSE_CONFIG.DO_LANG_PROJ_OUTSIDE_CHECKPOINT:
                 pass
             else:
-                lang_feat = self.shrink_lang(torch.cat(lang_feat, dim = -1)) # From multiple dimensions
+                lang_feat = self.shrink_lang(torch.cat(lang_feat, dim=-1))  # From multiple dimensions
                 lang_feat = [lang_feat, None, None, None, None]
         else:
             visu_feat = []
@@ -407,15 +440,25 @@ class BiAttentionBlockForCheckpoint(nn.Module):
 
             start = 0
             for (h, w) in size_per_level:
-                new_v_per_level = new_v[:, :, start:start + h * w].view(bs, -1, h, w).contiguous()
+                new_v_per_level = new_v[:, :, start : start + h * w].view(bs, -1, h, w).contiguous()
                 visu_feat.append(new_v_per_level)
                 start += h * w
-            
+
             lang_feat = [new_l, None, None, None, None]
 
-        return visu_feat[0], visu_feat[1], visu_feat[2], visu_feat[3], visu_feat[4], lang_feat[0], lang_feat[1], lang_feat[2], lang_feat[3], lang_feat[4]
+        return (
+            visu_feat[0],
+            visu_feat[1],
+            visu_feat[2],
+            visu_feat[3],
+            visu_feat[4],
+            lang_feat[0],
+            lang_feat[1],
+            lang_feat[2],
+            lang_feat[3],
+            lang_feat[4],
+        )
 
-    
     def single_attention_call(self, v, l, attention_mask_l=None, dummy_tensor=None):
         v = self.layer_norm_v(v)
         l = self.layer_norm_l(l)
@@ -432,8 +475,16 @@ class MultiHeadAttention(nn.Module):
     Multi-head attention module for both image and text
     """
 
-    def __init__(self, q_dim, k_dim, embed_dim, num_heads, dropout=0.1, 
-        clamp_min_for_underflow = False, clamp_max_for_overflow = False):
+    def __init__(
+        self,
+        q_dim,
+        k_dim,
+        embed_dim,
+        num_heads,
+        dropout=0.1,
+        clamp_min_for_underflow=False,
+        clamp_max_for_overflow=False,
+    ):
         super(MultiHeadAttention, self).__init__()
 
         self.embed_dim = embed_dim
@@ -443,7 +494,7 @@ class MultiHeadAttention(nn.Module):
         self.k_dim = k_dim
 
         assert (
-                self.head_dim * self.num_heads == self.embed_dim
+            self.head_dim * self.num_heads == self.embed_dim
         ), f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`: {self.num_heads})."
         self.scale = self.head_dim ** (-0.5)
         self.dropout = dropout
@@ -491,21 +542,23 @@ class MultiHeadAttention(nn.Module):
             )
 
         if self.clamp_min_for_underflow:
-            attn_weights = torch.clamp(attn_weights, min=-50000) # Do not increase -50000, data type half has quite limited range
+            attn_weights = torch.clamp(
+                attn_weights, min=-50000
+            )  # Do not increase -50000, data type half has quite limited range
         if self.clamp_max_for_overflow:
-            attn_weights = torch.clamp(attn_weights, max=50000) # Do not increase 50000, data type half has quite limited range
+            attn_weights = torch.clamp(
+                attn_weights, max=50000
+            )  # Do not increase 50000, data type half has quite limited range
 
         if attention_mask is not None:
             # [bsz, src_len]
-            assert (attention_mask.dim() == 2)
+            assert attention_mask.dim() == 2
             attention_mask = attention_mask.unsqueeze(1).unsqueeze(1)
             attention_mask = attention_mask.expand(bsz, 1, tgt_len, src_len)
             attention_mask = attention_mask.masked_fill(attention_mask == 0, -9e15)
 
             if attention_mask.size() != (bsz, 1, tgt_len, src_len):
-                raise ValueError(
-                    f"Attention mask should be of size {(bsz, 1, tgt_len, src_len)}"
-                )
+                raise ValueError(f"Attention mask should be of size {(bsz, 1, tgt_len, src_len)}")
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len) + attention_mask
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
@@ -536,7 +589,6 @@ class MultiHeadAttention(nn.Module):
 
         attn_output = self.out_proj(attn_output)
 
-
         return attn_output, attn_weights
 
 
@@ -557,9 +609,21 @@ class AttentionMLP(nn.Module):
 
 
 class AttentionT2I(nn.Module):
-    def __init__(self, q_dim, k_dim, embed_dim, num_heads, hidden_dim=None, dropout=0.1,
-                 drop_path=.0, init_values=1e-4, mode="i2t", use_layer_scale = False,
-                 clamp_min_for_underflow = False, clamp_max_for_overflow = False):
+    def __init__(
+        self,
+        q_dim,
+        k_dim,
+        embed_dim,
+        num_heads,
+        hidden_dim=None,
+        dropout=0.1,
+        drop_path=0.0,
+        init_values=1e-4,
+        mode="i2t",
+        use_layer_scale=False,
+        clamp_min_for_underflow=False,
+        clamp_max_for_overflow=False,
+    ):
         """
         Inputs:
             embed_dim - Dimensionality of input and attention feature vectors
@@ -573,20 +637,21 @@ class AttentionT2I(nn.Module):
         # pre_layer norm
         self.layer_norm_q_1 = nn.LayerNorm(q_dim)
         self.layer_norm_k_1 = nn.LayerNorm(k_dim)
-        self.attn = MultiHeadAttention(q_dim=q_dim,
-                                       k_dim=k_dim,
-                                       embed_dim=embed_dim,
-                                       num_heads=num_heads,
-                                       clamp_min_for_underflow=clamp_min_for_underflow,
-                                       clamp_max_for_overflow=clamp_max_for_overflow)
+        self.attn = MultiHeadAttention(
+            q_dim=q_dim,
+            k_dim=k_dim,
+            embed_dim=embed_dim,
+            num_heads=num_heads,
+            clamp_min_for_underflow=clamp_min_for_underflow,
+            clamp_max_for_overflow=clamp_max_for_overflow,
+        )
         self.mode = mode
 
         # add layer scale for training stability
         self.use_layer_scale = use_layer_scale
         if self.use_layer_scale:
-            self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+            self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
             self.gamma = nn.Parameter(init_values * torch.ones((q_dim)), requires_grad=True)
-
 
     def forward(self, q0, q1, q2, q3, q4, k, v, attention_mask, dummy_arg=None):
         qs = []
@@ -603,6 +668,5 @@ class AttentionT2I(nn.Module):
                 q = q + delta_q
             q = q.transpose(1, 2).contiguous().view(bs, -1, h, w)
             qs.append(q)
-
 
         return qs[0], qs[1], qs[2], qs[3], qs[4]

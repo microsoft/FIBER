@@ -91,7 +91,7 @@ class Shift(nn.Module):
         self.dilation = 1
 
         hks = kernel_size // 2
-        ksq = kernel_size ** 2
+        ksq = kernel_size**2
 
         for i in range(kernel_size):
             for j in range(kernel_size):
@@ -167,31 +167,13 @@ class ChannelShuffle(nn.Module):
         """Channel shuffle: [N,C,H,W] -> [N,g,C/g,H,W] -> [N,C/g,g,H,w] -> [N,C,H,W]"""
         N, C, H, W = x.size()
         g = self.groups
-        assert C % g == 0, "Incompatible group size {} for input channel {}".format(
-            g, C
-        )
-        return (
-            x.view(N, g, int(C / g), H, W)
-            .permute(0, 2, 1, 3, 4)
-            .contiguous()
-            .view(N, C, H, W)
-        )
+        assert C % g == 0, "Incompatible group size {} for input channel {}".format(g, C)
+        return x.view(N, g, int(C / g), H, W).permute(0, 2, 1, 3, 4).contiguous().view(N, C, H, W)
 
 
 class ConvBNRelu(nn.Sequential):
     def __init__(
-        self,
-        input_depth,
-        output_depth,
-        kernel,
-        stride,
-        pad,
-        no_bias,
-        use_relu,
-        bn_type,
-        group=1,
-        *args,
-        **kwargs
+        self, input_depth, output_depth, kernel, stride, pad, no_bias, use_relu, bn_type, group=1, *args, **kwargs
     ):
         super(ConvBNRelu, self).__init__()
 
@@ -246,9 +228,7 @@ class SEModule(nn.Module):
         conv1 = Conv2d(C, mid, 1, 1, 0)
         conv2 = Conv2d(mid, C, 1, 1, 0)
 
-        self.op = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1), conv1, nn.ReLU(inplace=True), conv2, nn.Sigmoid()
-        )
+        self.op = nn.Sequential(nn.AdaptiveAvgPool2d(1), conv1, nn.ReLU(inplace=True), conv2, nn.Sigmoid())
 
     def forward(self, x):
         return x * self.op(x)
@@ -262,10 +242,7 @@ class Upsample(nn.Module):
         self.align_corners = align_corners
 
     def forward(self, x):
-        return interpolate(
-            x, scale_factor=self.scale, mode=self.mode,
-            align_corners=self.align_corners
-        )
+        return interpolate(x, scale_factor=self.scale, mode=self.mode, align_corners=self.align_corners)
 
 
 def _get_upsample_op(stride):
@@ -403,78 +380,33 @@ class IRFBlock(nn.Module):
         return y
 
 
-
-skip = lambda C_in, C_out, stride, **kwargs: Identity(
-    C_in, C_out, stride
-)
-basic_block = lambda C_in, C_out, stride, **kwargs: CascadeConv3x3(
-    C_in, C_out, stride
-)
+skip = lambda C_in, C_out, stride, **kwargs: Identity(C_in, C_out, stride)
+basic_block = lambda C_in, C_out, stride, **kwargs: CascadeConv3x3(C_in, C_out, stride)
 # layer search 2
-ir_k3_e1 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 1, stride, kernel=3, **kwargs
-)
-ir_k3_e3 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 3, stride, kernel=3, **kwargs
-)
-ir_k3_e6 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 6, stride, kernel=3, **kwargs
-)
+ir_k3_e1 = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 1, stride, kernel=3, **kwargs)
+ir_k3_e3 = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 3, stride, kernel=3, **kwargs)
+ir_k3_e6 = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 6, stride, kernel=3, **kwargs)
 ir_k3_s4 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
     C_in, C_out, 4, stride, kernel=3, shuffle_type="mid", pw_group=4, **kwargs
 )
-ir_k5_e1 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 1, stride, kernel=5, **kwargs
-)
-ir_k5_e3 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 3, stride, kernel=5, **kwargs
-)
-ir_k5_e6 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 6, stride, kernel=5, **kwargs
-)
+ir_k5_e1 = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 1, stride, kernel=5, **kwargs)
+ir_k5_e3 = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 3, stride, kernel=5, **kwargs)
+ir_k5_e6 = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 6, stride, kernel=5, **kwargs)
 ir_k5_s4 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
     C_in, C_out, 4, stride, kernel=5, shuffle_type="mid", pw_group=4, **kwargs
 )
 # layer search se
-ir_k3_e1_se = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 1, stride, kernel=3, se=True, **kwargs
-)
-ir_k3_e3_se = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 3, stride, kernel=3, se=True, **kwargs
-)
-ir_k3_e6_se = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 6, stride, kernel=3, se=True, **kwargs
-)
+ir_k3_e1_se = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 1, stride, kernel=3, se=True, **kwargs)
+ir_k3_e3_se = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 3, stride, kernel=3, se=True, **kwargs)
+ir_k3_e6_se = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 6, stride, kernel=3, se=True, **kwargs)
 ir_k3_s4_se = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in,
-    C_out,
-    4,
-    stride,
-    kernel=3,
-    shuffle_type=mid,
-    pw_group=4,
-    se=True,
-    **kwargs
+    C_in, C_out, 4, stride, kernel=3, shuffle_type=mid, pw_group=4, se=True, **kwargs
 )
-ir_k5_e1_se = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 1, stride, kernel=5, se=True, **kwargs
-)
-ir_k5_e3_se = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 3, stride, kernel=5, se=True, **kwargs
-)
-ir_k5_e6_se = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 6, stride, kernel=5, se=True, **kwargs
-)
+ir_k5_e1_se = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 1, stride, kernel=5, se=True, **kwargs)
+ir_k5_e3_se = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 3, stride, kernel=5, se=True, **kwargs)
+ir_k5_e6_se = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 6, stride, kernel=5, se=True, **kwargs)
 ir_k5_s4_se = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in,
-    C_out,
-    4,
-    stride,
-    kernel=5,
-    shuffle_type="mid",
-    pw_group=4,
-    se=True,
-    **kwargs
+    C_in, C_out, 4, stride, kernel=5, shuffle_type="mid", pw_group=4, se=True, **kwargs
 )
 # layer search 3 (in addition to layer search 2)
 ir_k3_s2 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
@@ -484,53 +416,19 @@ ir_k5_s2 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
     C_in, C_out, 1, stride, kernel=5, shuffle_type="mid", pw_group=2, **kwargs
 )
 ir_k3_s2_se = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in,
-    C_out,
-    1,
-    stride,
-    kernel=3,
-    shuffle_type="mid",
-    pw_group=2,
-    se=True,
-    **kwargs
+    C_in, C_out, 1, stride, kernel=3, shuffle_type="mid", pw_group=2, se=True, **kwargs
 )
 ir_k5_s2_se = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in,
-    C_out,
-    1,
-    stride,
-    kernel=5,
-    shuffle_type="mid",
-    pw_group=2,
-    se=True,
-    **kwargs
+    C_in, C_out, 1, stride, kernel=5, shuffle_type="mid", pw_group=2, se=True, **kwargs
 )
 # layer search 4 (in addition to layer search 3)
-ir_k33_e1 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 1, stride, kernel=3, cdw=True, **kwargs
-)
-ir_k33_e3 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 3, stride, kernel=3, cdw=True, **kwargs
-)
-ir_k33_e6 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 6, stride, kernel=3, cdw=True, **kwargs
-)
+ir_k33_e1 = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 1, stride, kernel=3, cdw=True, **kwargs)
+ir_k33_e3 = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 3, stride, kernel=3, cdw=True, **kwargs)
+ir_k33_e6 = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 6, stride, kernel=3, cdw=True, **kwargs)
 # layer search 5 (in addition to layer search 4)
-ir_k7_e1 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 1, stride, kernel=7, **kwargs
-)
-ir_k7_e3 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 3, stride, kernel=7, **kwargs
-)
-ir_k7_e6 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 6, stride, kernel=7, **kwargs
-)
-ir_k7_sep_e1 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 1, stride, kernel=7, cdw=True, **kwargs
-)
-ir_k7_sep_e3 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 3, stride, kernel=7, cdw=True, **kwargs
-)
-ir_k7_sep_e6 = lambda C_in, C_out, stride, **kwargs: IRFBlock(
-    C_in, C_out, 6, stride, kernel=7, cdw=True, **kwargs
-)
+ir_k7_e1 = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 1, stride, kernel=7, **kwargs)
+ir_k7_e3 = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 3, stride, kernel=7, **kwargs)
+ir_k7_e6 = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 6, stride, kernel=7, **kwargs)
+ir_k7_sep_e1 = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 1, stride, kernel=7, cdw=True, **kwargs)
+ir_k7_sep_e3 = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 3, stride, kernel=7, cdw=True, **kwargs)
+ir_k7_sep_e6 = lambda C_in, C_out, stride, **kwargs: IRFBlock(C_in, C_out, 6, stride, kernel=7, cdw=True, **kwargs)

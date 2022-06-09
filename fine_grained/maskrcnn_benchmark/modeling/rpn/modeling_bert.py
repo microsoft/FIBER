@@ -31,8 +31,8 @@ import pdb
 from transformers.modeling_utils import find_pruneable_heads_and_indices, prune_linear_layer
 
 
-def clamp_values(vector, min_val = -50000, max_val = 50000):
-    vector = torch.clamp(vector, min = min_val, max = max_val)
+def clamp_values(vector, min_val=-50000, max_val=50000):
+    vector = torch.clamp(vector, min=min_val, max=max_val)
     return vector
 
 
@@ -137,9 +137,13 @@ class BertSelfAttention(nn.Module):
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
 
         if self.clamp_min_for_underflow:
-            attention_scores = torch.clamp(attention_scores, min=-50000) # Do not increase -50000, data type half has quite limited range
+            attention_scores = torch.clamp(
+                attention_scores, min=-50000
+            )  # Do not increase -50000, data type half has quite limited range
         if self.clamp_max_for_overflow:
-            attention_scores = torch.clamp(attention_scores, max=50000) # Do not increase 50000, data type half has quite limited range
+            attention_scores = torch.clamp(
+                attention_scores, max=50000
+            )  # Do not increase 50000, data type half has quite limited range
 
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
@@ -270,4 +274,3 @@ class BertOutput(nn.Module):
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
         hidden_states = clamp_values(hidden_states)
         return hidden_states
-

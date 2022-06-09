@@ -2,6 +2,7 @@ import os
 import copy
 import pytorch_lightning as pl
 import os
+
 os.environ["NCCL_DEBUG"] = "INFO"
 
 from fiber.config import ex
@@ -9,8 +10,10 @@ from fiber.modules import FIBERTransformerSS
 from fiber.datamodules.multitask_datamodule import MTDataModule
 
 import resource
+
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (20480, rlimit[1]))
+
 
 @ex.automain
 def main(_config):
@@ -38,15 +41,9 @@ def main(_config):
     lr_callback = pl.callbacks.LearningRateMonitor(logging_interval="step")
     callbacks = [checkpoint_callback, lr_callback]
 
-    num_gpus = (
-        _config["num_gpus"]
-        if isinstance(_config["num_gpus"], int)
-        else len(_config["num_gpus"])
-    )
+    num_gpus = _config["num_gpus"] if isinstance(_config["num_gpus"], int) else len(_config["num_gpus"])
 
-    grad_steps = max(_config["batch_size"] // (
-        _config["per_gpu_batchsize"] * num_gpus * _config["num_nodes"]
-    ), 1)
+    grad_steps = max(_config["batch_size"] // (_config["per_gpu_batchsize"] * num_gpus * _config["num_nodes"]), 1)
 
     max_steps = _config["max_steps"] if _config["max_steps"] is not None else None
 

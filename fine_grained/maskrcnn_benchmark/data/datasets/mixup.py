@@ -18,6 +18,7 @@ class MixupDetection(data.Dataset):
     *args : list
         Additional arguments for mixup random sampler.
     """
+
     def __init__(self, dataset, mixup=None, preproc=None, *args):
         super().__init__(dataset.input_dim)
         self._dataset = dataset
@@ -45,7 +46,7 @@ class MixupDetection(data.Dataset):
     def __getitem__(self, idx):
         self._dataset._input_dim = self.input_dim
         # first image
-        img1, label1, _, _= self._dataset.pull_item(idx)
+        img1, label1, _, _ = self._dataset.pull_item(idx)
         lambd = 1
 
         # draw a random lambda ratio from distribution
@@ -68,25 +69,25 @@ class MixupDetection(data.Dataset):
         # mixup two images
         height = max(img1.shape[0], img2.shape[0])
         width = max(img1.shape[1], img2.shape[1])
-        mix_img = np.zeros((height, width, 3),dtype=np.float32)
-        mix_img[:img1.shape[0], :img1.shape[1], :] = img1.astype(np.float32) * lambd
-        mix_img[:img2.shape[0], :img2.shape[1], :] += img2.astype(np.float32) * (1. - lambd)
+        mix_img = np.zeros((height, width, 3), dtype=np.float32)
+        mix_img[: img1.shape[0], : img1.shape[1], :] = img1.astype(np.float32) * lambd
+        mix_img[: img2.shape[0], : img2.shape[1], :] += img2.astype(np.float32) * (1.0 - lambd)
         mix_img = mix_img.astype(np.uint8)
 
         y1 = np.hstack((label1, np.full((label1.shape[0], 1), lambd)))
-        y2 = np.hstack((label2, np.full((label2.shape[0], 1), 1. - lambd)))
+        y2 = np.hstack((label2, np.full((label2.shape[0], 1), 1.0 - lambd)))
         mix_label = np.vstack((y1, y2))
         if self.preproc is not None:
             mix_img, padded_labels = self.preproc(mix_img, mix_label, self.input_dim)
 
         img_info = (width, height)
 
-        return mix_img, padded_labels, img_info , idx
+        return mix_img, padded_labels, img_info, idx
 
     def pull_item(self, idx):
         self._dataset._input_dim = self.input_dim
         # first image
-        img1, label1, _, _= self._dataset.pull_item(idx)
+        img1, label1, _, _ = self._dataset.pull_item(idx)
         lambd = 1
 
         # draw a random lambda ratio from distribution
@@ -109,16 +110,16 @@ class MixupDetection(data.Dataset):
         # mixup two images
         height = max(img1.shape[0], img2.shape[0])
         width = max(img1.shape[1], img2.shape[1])
-        mix_img = np.zeros((height, width, 3),dtype=np.float32)
-        mix_img[:img1.shape[0], :img1.shape[1], :] = img1.astype(np.float32) * lambd
-        mix_img[:img2.shape[0], :img2.shape[1], :] += img2.astype(np.float32) * (1. - lambd)
+        mix_img = np.zeros((height, width, 3), dtype=np.float32)
+        mix_img[: img1.shape[0], : img1.shape[1], :] = img1.astype(np.float32) * lambd
+        mix_img[: img2.shape[0], : img2.shape[1], :] += img2.astype(np.float32) * (1.0 - lambd)
         mix_img = mix_img.astype(np.uint8)
 
         y1 = np.hstack((label1, np.full((label1.shape[0], 1), lambd)))
-        y2 = np.hstack((label2, np.full((label2.shape[0], 1), 1. - lambd)))
+        y2 = np.hstack((label2, np.full((label2.shape[0], 1), 1.0 - lambd)))
         mix_label = np.vstack((y1, y2))
         if self.preproc is not None:
             mix_img, padded_labels = self.preproc(mix_img, mix_label, self.input_dim)
 
         img_info = (width, height)
-        return mix_img, padded_labels, img_info , idx
+        return mix_img, padded_labels, img_info, idx

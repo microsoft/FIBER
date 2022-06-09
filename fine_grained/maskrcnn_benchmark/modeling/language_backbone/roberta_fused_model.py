@@ -65,6 +65,7 @@ ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST = [
     # See all RoBERTa models at https://huggingface.co/models?filter=roberta
 ]
 
+
 class RobertaFusedEncoder(nn.Module):
     def __init__(self, cfg):
         super().__init__()
@@ -82,7 +83,7 @@ class RobertaFusedEncoder(nn.Module):
 
         self.num_layers = cfg.MODEL.LANGUAGE_BACKBONE.N_LAYERS
 
-    def get_aggregated_output(self, features, input_ids,  mask):
+    def get_aggregated_output(self, features, input_ids, mask):
 
         if self.cfg.MODEL.DYHEAD.FUSE_CONFIG.USE_DOT_PRODUCT_TOKEN_LOSS:
             embedded = features * mask.unsqueeze(-1).float()
@@ -95,12 +96,7 @@ class RobertaFusedEncoder(nn.Module):
             embedded = features * mask[:, :max_len].unsqueeze(-1).float()
             aggregate = embedded.sum(1) / (mask.sum(-1).unsqueeze(-1).float())
 
-        ret = {
-            "aggregate": aggregate,
-            "embedded": embedded,
-            "masks": mask,
-            "hidden": features
-        }
+        ret = {"aggregate": aggregate, "embedded": embedded, "masks": mask, "hidden": features}
         return ret
 
 
@@ -294,9 +290,9 @@ class RobertaSelfOutput(nn.Module):
     def forward(self, hidden_states, input_tensor, cross=False):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
-        #if not cross:
+        # if not cross:
         #    hidden_states = self.LayerNorm(hidden_states + input_tensor)
-        #else:
+        # else:
         #    hidden_states = self.LayerNorm(hidden_states) + input_tensor
         return hidden_states
 
@@ -399,10 +395,10 @@ class RobertaLayer(nn.Module):
             self.crossattention_t2i = RobertaAttention(config, cross=True)
         self.intermediate = RobertaIntermediate(config)
         self.output = RobertaOutput(config)
-        #dim = config.hidden_size
-        #self.gate_t2i = nn.Linear(2*dim, 1)
-        #self.gate_t2i = nn.Linear(2*dim, dim)
-        #self.sigmoid_t2i = nn.Sigmoid()
+        # dim = config.hidden_size
+        # self.gate_t2i = nn.Linear(2*dim, 1)
+        # self.gate_t2i = nn.Linear(2*dim, dim)
+        # self.sigmoid_t2i = nn.Sigmoid()
 
     def forward(
         self,
@@ -424,7 +420,6 @@ class RobertaLayer(nn.Module):
             past_key_value=self_attn_past_key_value,
         )
         attention_output = self_attention_outputs[0]
-
 
         # if decoder, the last output is tuple of self-attn cache
         outputs = self_attention_outputs[1:]  # add self attentions if we output attention weights
@@ -448,10 +443,10 @@ class RobertaLayer(nn.Module):
                 cross=True,
             )
             attention_output = cross_attention_outputs[0] + attention_output
-            #g = self.gate_t2i(torch.cat([cross_attention_outputs[0], attention_output], dim=-1))
-            #attention_output = g*cross_attention_outputs[0] + attention_output
+            # g = self.gate_t2i(torch.cat([cross_attention_outputs[0], attention_output], dim=-1))
+            # attention_output = g*cross_attention_outputs[0] + attention_output
 
-        attention_output = self.attention.output.LayerNorm(attention_output+hidden_states)
+        attention_output = self.attention.output.LayerNorm(attention_output + hidden_states)
 
         layer_output = apply_chunking_to_forward(
             self.feed_forward_chunk, self.chunk_size_feed_forward, self.seq_len_dim, attention_output
@@ -472,7 +467,9 @@ class RobertaEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.layer = nn.ModuleList([RobertaLayer(config, add_cross=(layer_i>=10)) for layer_i in range(config.num_hidden_layers)])
+        self.layer = nn.ModuleList(
+            [RobertaLayer(config, add_cross=(layer_i >= 10)) for layer_i in range(config.num_hidden_layers)]
+        )
 
     def forward(
         self,

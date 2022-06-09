@@ -11,25 +11,25 @@ class HFPTTokenizer(object):
         self.added_sep_token = 0
         self.added_cls_token = 0
         self.enable_add_tokens = False
-        self.gpt_special_case = ((not self.enable_add_tokens) and ('gpt' in self.pt_name))
+        self.gpt_special_case = (not self.enable_add_tokens) and ("gpt" in self.pt_name)
 
-        if (pt_name is None):
-            self.tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
+        if pt_name is None:
+            self.tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
         else:
             self.tokenizer = AutoTokenizer.from_pretrained(pt_name)
 
         # Adding tokens to GPT causing NaN training loss.
         # Disable for now until further investigation.
-        if (self.enable_add_tokens):
-            if (self.tokenizer.sep_token is None):
-                self.tokenizer.add_special_tokens({'sep_token': '<SEP>'})
+        if self.enable_add_tokens:
+            if self.tokenizer.sep_token is None:
+                self.tokenizer.add_special_tokens({"sep_token": "<SEP>"})
                 self.added_sep_token = 1
 
-            if (self.tokenizer.cls_token is None):
-                self.tokenizer.add_special_tokens({'cls_token': '<CLS>'})
+            if self.tokenizer.cls_token is None:
+                self.tokenizer.add_special_tokens({"cls_token": "<CLS>"})
                 self.added_cls_token = 1
 
-        if (self.gpt_special_case):
+        if self.gpt_special_case:
             self.tokenizer.pad_token = self.tokenizer.eos_token
             self.tokenizer.sep_token = self.tokenizer.eos_token
 
@@ -57,7 +57,7 @@ class HFPTTokenizer(object):
         if isinstance(texts, str):
             texts = [texts]
 
-        padding = 'max_length'
+        padding = "max_length"
 
         seqstart = []
         seqtok = []
@@ -65,24 +65,20 @@ class HFPTTokenizer(object):
 
         max_length = context_length
 
-        if (self.added_cls_token > 0):
+        if self.added_cls_token > 0:
             seqstart = self.get_sot_token_list()
             max_length = max_length - 1
 
-        if (self.added_sep_token > 0):
+        if self.added_sep_token > 0:
             seqend = self.get_eot_token_list()
             max_length = max_length - 1
 
-        tokens = self.tokenizer(
-            texts, padding=padding,
-            truncation=True,
-            max_length=max_length
-        )['input_ids']
+        tokens = self.tokenizer(texts, padding=padding, truncation=True, max_length=max_length)["input_ids"]
 
         for i in range(len(tokens)):
             tokens[i] = seqstart + tokens[i] + seqend
 
-        if (self.gpt_special_case):
+        if self.gpt_special_case:
             for i in range(len(tokens)):
                 tokens[i][-1] = self.get_eot_token()
 

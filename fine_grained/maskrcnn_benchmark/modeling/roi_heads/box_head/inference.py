@@ -9,6 +9,7 @@ from maskrcnn_benchmark.structures.boxlist_ops import cat_boxlist
 from maskrcnn_benchmark.modeling.box_coder import BoxCoder
 from maskrcnn_benchmark.utils.amp import custom_fwd, custom_bwd
 
+
 class PostProcessor(nn.Module):
     """
     From a set of classification scores, box regression and proposals,
@@ -16,9 +17,7 @@ class PostProcessor(nn.Module):
     final results
     """
 
-    def __init__(
-        self, score_thresh=0.05, nms=0.5, detections_per_img=100, box_coder=None
-    ):
+    def __init__(self, score_thresh=0.05, nms=0.5, detections_per_img=100, box_coder=None):
         """
         Arguments:
             score_thresh (float)
@@ -31,7 +30,7 @@ class PostProcessor(nn.Module):
         self.nms = nms
         self.detections_per_img = detections_per_img
         if box_coder is None:
-            box_coder = BoxCoder(weights=(10., 10., 5., 5.))
+            box_coder = BoxCoder(weights=(10.0, 10.0, 5.0, 5.0))
         self.box_coder = box_coder
 
     @custom_fwd(cast_inputs=torch.float32)
@@ -57,17 +56,15 @@ class PostProcessor(nn.Module):
 
         extra_fields = [{} for box in boxes]
         if boxes[0].has_field("cbox"):
-            concat_cboxes = torch.cat([a.get_field('cbox').bbox for a in boxes], dim=0)
-            concat_cscores = torch.cat([a.get_field('cbox').get_field('scores') for a in boxes], dim=0)
-            for cbox, cscore, extra_field in zip(concat_cboxes.split(boxes_per_image, dim=0),
-                                                 concat_cscores.split(boxes_per_image, dim=0),
-                                                 extra_fields):
+            concat_cboxes = torch.cat([a.get_field("cbox").bbox for a in boxes], dim=0)
+            concat_cscores = torch.cat([a.get_field("cbox").get_field("scores") for a in boxes], dim=0)
+            for cbox, cscore, extra_field in zip(
+                concat_cboxes.split(boxes_per_image, dim=0), concat_cscores.split(boxes_per_image, dim=0), extra_fields
+            ):
                 extra_field["cbox"] = cbox
                 extra_field["cscore"] = cscore
 
-        proposals = self.box_coder.decode(
-            box_regression.view(sum(boxes_per_image), -1), concat_boxes
-        )
+        proposals = self.box_coder.decode(box_regression.view(sum(boxes_per_image), -1), concat_boxes)
 
         num_classes = class_prob.shape[1]
 
@@ -75,9 +72,7 @@ class PostProcessor(nn.Module):
         class_prob = class_prob.split(boxes_per_image, dim=0)
 
         results = []
-        for prob, boxes_per_img, image_shape, extra_field in zip(
-            class_prob, proposals, image_shapes, extra_fields
-        ):
+        for prob, boxes_per_img, image_shape, extra_field in zip(class_prob, proposals, image_shapes, extra_fields):
             boxlist = self.prepare_boxlist(boxes_per_img, prob, image_shape, extra_field)
             boxlist = boxlist.clip_to_image(remove_empty=False)
             boxlist = self.filter_results(boxlist, num_classes)
@@ -113,7 +108,7 @@ class PostProcessor(nn.Module):
         # if we had multi-class NMS, we could perform this directly on the boxlist
         boxes = boxlist.bbox.reshape(-1, num_classes * 4)
         scores = boxlist.get_field("scores").reshape(-1, num_classes)
-        if boxlist.has_field('cbox'):
+        if boxlist.has_field("cbox"):
             cboxes = boxlist.get_field("cbox").reshape(-1, 4)
             cscores = boxlist.get_field("cscore")
         else:
@@ -137,13 +132,9 @@ class PostProcessor(nn.Module):
                 cbox_boxlist.add_field("scores", cscores_j)
                 boxlist_for_class.add_field("cbox", cbox_boxlist)
 
-            boxlist_for_class = boxlist_nms(
-                boxlist_for_class, self.nms, score_field="scores"
-            )
+            boxlist_for_class = boxlist_nms(boxlist_for_class, self.nms, score_field="scores")
             num_labels = len(boxlist_for_class)
-            boxlist_for_class.add_field(
-                "labels", torch.full((num_labels,), j, dtype=torch.int64, device=device)
-            )
+            boxlist_for_class.add_field("labels", torch.full((num_labels,), j, dtype=torch.int64, device=device))
             result.append(boxlist_for_class)
 
         result = cat_boxlist(result)
@@ -152,9 +143,7 @@ class PostProcessor(nn.Module):
         # Limit to max_per_image detections **over all classes**
         if number_of_detections > self.detections_per_img > 0:
             cls_scores = result.get_field("scores")
-            image_thresh, _ = torch.kthvalue(
-                cls_scores.cpu(), number_of_detections - self.detections_per_img + 1
-            )
+            image_thresh, _ = torch.kthvalue(cls_scores.cpu(), number_of_detections - self.detections_per_img + 1)
             keep = cls_scores >= image_thresh.item()
             keep = torch.nonzero(keep).squeeze(1)
             result = result[keep]
@@ -171,7 +160,5 @@ def make_roi_box_post_processor(cfg):
     nms_thresh = cfg.MODEL.ROI_HEADS.NMS
     detections_per_img = cfg.MODEL.ROI_HEADS.DETECTIONS_PER_IMG
 
-    postprocessor = PostProcessor(
-        score_thresh, nms_thresh, detections_per_img, box_coder
-    )
+    postprocessor = PostProcessor(score_thresh, nms_thresh, detections_per_img, box_coder)
     return postprocessor

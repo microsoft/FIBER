@@ -17,7 +17,7 @@ from maskrcnn_benchmark.utils.comm import synchronize, get_rank
 from maskrcnn_benchmark.utils.logger import setup_logger
 from maskrcnn_benchmark.utils.miscellaneous import mkdir
 from maskrcnn_benchmark.utils.stats import get_model_complexity_info
- 
+
 import os
 import functools
 import io
@@ -42,18 +42,22 @@ def init_distributed_mode(args):
         args.distributed = False
         return
 
-    #args.distributed = True
+    # args.distributed = True
 
     torch.cuda.set_device(args.gpu)
     args.dist_backend = "nccl"
     print("| distributed init (rank {}): {}".format(args.rank, args.dist_url), flush=True)
 
     dist.init_process_group(
-        backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank,
-        timeout=datetime.timedelta(0, 7200)
+        backend=args.dist_backend,
+        init_method=args.dist_url,
+        world_size=args.world_size,
+        rank=args.rank,
+        timeout=datetime.timedelta(0, 7200),
     )
     dist.barrier()
     setup_for_distributed(args.rank == 0)
+
 
 def setup_for_distributed(is_master):
     """
@@ -69,6 +73,7 @@ def setup_for_distributed(is_master):
             builtin_print(*args, **kwargs)
 
     __builtin__.print = print
+
 
 def main():
     parser = argparse.ArgumentParser(description="PyTorch Detection to Grounding Inference")
@@ -86,10 +91,7 @@ def main():
     )
     parser.add_argument("--local_rank", type=int, default=0)
     parser.add_argument(
-        "opts",
-        help="Modify config options using the command-line",
-        default=None,
-        nargs=argparse.REMAINDER
+        "opts", help="Modify config options using the command-line", default=None, nargs=argparse.REMAINDER
     )
     parser.add_argument("--world-size", default=1, type=int, help="number of distributed processes")
     parser.add_argument("--dist-url", default="env://", help="url used to set up distributed training")
@@ -168,22 +170,25 @@ def main():
                     output_folders[idx] = output_folder
                 data_loaders_val = make_data_loader(cfg_, is_train=False, is_distributed=distributed)
 
-                for output_folder, dataset_name, data_loader_val in zip(output_folders, dataset_names, data_loaders_val):
+                for output_folder, dataset_name, data_loader_val in zip(
+                    output_folders, dataset_names, data_loaders_val
+                ):
                     inference(
                         model,
                         data_loader_val,
                         dataset_name=dataset_name,
                         iou_types=iou_types,
-                        box_only=cfg_.MODEL.RPN_ONLY and (cfg_.MODEL.RPN_ARCHITECTURE == "RPN" or cfg_.DATASETS.CLASS_AGNOSTIC),
+                        box_only=cfg_.MODEL.RPN_ONLY
+                        and (cfg_.MODEL.RPN_ARCHITECTURE == "RPN" or cfg_.DATASETS.CLASS_AGNOSTIC),
                         device=cfg_.MODEL.DEVICE,
                         expected_results=cfg_.TEST.EXPECTED_RESULTS,
                         expected_results_sigma_tol=cfg_.TEST.EXPECTED_RESULTS_SIGMA_TOL,
                         output_folder=output_folder,
-                        cfg=cfg_
+                        cfg=cfg_,
                     )
                     synchronize()
                 # logger.info("FLOPs: {}, #Parameter: {}".format(params, flops))
-    
+
     else:
         iou_types = ("bbox",)
         if cfg.MODEL.MASK_ON:
@@ -207,16 +212,17 @@ def main():
                     data_loader_val,
                     dataset_name=dataset_name,
                     iou_types=iou_types,
-                    box_only=cfg.MODEL.RPN_ONLY and (cfg.MODEL.RPN_ARCHITECTURE == "RPN" or cfg.DATASETS.CLASS_AGNOSTIC),
+                    box_only=cfg.MODEL.RPN_ONLY
+                    and (cfg.MODEL.RPN_ARCHITECTURE == "RPN" or cfg.DATASETS.CLASS_AGNOSTIC),
                     device=cfg.MODEL.DEVICE,
                     expected_results=cfg.TEST.EXPECTED_RESULTS,
                     expected_results_sigma_tol=cfg.TEST.EXPECTED_RESULTS_SIGMA_TOL,
                     output_folder=output_folder,
-                    cfg=cfg
+                    cfg=cfg,
                 )
                 synchronize()
             # logger.info("FLOPs: {}, #Parameter: {}".format(params, flops))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

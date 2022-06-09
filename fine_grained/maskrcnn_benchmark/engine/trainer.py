@@ -17,6 +17,7 @@ from maskrcnn_benchmark.data.datasets.evaluation import evaluate
 from .inference import inference
 import pdb
 
+
 def reduce_loss_dict(loss_dict):
     """
     Reduce the loss dictionary from all processes so that process with rank
@@ -43,18 +44,18 @@ def reduce_loss_dict(loss_dict):
 
 
 def do_train(
-        cfg,
-        model,
-        data_loader,
-        optimizer,
-        scheduler,
-        checkpointer,
-        device,
-        checkpoint_period,
-        arguments,
-        val_data_loader=None,
-        meters=None,
-        zero_shot=False
+    cfg,
+    model,
+    data_loader,
+    optimizer,
+    scheduler,
+    checkpointer,
+    device,
+    checkpoint_period,
+    arguments,
+    val_data_loader=None,
+    meters=None,
+    zero_shot=False,
 ):
     logger = logging.getLogger("maskrcnn_benchmark.trainer")
     logger.info("Start training")
@@ -75,27 +76,32 @@ def do_train(
 
     if cfg.SOLVER.CHECKPOINT_PER_EPOCH != -1 and cfg.SOLVER.MAX_EPOCH >= 1:
         checkpoint_period = len(data_loader) * cfg.SOLVER.CHECKPOINT_PER_EPOCH // cfg.SOLVER.MAX_EPOCH
-    
+
     if global_rank <= 0 and cfg.SOLVER.MAX_EPOCH >= 1:
-        print("Iter per epoch ", len(data_loader) // cfg.SOLVER.MAX_EPOCH )
+        print("Iter per epoch ", len(data_loader) // cfg.SOLVER.MAX_EPOCH)
 
     if cfg.SOLVER.AUTO_TERMINATE_PATIENCE != -1:
         patience_counter = 0
         previous_best = 0.0
 
     # Adapt the weight decay
-    if cfg.SOLVER.WEIGHT_DECAY_SCHEDULE and hasattr(scheduler, 'milestones'):
+    if cfg.SOLVER.WEIGHT_DECAY_SCHEDULE and hasattr(scheduler, "milestones"):
         milestone_target = 0
         for i, milstone in enumerate(list(scheduler.milestones)):
             if scheduler.last_epoch >= milstone * cfg.SOLVER.WEIGHT_DECAY_SCHEDULE_RATIO:
-                milestone_target = i+1
-    
-    for iteration, (images, targets, idxs, positive_map, positive_map_eval, greenlight_map) in enumerate(data_loader, start_iter):
+                milestone_target = i + 1
+
+    for iteration, (images, targets, idxs, positive_map, positive_map_eval, greenlight_map) in enumerate(
+        data_loader, start_iter
+    ):
         nnegative = sum(len(target) < 1 for target in targets)
         nsample = len(targets)
         if nsample == nnegative or nnegative > nsample * cfg.SOLVER.MAX_NEG_PER_BATCH:
-            logger.info('[WARNING] Sampled {} negative in {} in a batch, greater the allowed ratio {}, skip'.
-                        format(nnegative, nsample, cfg.SOLVER.MAX_NEG_PER_BATCH))
+            logger.info(
+                "[WARNING] Sampled {} negative in {} in a batch, greater the allowed ratio {}, skip".format(
+                    nnegative, nsample, cfg.SOLVER.MAX_NEG_PER_BATCH
+                )
+            )
             continue
 
         data_time = time.time() - end
@@ -112,12 +118,12 @@ def do_train(
         # Freeze language backbone
         if cfg.MODEL.LANGUAGE_BACKBONE.FREEZE:
             if hasattr(model, "module"):
-                if hasattr(model.module, 'fusion_backbone'):
+                if hasattr(model.module, "fusion_backbone"):
                     model.module.fusion_backbone.language_backbone.eval()
                 else:
                     model.module.language_backbone.eval()
             else:
-                if hasattr(model, 'fusion_backbone'):
+                if hasattr(model, "fusion_backbone"):
                     model.fusion_backbone.language_backbone.eval()
                 else:
                     model.language_backbone.eval()
@@ -125,7 +131,7 @@ def do_train(
         if cfg.SOLVER.USE_AMP:
             with autocast():
                 if len(captions) > 0:
-                    loss_dict = model(images, targets, captions, positive_map, greenlight_map = greenlight_map)
+                    loss_dict = model(images, targets, captions, positive_map, greenlight_map=greenlight_map)
                 else:
                     loss_dict = model(images, targets)
             losses = sum(loss for loss in loss_dict.values())
@@ -133,20 +139,20 @@ def do_train(
             # save checkpoints for further debug if nan happens
             loss_value = losses.item()
             if not math.isfinite(loss_value):
-                logging.error(f'=> loss is {loss_value}, stopping training')
+                logging.error(f"=> loss is {loss_value}, stopping training")
                 logging.error("Losses are : {}".format(loss_dict))
-                time_str = time.strftime('%Y-%m-%d-%H-%M')
-                fname = os.path.join(checkpointer.save_dir, f'{time_str}_states.pth')
-                logging.info(f'=> save error state to {fname}')
+                time_str = time.strftime("%Y-%m-%d-%H-%M")
+                fname = os.path.join(checkpointer.save_dir, f"{time_str}_states.pth")
+                logging.info(f"=> save error state to {fname}")
                 dict_to_save = {
-                    'x': images,
-                    'y': targets,
-                    'loss': losses,
-                    'states': model.module.state_dict() if hasattr(model, 'module') else model.state_dict()
+                    "x": images,
+                    "y": targets,
+                    "loss": losses,
+                    "states": model.module.state_dict() if hasattr(model, "module") else model.state_dict(),
                 }
                 if len(captions) > 0:
-                    dict_to_save['captions'] = captions
-                    dict_to_save['positive_map'] = positive_map
+                    dict_to_save["captions"] = captions
+                    dict_to_save["positive_map"] = positive_map
                 # torch.save(
                 #     dict_to_save,
                 #     fname
@@ -171,23 +177,20 @@ def do_train(
             # save checkpoints for further debug if nan happens
             loss_value = losses.item()
             if not math.isfinite(loss_value):
-                logging.error(f'=> loss is {loss_value}, stopping training')
-                time_str = time.strftime('%Y-%m-%d-%H-%M')
-                fname = os.path.join(checkpointer.save_dir, f'{time_str}_states.pth')
-                logging.info(f'=> save error state to {fname}')
+                logging.error(f"=> loss is {loss_value}, stopping training")
+                time_str = time.strftime("%Y-%m-%d-%H-%M")
+                fname = os.path.join(checkpointer.save_dir, f"{time_str}_states.pth")
+                logging.info(f"=> save error state to {fname}")
                 dict_to_save = {
-                    'x': images,
-                    'y': targets,
-                    'loss': losses,
-                    'states': model.module.state_dict() if hasattr(model, 'module') else model.state_dict()
+                    "x": images,
+                    "y": targets,
+                    "loss": losses,
+                    "states": model.module.state_dict() if hasattr(model, "module") else model.state_dict(),
                 }
                 if len(captions) > 0:
-                    dict_to_save['captions'] = captions
-                    dict_to_save['positive_map'] = positive_map
-                torch.save(
-                    dict_to_save,
-                    fname
-                )
+                    dict_to_save["captions"] = captions
+                    dict_to_save["positive_map"] = positive_map
+                torch.save(dict_to_save, fname)
                 sys.exit(-1)
 
             if torch.isnan(losses) or torch.isinf(losses):
@@ -198,17 +201,17 @@ def do_train(
             scheduler.step()
 
         # Adapt the weight decay: only support multiStepLR
-        if cfg.SOLVER.WEIGHT_DECAY_SCHEDULE and hasattr(scheduler, 'milestones'):
+        if cfg.SOLVER.WEIGHT_DECAY_SCHEDULE and hasattr(scheduler, "milestones"):
             if milestone_target < len(scheduler.milestones):
                 next_milestone = list(scheduler.milestones)[milestone_target]
             else:
-                next_milestone = float('inf')
+                next_milestone = float("inf")
             if scheduler.last_epoch >= next_milestone * cfg.SOLVER.WEIGHT_DECAY_SCHEDULE_RATIO:
                 gamma = scheduler.gamma
                 logger.info("Drop the weight decay by {}!".format(gamma))
                 for param in optimizer.param_groups:
-                    if 'weight_decay' in param:
-                        param['weight_decay'] *= gamma
+                    if "weight_decay" in param:
+                        param["weight_decay"] *= gamma
                 # move the target forward
                 milestone_target += 1
 
@@ -227,8 +230,8 @@ def do_train(
         eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
 
         if iteration % 20 == 0 or iteration == max_iter:
-        # if iteration % 1 == 0 or iteration == max_iter:
-            #logger.info(
+            # if iteration % 1 == 0 or iteration == max_iter:
+            # logger.info(
             if global_rank <= 0:
                 print(
                     meters.delimiter.join(
@@ -261,19 +264,19 @@ def do_train(
                     except:
                         _model = model
                     _result = inference(
-                        model = _model,
-                        data_loader = val_data_loader,
+                        model=_model,
+                        data_loader=val_data_loader,
                         dataset_name="val",
                         device=device,
                         expected_results=cfg.TEST.EXPECTED_RESULTS,
                         expected_results_sigma_tol=cfg.TEST.EXPECTED_RESULTS_SIGMA_TOL,
                         output_folder=None,
                         cfg=cfg,
-                        verbose=False
+                        verbose=False,
                     )
                     if is_main_process():
                         try:
-                            eval_result = _result[0].results['bbox']['AP']
+                            eval_result = _result[0].results["bbox"]["AP"]
                         except:
                             pass
             else:
@@ -289,21 +292,20 @@ def do_train(
                             captions = [t.get_field("caption") for t in targets if "caption" in t.fields()]
                             output = model(images, captions, positive_map)
                         output = [o.to(cpu_device) for o in output]
-                    results_dict.update(
-                        {img_id: result for img_id, result in zip(image_ids, output)}
-                    )
+                    results_dict.update({img_id: result for img_id, result in zip(image_ids, output)})
                 all_predictions = all_gather(results_dict)
                 if is_main_process():
                     predictions = {}
                     for p in all_predictions:
                         predictions.update(p)
                     predictions = [predictions[i] for i in list(sorted(predictions.keys()))]
-                    eval_result, _ = evaluate(val_data_loader.dataset, predictions, output_folder=None,
-                                            box_only=cfg.DATASETS.CLASS_AGNOSTIC)
+                    eval_result, _ = evaluate(
+                        val_data_loader.dataset, predictions, output_folder=None, box_only=cfg.DATASETS.CLASS_AGNOSTIC
+                    )
                     if cfg.DATASETS.CLASS_AGNOSTIC:
-                        eval_result = eval_result.results['box_proposal']['AR@100']
+                        eval_result = eval_result.results["box_proposal"]["AR@100"]
                     else:
-                        eval_result = eval_result.results['bbox']['AP']
+                        eval_result = eval_result.results["bbox"]["AP"]
             model.train()
 
             if model_ema is not None and cfg.SOLVER.USE_EMA_FOR_MONITOR:
@@ -320,31 +322,30 @@ def do_train(
                             captions = [t.get_field("caption") for t in targets if "caption" in t.fields()]
                             output = model_ema.ema(images, captions, positive_map)
                         output = [o.to(cpu_device) for o in output]
-                    results_dict.update(
-                        {img_id: result for img_id, result in zip(image_ids, output)}
-                    )
+                    results_dict.update({img_id: result for img_id, result in zip(image_ids, output)})
                 all_predictions = all_gather(results_dict)
                 if is_main_process():
                     predictions = {}
                     for p in all_predictions:
                         predictions.update(p)
                     predictions = [predictions[i] for i in list(sorted(predictions.keys()))]
-                    eval_result, _ = evaluate(val_data_loader.dataset, predictions, output_folder=None,
-                                              box_only=cfg.DATASETS.CLASS_AGNOSTIC)
+                    eval_result, _ = evaluate(
+                        val_data_loader.dataset, predictions, output_folder=None, box_only=cfg.DATASETS.CLASS_AGNOSTIC
+                    )
                     if cfg.DATASETS.CLASS_AGNOSTIC:
-                        eval_result = eval_result.results['box_proposal']['AR@100']
+                        eval_result = eval_result.results["box_proposal"]["AR@100"]
                     else:
-                        eval_result = eval_result.results['bbox']['AP']
+                        eval_result = eval_result.results["bbox"]["AP"]
 
             if eval_result is not None:
                 arguments.update(eval_result=eval_result)
 
             if cfg.SOLVER.USE_AUTOSTEP:
                 assert eval_result is not None
-                eval_result = all_gather(eval_result)[0] #broadcast_data([eval_result])[0]
+                eval_result = all_gather(eval_result)[0]  # broadcast_data([eval_result])[0]
                 # print("Rank {} eval result gathered".format(cfg.local_rank), eval_result)
                 scheduler.step(eval_result)
-            
+
             if cfg.SOLVER.AUTO_TERMINATE_PATIENCE != -1:
                 if eval_result < previous_best:
                     patience_counter += 1
@@ -366,8 +367,4 @@ def do_train(
 
     total_training_time = time.time() - start_training_time
     total_time_str = str(datetime.timedelta(seconds=total_training_time))
-    logger.info(
-        "Total training time: {} ({:.4f} s / it)".format(
-            total_time_str, total_training_time / (max_iter)
-        )
-    )
+    logger.info("Total training time: {} ({:.4f} s / it)".format(total_time_str, total_training_time / (max_iter)))

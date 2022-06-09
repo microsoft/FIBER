@@ -233,7 +233,6 @@ class LvisDetectionBase(torchvision.datasets.VisionDataset):
             img, target = self.transforms(img, target)
 
         return img, target
-    
 
     def __len__(self):
         return len(self.ids)
@@ -254,15 +253,15 @@ class LvisDetection(LvisDetectionBase):
         if self._transforms is not None:
             img = self._transforms(img)
         return img, target, idx
-    
+
     def get_raw_image(self, idx):
         img, target = super(LvisDetection, self).__getitem__(idx)
         return img
-    
+
     def categories(self):
         id2cat = {c["id"]: c for c in self.lvis.dataset["categories"]}
         all_cats = sorted(list(id2cat.keys()))
         categories = {}
         for l in list(all_cats):
-            categories[l] = id2cat[l]['name']
+            categories[l] = id2cat[l]["name"]
         return categories

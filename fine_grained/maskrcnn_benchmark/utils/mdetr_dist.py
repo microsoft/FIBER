@@ -29,6 +29,7 @@ def _get_global_gloo_group():
 
     return dist.group.WORLD
 
+
 def all_gather(data):
     """
     Run all_gather on arbitrary picklable data (not necessarily tensors)
@@ -222,8 +223,11 @@ def init_distributed_mode(args):
     print("| distributed init (rank {}): {}".format(args.rank, args.dist_url), flush=True)
 
     dist.init_process_group(
-        backend=args.dist_backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank,
-        timeout=datetime.timedelta(0, 7200)
+        backend=args.dist_backend,
+        init_method=args.dist_url,
+        world_size=args.world_size,
+        rank=args.rank,
+        timeout=datetime.timedelta(0, 7200),
     )
     dist.barrier()
     setup_for_distributed(args.debug or args.rank == 0)

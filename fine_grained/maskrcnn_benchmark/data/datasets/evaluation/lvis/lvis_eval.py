@@ -11,12 +11,13 @@ import pycocotools.mask as mask_util
 import torch
 import torch._six
 
-import maskrcnn_benchmark.utils.mdetr_dist  as dist
+import maskrcnn_benchmark.utils.mdetr_dist as dist
 
 from maskrcnn_benchmark.utils.mdetr_dist import all_gather
 
 
 from .lvis import LVIS
+
 
 def merge(img_ids, eval_imgs):
     all_img_ids = all_gather(img_ids)
@@ -59,10 +60,10 @@ class Params:
         self.rec_thrs = np.linspace(0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01)) + 1, endpoint=True)
         self.max_dets = 300
         self.area_rng = [
-            [0 ** 2, 1e5 ** 2],
-            [0 ** 2, 32 ** 2],
-            [32 ** 2, 96 ** 2],
-            [96 ** 2, 1e5 ** 2],
+            [0**2, 1e5**2],
+            [0**2, 32**2],
+            [32**2, 96**2],
+            [96**2, 1e5**2],
         ]
         self.area_rng_lbl = ["all", "small", "medium", "large"]
         self.use_cats = 1
@@ -993,6 +994,7 @@ def create_common_lvis_eval(lvis_eval, img_ids, eval_imgs):
 
     lvis_eval.eval_imgs = eval_imgs
     lvis_eval.params.img_ids = img_ids
+
 
 def lvis_evaluation():
     pass

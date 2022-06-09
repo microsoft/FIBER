@@ -5,14 +5,16 @@ from PIL import Image
 
 import torch.utils.data as data
 
+
 def pil_loader(path):
     # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
-    with open(path, 'rb') as f:
+    with open(path, "rb") as f:
         img = Image.open(f)
-        return img.convert('RGB')
+        return img.convert("RGB")
+
 
 class ImageNet(data.Dataset):
-    """ ImageNet
+    """ImageNet
 
     Args:
         root (string): Root directory where images are downloaded to.
@@ -23,19 +25,18 @@ class ImageNet(data.Dataset):
 
     def __init__(self, ann_file, root, remove_images_without_annotations=None, transforms=None):
 
-
         self.root = root
         self.transform = transforms
 
         meta_file = os.path.join(root, ann_file)
-        assert os.path.exists(meta_file), 'meta file %s under root %s not found' % (os.path.basename(meta_file), root)
+        assert os.path.exists(meta_file), "meta file %s under root %s not found" % (os.path.basename(meta_file), root)
 
-        with open(meta_file, 'r') as f:
+        with open(meta_file, "r") as f:
             meta = json.load(f)
 
-        self.classes = meta['classes']
-        self.class_to_idx = meta['class_to_idx']
-        self.samples = meta['samples']
+        self.classes = meta["classes"]
+        self.class_to_idx = meta["class_to_idx"]
+        self.samples = meta["samples"]
         self.num_sample = len(self.samples)
         self.allsamples = self.samples
 
@@ -53,7 +54,7 @@ class ImageNet(data.Dataset):
             tuple: (sample, target) where target is class_index of the target class.
         """
         img_path, target = self.samples[index]
-        sample = pil_loader(self.root + '/' + img_path)
+        sample = pil_loader(self.root + "/" + img_path)
         if self.transform is not None:
             sample = self.transform(sample)
 

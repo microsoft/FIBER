@@ -12,11 +12,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import maskrcnn_benchmark.utils.mdetr_dist as dist
+
 #### The following loading utilities are imported from
 #### https://github.com/BryanPlummer/flickr30k_entities/blob/68b3d6f12d1d710f96233f6bd2b6de799d6f4e5b/flickr30k_entities_utils.py
 # Changelog:
 #    - Added typing information
 #    - Completed docstrings
+
 
 def get_sentence_data(filename) -> List[Dict[str, Any]]:
     """
@@ -204,6 +206,7 @@ def box_iou(boxes1: np.array, boxes2: np.array) -> np.array:
 
 #### End of import of box utilities
 
+
 def _merge_boxes(boxes: List[List[int]]) -> List[List[int]]:
     """
     Return the boxes corresponding to the smallest enclosing box containing all the provided boxes
@@ -218,7 +221,7 @@ def _merge_boxes(boxes: List[List[int]]) -> List[List[int]]:
 
 
 class RecallTracker:
-    """ Utility class to track recall@k for various k, split by categories"""
+    """Utility class to track recall@k for various k, split by categories"""
 
     def __init__(self, topk: Sequence[int]):
         """
@@ -257,13 +260,13 @@ class RecallTracker:
 
 class Flickr30kEntitiesRecallEvaluator:
     def __init__(
-            self,
-            flickr_path: str,
-            subset: str = "test",
-            topk: Sequence[int] = (1, 5, 10, -1),
-            iou_thresh: float = 0.5,
-            merge_boxes: bool = False,
-            verbose: bool = True,
+        self,
+        flickr_path: str,
+        subset: str = "test",
+        topk: Sequence[int] = (1, 5, 10, -1),
+        iou_thresh: float = 0.5,
+        merge_boxes: bool = False,
+        verbose: bool = True,
     ):
         assert subset in ["train", "test", "val"], f"Wrong flickr subset {subset}"
 
@@ -392,12 +395,12 @@ class Flickr30kEntitiesRecallEvaluator:
 
 class FlickrEvaluator(object):
     def __init__(
-            self,
-            flickr_path,
-            subset,
-            top_k=(1, 5, 10, -1),
-            iou_thresh=0.5,
-            merge_boxes=False,
+        self,
+        flickr_path,
+        subset,
+        top_k=(1, 5, 10, -1),
+        iou_thresh=0.5,
+        merge_boxes=False,
     ):
         assert isinstance(top_k, (list, tuple))
 

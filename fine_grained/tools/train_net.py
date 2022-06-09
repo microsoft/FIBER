@@ -23,7 +23,7 @@ from maskrcnn_benchmark.utils.collect_env import collect_env_info
 from maskrcnn_benchmark.utils.comm import synchronize, get_rank
 from maskrcnn_benchmark.utils.imports import import_file
 from maskrcnn_benchmark.utils.logger import setup_logger
-from maskrcnn_benchmark.utils.metric_logger import (MetricLogger, TensorboardLogger)
+from maskrcnn_benchmark.utils.metric_logger import MetricLogger, TensorboardLogger
 from maskrcnn_benchmark.utils.miscellaneous import mkdir, save_config
 import numpy as np
 import random
@@ -38,9 +38,9 @@ def train(cfg, local_rank, distributed, use_tensorboard=False, debug_nan_checkpo
 
     if cfg.MODEL.BACKBONE.RESET_BN:
         for name, param in model.named_buffers():
-            if 'running_mean' in name:
+            if "running_mean" in name:
                 torch.nn.init.constant_(param, 0)
-            if 'running_var' in name:
+            if "running_var" in name:
                 torch.nn.init.constant_(param, 1)
 
     if cfg.SOLVER.GRAD_CLIP > 0:
@@ -52,7 +52,7 @@ def train(cfg, local_rank, distributed, use_tensorboard=False, debug_nan_checkpo
         cfg,
         is_train=True,
         is_distributed=distributed,
-        start_iter=0  # <TODO> Sample data from resume is disabled, due to the conflict with max_epoch
+        start_iter=0,  # <TODO> Sample data from resume is disabled, due to the conflict with max_epoch
     )
 
     if cfg.TEST.DURING_TRAINING or cfg.SOLVER.USE_AUTOSTEP:
@@ -76,7 +76,7 @@ def train(cfg, local_rank, distributed, use_tensorboard=False, debug_nan_checkpo
     if cfg.MODEL.RPN.FREEZE:
         for p in model.rpn.parameters():
             p.requires_grad = False
-    
+
     # if cfg.SOLVER.PROMPT_PROBING_LEVEL != -1:
     #     if cfg.SOLVER.PROMPT_PROBING_LEVEL == 1:
     #         for p in model.parameters():
@@ -98,9 +98,11 @@ def train(cfg, local_rank, distributed, use_tensorboard=False, debug_nan_checkpo
 
     if distributed:
         model = torch.nn.parallel.DistributedDataParallel(
-            model, device_ids=[local_rank], output_device=local_rank,
+            model,
+            device_ids=[local_rank],
+            output_device=local_rank,
             broadcast_buffers=cfg.MODEL.BACKBONE.USE_BN,
-            find_unused_parameters=cfg.SOLVER.FIND_UNUSED_PARAMETERS
+            find_unused_parameters=cfg.SOLVER.FIND_UNUSED_PARAMETERS,
         )
 
     arguments = {}
@@ -109,9 +111,7 @@ def train(cfg, local_rank, distributed, use_tensorboard=False, debug_nan_checkpo
     output_dir = cfg.OUTPUT_DIR
 
     save_to_disk = get_rank() == 0
-    checkpointer = DetectronCheckpointer(
-        cfg, model, optimizer, scheduler, output_dir, save_to_disk
-    )
+    checkpointer = DetectronCheckpointer(cfg, model, optimizer, scheduler, output_dir, save_to_disk)
     extra_checkpoint_data = checkpointer.load(try_to_find(cfg.MODEL.WEIGHT))
     arguments.update(extra_checkpoint_data)
 
@@ -123,11 +123,7 @@ def train(cfg, local_rank, distributed, use_tensorboard=False, debug_nan_checkpo
     checkpoint_period = cfg.SOLVER.CHECKPOINT_PERIOD
 
     if use_tensorboard:
-        meters = TensorboardLogger(
-            log_dir=cfg.OUTPUT_DIR,
-            start_iter=arguments["iteration"],
-            delimiter="  "
-        )
+        meters = TensorboardLogger(log_dir=cfg.OUTPUT_DIR, start_iter=arguments["iteration"], delimiter="  ")
     else:
         meters = MetricLogger(delimiter="  ")
 
@@ -145,17 +141,19 @@ def train(cfg, local_rank, distributed, use_tensorboard=False, debug_nan_checkpo
         checkpoint_period,
         arguments,
         data_loaders_val,
-        meters
+        meters,
     )
 
     return model
 
+
 def debug_nan(cfg, model, checkpoint):
     device = torch.device(cfg.MODEL.DEVICE)
-    #device = torch.device("cpu")
+    # device = torch.device("cpu")
     # model.to(device)
 
     checkpoint = torch.load(checkpoint, map_location="cpu")
+
     def load_state_dict_flexible(model, state_dict):
         try:
             model.load_state_dict(state_dict)
@@ -173,34 +171,35 @@ def debug_nan(cfg, model, checkpoint):
                 param = param.data
             try:
                 own_state[name].copy_(param)
-                print("Successfully loaded: "+name)
+                print("Successfully loaded: " + name)
             except:
                 print("Part load failed: " + name)
         print("\n\n")
-    
+
     load_state_dict_flexible(model, checkpoint["states"])
-    
+
     images = checkpoint["x"]
     targets = checkpoint["y"]
     captions = checkpoint["captions"]
     positive_map = checkpoint["positive_map"]
-    
+
     images = images.to(device)
     targets = [i.to(device) for i in targets]
     positive_map = positive_map.to(device)
 
-    '''
+    """
     On GPU
-    '''
+    """
     import math
+
     counter = 0
     with torch.no_grad():
         while True:
             print(counter)
             counter += 1
             loss_dict = model(images, targets, captions, positive_map)
-    
-            with autocast(): 
+
+            with autocast():
                 loss_dict_fp16 = model(images, targets, captions, positive_map)
             losses = sum(loss for loss in loss_dict.values())
             losses_fp_16 = sum(loss for loss in loss_dict_fp16.values())
@@ -218,7 +217,7 @@ def debug_nan(cfg, model, checkpoint):
     pdb.set_trace()
 
 
-'''
+"""
 def test(cfg, model, distributed):
     if distributed:
         model = model.module
@@ -249,7 +248,7 @@ def test(cfg, model, distributed):
             output_folder=output_folder,
         )
         synchronize()
-'''
+"""
 
 
 def setup_for_distributed(is_master):
@@ -266,6 +265,8 @@ def setup_for_distributed(is_master):
             builtin_print(*args, **kwargs)
 
     __builtin__.print = print
+
+
 def main():
     parser = argparse.ArgumentParser(description="PyTorch Object Detection Training")
     parser.add_argument(
@@ -283,12 +284,13 @@ def main():
         action="store_true",
     )
 
-    parser.add_argument("--use-tensorboard",
-                        dest="use_tensorboard",
-                        help="Use tensorboardX logger (Requires tensorboardX installed)",
-                        action="store_true",
-                        default=False
-                        )
+    parser.add_argument(
+        "--use-tensorboard",
+        dest="use_tensorboard",
+        help="Use tensorboardX logger (Requires tensorboardX installed)",
+        action="store_true",
+        default=False,
+    )
 
     parser.add_argument(
         "opts",
@@ -309,12 +311,10 @@ def main():
 
     if args.distributed:
         import datetime
+
         torch.cuda.set_device(args.local_rank)
-        torch.distributed.init_process_group(
-            backend="nccl", init_method="env://",
-            timeout=datetime.timedelta(0, 7200)
-        )
-    
+        torch.distributed.init_process_group(backend="nccl", init_method="env://", timeout=datetime.timedelta(0, 7200))
+
     if args.disable_output_distributed:
         setup_for_distributed(args.local_rank <= 0)
 
@@ -324,7 +324,7 @@ def main():
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
     # specify output dir for models
-    cfg.OUTPUT_DIR = os.getenv('AMLT_OUTPUT_DIR', cfg.OUTPUT_DIR)
+    cfg.OUTPUT_DIR = os.getenv("AMLT_OUTPUT_DIR", cfg.OUTPUT_DIR)
     if args.override_output_dir:
         cfg.OUTPUT_DIR = args.override_output_dir
     cfg.freeze()
@@ -351,22 +351,25 @@ def main():
         logger.info(config_str)
     logger.info("Running with config:\n{}".format(cfg))
 
-    output_config_path = os.path.join(cfg.OUTPUT_DIR, 'config.yml')
+    output_config_path = os.path.join(cfg.OUTPUT_DIR, "config.yml")
     logger.info("Saving config into: {}".format(output_config_path))
     # save overloaded model config in the output directory
     if args.save_original_config:
         import shutil
-        shutil.copy(args.config_file, os.path.join(cfg.OUTPUT_DIR, 'config_original.yml'))
-    
+
+        shutil.copy(args.config_file, os.path.join(cfg.OUTPUT_DIR, "config_original.yml"))
+
     save_config(cfg, output_config_path)
 
     # Also just save the original config for easy read
 
-    model = train(cfg=cfg,
-                  local_rank=args.local_rank,
-                  distributed=args.distributed,
-                  use_tensorboard=args.use_tensorboard,
-                  debug_nan_checkpoint = args.debug_nan_checkpoint)
+    model = train(
+        cfg=cfg,
+        local_rank=args.local_rank,
+        distributed=args.distributed,
+        use_tensorboard=args.use_tensorboard,
+        debug_nan_checkpoint=args.debug_nan_checkpoint,
+    )
 
 
 if __name__ == "__main__":
