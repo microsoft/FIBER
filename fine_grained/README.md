@@ -139,7 +139,7 @@ python tools/test_grounding_net.py \
 
 |Model | AP | Config | Best Checkpoint|
 | ----------- | ----------- |---------- |---------- |
-|FIBER-B | 58.40 | [config](configs/e2e_dyhead_SwinT_B_FPN_coco_finetuning_fusion_backbone.yaml) | [weight](https://datarelease.blob.core.windows.net/fiber/fine_grained/models/fiber_coco.pth)|
+|FIBER-B | 58.40 | [config](configs/e2e_dyhead_SwinT_B_FPN_coco_finetuning_fusion_backbone.yaml) | [weight](https://datarelease.blob.core.windows.net/fiber/fine_grained/fiber_coco.pth)|
 
 ### COCO Fine-Tuning
 Prepare the ``COCO`` data as in [DATA.md](DATA.md). Set ``{config_file}``, ``{model_checkpoint}`` according to the ``Model Zoo``.
@@ -161,7 +161,7 @@ For evaluation, please follow the instructions in ``COCO Evaluation``
 
 |Model | AP | Config | Best Checkpoint| 
 |---------- |---------- |---------- |---------- |
-|FIBER-B | 56.9 | [config](configs/e2e_dyhead_SwinT_B_FPN_lvis_finetuning_fusion_backbone.yaml) | [weight](https://datarelease.blob.core.windows.net/fiber/fine_grained/models/fiber_lvis.pth)|
+|FIBER-B | 56.9 | [config](configs/e2e_dyhead_SwinT_B_FPN_lvis_finetuning_fusion_backbone.yaml) | [weight](https://datarelease.blob.core.windows.net/fiber/fine_grained/fiber_lvis.pth)|
 
 Prepare the ``COCO`` image data as in [DATA.md](DATA.md), and LVIS annotations as described in the corresponding section in [DATA.md](DATA.md). Set ``{config_file}``, ``{model_checkpoint}`` according to the ``Model Zoo``.
 
@@ -201,8 +201,8 @@ For tuning with all the data, set {custom_shot_and_epoch_and_general_copy} to "0
 
 |Model | Task |val | testA | testB | Config | Best checkpoint|
 |---------- |---------- |---------- |---------- |---------- |---------- |---------- |
-|FIBER-B | RefCOCO| 90.68 |  92.59 | 87.26 | [refcoco config](configs/refcoco.yaml) | [weight](https://datarelease.blob.core.windows.net/fiber/fine_grained/models/fiber_refcoco.pth)|
-|FIBER-B | RefCOCO+ | 85.74 | 90.13 | 79.38 | [refcoco+ config](configs/refcocoplus.yaml) | [weight](https://datarelease.blob.core.windows.net/fiber/fine_grained/models/fiber_refcoco%2B.pth)|
+|FIBER-B | RefCOCO| 90.68 |  92.59 | 87.26 | [refcoco config](configs/refcoco.yaml) | [weight](https://datarelease.blob.core.windows.net/fiber/fine_grained/fiber_refcoco.pth)|
+|FIBER-B | RefCOCO+ | 85.74 | 90.13 | 79.38 | [refcoco+ config](configs/refcocoplus.yaml) | [weight](https://datarelease.blob.core.windows.net/fiber/fine_grained/fiber_refcoco%2B.pth)|
 |FIBER-B | RefCOCOg | 87.11 | 87.32 | N/A | [refcocog_config](configs/refcocog.yaml) | TODO |
 
 
