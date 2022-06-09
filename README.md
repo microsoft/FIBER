@@ -4,7 +4,7 @@
 
 ## Introduction
 
-This repository is the project page fore [FIBER](), which is pre-trained with a coarse-to-fine strategy and supports a variety of tasks.
+This repository is the project page for [FIBER](), which is pre-trained with a coarse-to-fine strategy and supports a variety of tasks.
 
 We provide code for both **coarse-grained** and **fine-grained** pre-training and fine-tuning of FIBER. Please see respective directories for instructions.
 
