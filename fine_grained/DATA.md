@@ -65,3 +65,5 @@ The dataset structure should look like:
 
 
 #### ``RefCOCO, RefCOCO+, RefCOCOg``
+
+We use the referring expression comprehension annotations as provided by MDETR. 
