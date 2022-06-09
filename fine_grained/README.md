@@ -52,6 +52,7 @@ We use 4 nodes, 16 gpus of V100 32GB GPUs to do the training. You will be requir
 **Model Zoo (Pre-trained)**
 
 |Model | Coarse-grained data   | Weight used to initialize|  Pre-train data | Config | Final pre-trained Weight |
+|---------- |---------- |---------- |---------- |---------- |---------- |
 |FIBER-B | COCO, VG, SBU, GCC | [weight](https://xiyin1wu2.blob.core.windows.net/maskrcnn/zhgan/debug_output/elip/mlm_itm_seed42_from_/version_37/checkpoints/last.ckpt) | Flickr30k, MixedNoCOCO, Objects365 | [config](configs/pretrain/mixed_nococo_flickr_objects365.yaml) | [weight](https://penzhanwu2v2.blob.core.windows.net/amulet/projects/aish-intern/amlt-results/7350008695.29874-98510721-cd70-422c-bf40-3c5b4c4adc1e/last_checkpoint) |
 |FIBER-B | COCO, VG, SBU, GCC | [weight](https://xiyin1wu2.blob.core.windows.net/maskrcnn/zhgan/debug_output/elip/mlm_itm_seed42_from_/version_50/checkpoints/last.ckpt) |Flickr30k, MixedNoCOCO (cleaned for Refexp) , Objects365 | [config](configs/pretrain/mixed_nococo_flickr_objects365_refexpclean.yaml) | [weight](https://penzhanwu2v2.blob.core.windows.net/amulet/projects/aish-intern/amlt-results/7347935755.69767-58af254b-fdac-49dc-ac0e-906c7f369e98/last_checkpoint) |
 
@@ -137,6 +138,7 @@ python tools/test_grounding_net.py \
 **Model Zoo (Fine-tuned COCO)**
 
 |Model | AP | Config | Best Checkpoint|
+| ----------- | ----------- |---------- |---------- |
 |FIBER-B | 58.40 | [config](configs/e2e_dyhead_SwinT_B_FPN_coco_finetuning_fusion_backbone.yaml) | [weight](https://penzhanwu2v2.blob.core.windows.net/amulet/projects/aish-intern/amlt-results/7348946846.71243-448f49cf-ee95-4e05-98a7-bb1b9d1fba37/model_0072500.pth)|
 
 ### COCO Fine-Tuning
@@ -158,6 +160,7 @@ For evaluation, please follow the instructions in ``COCO Evaluation``
 **Model Zoo (Fine-tuned LVIS)**
 
 |Model | AP | Config | Best Checkpoint| 
+|---------- |---------- |---------- |---------- |
 |FIBER-B | 56.9 | [config](configs/e2e_dyhead_SwinT_B_FPN_lvis_finetuning_fusion_backbone.yaml) | [weight](https://penzhanwu2v2.blob.core.windows.net/amulet/projects/aish-intern/amlt-results/7348869400.04055-e20796f8-0bb0-4161-b583-c4224c74a34a/model_0080000.pth)|
 
 Prepare the ``COCO`` image data as in [DATA.md](DATA.md), and LVIS annotations as described in the corresponding section in [DATA.md](DATA.md). Set ``{config_file}``, ``{model_checkpoint}`` according to the ``Model Zoo``.
@@ -197,6 +200,7 @@ For tuning with all the data, set {custom_shot_and_epoch_and_general_copy} to "0
 **Model Zoo (Fine-tuned RefCOCO, RefCOCO+, RefCOCOg)**
 
 |Model | Task |val | testA | testB | Config | Best checkpoint|
+|---------- |---------- |---------- |---------- |---------- |---------- |---------- |
 |FIBER-B | RefCOCO| 90.68 |  92.59 | 87.26 | [refcoco config](configs/refcoco.yaml) | [weight](https://penzhanwu2v2.blob.core.windows.net/amulet/projects/aish-intern/amlt-results/7347243520.00025-0bbf3f78-15b6-4d92-a2cf-6c2b7189b742/model_0120000.pth)|
 |FIBER-B | RefCOCO+ | 85.74 | 90.13 | 79.38 | [refcoco+ config](configs/refcocoplus.yaml) | [weight](https://penzhanwu2v2.blob.core.windows.net/amulet/projects/aish-intern/amlt-results/7347226779.12763-fd8d9559-6f4b-4e74-a1ce-460fe0c83054/model_0125000.pth)|
 |FIBER-B | RefCOCOg | 87.11 | 87.32 | N/A | [refcocog_config](configs/refcocog.yaml) | TODO |
