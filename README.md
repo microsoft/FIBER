@@ -18,7 +18,7 @@ We provide code for both **coarse-grained** and **fine-grained** pre-training an
         <td>Metric</td><td>VQA Score</td><td>Acc.</td><td>IR@1/TR@1</td><td>IR@1/TR@1</td><td>CIDER</td>
     </tr>
     <tr align="center">
-        <td>78.46</td><td>85.52</td><td>81.44/92.90 (ITC) 84.10/59.03 (ITM)</td><td>58.01/75.38 (ITC) 59.03/75.14 (ITM)</td><td>144.4</td>
+        <td>FIBER-Base</td><td>78.46</td><td>85.52</td><td>81.44/92.90 (ITC) 84.10/59.03 (ITM)</td><td>58.01/75.38 (ITC) 59.03/75.14 (ITM)</td><td>144.4</td>
     </tr>
 </table>
 <br></br>
