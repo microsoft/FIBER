@@ -10,9 +10,13 @@ We provide code for both **coarse-grained** and **fine-grained** pre-training an
 
 ## Model Performance
 
+**Coarse-grained Checkpoint**
 <table border="1" width="100%">
     <tr align="center">
         <th>Task</th><th>VQAv2</th><th>NLVR2</th><th>F30k Retrieval</th><th>COCO Retrieval</th><th>COCO Captioning</th>
+    </tr>
+    <tr align="center">
+        <td>Split</td><td>test-std</td><td>test-P</td><td>test</td><td>Karpathy test</td><td>Karpathy test</td>
     </tr>
     <tr align="center">
         <td>Metric</td><td>VQA Score</td><td>Acc.</td><td>IR@1/TR@1</td><td>IR@1/TR@1</td><td>CIDEr</td>
@@ -22,6 +26,21 @@ We provide code for both **coarse-grained** and **fine-grained** pre-training an
     </tr>
 </table>
 
+**Fine-grained Checkpoint**
+<table border="1" width="100%">
+    <tr align="center">
+        <th>Task</th><th>F30k Grounding</th><th>RefCOCO</th><th>RefCOCO+</th><th>RefCOCOg</th><th>COCO Detection</th><th>LVIS</th><th>ODinW</th>
+    </tr>
+    <tr align="center">
+        <td>Split</td><td>test</td><td>val/testA/testB</td><td>val/testA/testB</td><td>val/test</td><td>Val 2017</td><td>MiniVal</td><td>13 Datasets</td>
+    </tr>
+    <tr align="center">
+        <td>Metric</td><td>R@1/R@5/R@10</td><td>Acc.</td><td>Acc.</td><td>Acc.</td><td>Zero-shot/Fine-tune AP</td><td>Zero-shot/Fine-tune AP</td><td>Avg. Zero-shot/Fine-tune AP</td>
+    </tr>
+    <tr align="center">
+        <td>FIBER-Base</td><td>87.4/96.4/97.6</td><td>90.68/92.59/87.26</td><td>85.74/90.13/79.38</td><td>87.11/87.32</td><td>49.3/58.4</td><td>35.8/56.9</td><td>47.0/65.9</td>
+    </tr>
+</table>
 
 
 ## Citation
