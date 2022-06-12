@@ -216,7 +216,24 @@ python -m torch.distributed.launch --nproc_per_node=16 tools/train_net.py
          
 ```
 
+Evaluation of Refexp models: 
 
+The config file is the one for the model that you are evaluating, and can be found in the RefExp model zoo above, the task config is used to specify the test set. Choose the corresponding test set (TestA/TestB/Test), found in [refexp test configs](configs/refexp). Output dir is the folder where you want to write results. 
+
+Command: 
+```
+python tools/test_grounding_net.py --config-file {config-file}
+        --task_config configs/refexp/{test_set}.yaml
+        --weight {model-checkpoint}
+        OUTPUT_DIR {output_dir}
+        TEST.IMS_PER_BATCH 1 
+        SOLVER.IMS_PER_BATCH 1 
+        TEST.MDETR_STYLE_AGGREGATE_CLASS_NUM -1 
+        TEST.EVAL_TASK grounding 
+        MODEL.ATSS.PRE_NMS_TOP_N 3000
+        MODEL.ATSS.DETECTIONS_PER_IMG 100
+        MODEL.ATSS.INFERENCE_TH 0.0
+```
 
 ## Acknowledgement 
 This codebase was built upon the GLIP codebase. We thank the authors for making the code available. 
