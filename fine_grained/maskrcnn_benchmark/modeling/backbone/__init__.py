@@ -8,17 +8,12 @@ from maskrcnn_benchmark.layers import DropBlock2D, DyHead
 from . import fpn as fpn_module
 from . import bifpn
 from . import resnet
-from . import resnet_big
-from . import resnet_evo
-from . import resnet_light_v2
-from . import nas
 from . import efficientnet
 from . import efficientdet
 from . import swint
 from . import swint_v2
 from . import swint_vl
 from . import swint_v2_vl
-from . import cvt
 from . import fusion_swin_transformer
 from . import fusion_swin_transformer_v2
 from . import fusion_swin_transformer_v3
