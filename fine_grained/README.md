@@ -27,13 +27,6 @@ pip install transformers
 python setup.py build develop --user
 ```
 
-***Backbone Checkpoints.*** Download the ImageNet pre-trained backbone checkpoints into the ``MODEL`` folder. 
-```
-mkdir MODEL
-wget https://penzhanwu2bbs.blob.core.windows.net/data/GLIPv1_Open/models/swin_tiny_patch4_window7_224.pth -O MODEL/swin_tiny_patch4_window7_224.pth
-wget https://penzhanwu2bbs.blob.core.windows.net/data/GLIPv1_Open/models/swin_large_patch4_window12_384_22k.pth -O MODEL/swin_large_patch4_window12_384_22k.pth
-```
-
 ## Pre-Training
 
 ***Required Data.***  Prepare ``Objects365``, ``Flickr30K``, and ``MixedGrounding`` data as in [DATA.md](DATA.md). 
