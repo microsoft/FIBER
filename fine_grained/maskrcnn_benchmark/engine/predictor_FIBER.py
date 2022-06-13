@@ -103,8 +103,10 @@ class GLIPDemo(object):
                 tokenizer = CLIPTokenizerFast.from_pretrained("openai/clip-vit-base-patch32", from_slow=True)
         return tokenizer
 
-    def run_ner(self, caption):
+    def run_ner(self, caption, refexp_mode=False):
         noun_phrases = find_noun_phrases(caption)
+        if refexp_mode:
+            noun_phrases = [caption]
         noun_phrases = [remove_punctuation(phrase) for phrase in noun_phrases]
         noun_phrases = [phrase for phrase in noun_phrases if phrase != ""]
         relevant_phrases = noun_phrases
@@ -125,13 +127,13 @@ class GLIPDemo(object):
 
         return tokens_positive
 
-    def inference(self, original_image, original_caption):
-        predictions = self.compute_prediction(original_image, original_caption)
+    def inference(self, original_image, original_caption, refexp_mode=False):
+        predictions = self.compute_prediction(original_image, original_caption, refexp_mode)
         top_predictions = self._post_process_fixed_thresh(predictions)
         return top_predictions
 
-    def run_on_web_image(self, original_image, original_caption, thresh=0.5):
-        predictions = self.compute_prediction(original_image, original_caption)
+    def run_on_web_image(self, original_image, original_caption, thresh=0.5, refexp_mode=False):
+        predictions = self.compute_prediction(original_image, original_caption, refexp_mode)
         top_predictions = self._post_process(predictions, thresh)
 
         result = original_image.copy()
@@ -144,14 +146,14 @@ class GLIPDemo(object):
 
         return result, top_predictions
 
-    def compute_prediction(self, original_image, original_caption):
+    def compute_prediction(self, original_image, original_caption, refexp_mode=False):
         # image
         image = self.transforms(original_image)
         image_list = to_image_list(image, self.cfg.DATALOADER.SIZE_DIVISIBILITY)
         image_list = image_list.to(self.device)
         # caption
         tokenized = self.tokenizer([original_caption], return_tensors="pt")
-        tokens_positive = self.run_ner(original_caption)
+        tokens_positive = self.run_ner(original_caption, refexp_mode)
         # process positive map
         positive_map = create_positive_map(tokenized, tokens_positive)
 
@@ -255,7 +257,7 @@ class GLIPDemo(object):
                 image,
                 "%.3f" % score,
                 (int(box[0]), int((box[1] + box[3]) / 2)),
-                cv2.FONT_HERSHEY_SIMPLEX,
+                cv2.FONT_HERSHEY_DUPLEX ,
                 0.3,
                 (255, 255, 255),
                 1,
@@ -282,7 +284,7 @@ class GLIPDemo(object):
         for box, score, label in zip(boxes, scores, new_labels):
             x, y = box[:2]
             s = template.format(label, score)
-            cv2.putText(image, s, (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            cv2.putText(image, s, (int(x), int(y)), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255), 1)
 
         return image
 
