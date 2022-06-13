@@ -7,7 +7,7 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-## Pre-trained Checkpoints
+## Model Checkpoints
 
 Here are the pre-trained models:
 1. FIBER pre-trained on GCC+SBU+COCO+VG [link](https://datarelease.blob.core.windows.net/fiber/coarse_grained/fiber_pretrain.ckpt)
