@@ -27,13 +27,6 @@ pip install transformers
 python setup.py build develop --user
 ```
 
-***Backbone Checkpoints.*** Download the ImageNet pre-trained backbone checkpoints into the ``MODEL`` folder. 
-```
-mkdir MODEL
-wget https://penzhanwu2bbs.blob.core.windows.net/data/GLIPv1_Open/models/swin_tiny_patch4_window7_224.pth -O MODEL/swin_tiny_patch4_window7_224.pth
-wget https://penzhanwu2bbs.blob.core.windows.net/data/GLIPv1_Open/models/swin_large_patch4_window12_384_22k.pth -O MODEL/swin_large_patch4_window12_384_22k.pth
-```
-
 ## Pre-Training
 
 ***Required Data.***  Prepare ``Objects365``, ``Flickr30K``, and ``MixedGrounding`` data as in [DATA.md](DATA.md). 
@@ -203,7 +196,7 @@ For tuning with all the data, set {custom_shot_and_epoch_and_general_copy} to "0
 |---------- |---------- |---------- |---------- |---------- |---------- |---------- |
 |FIBER-B | RefCOCO| 90.68 |  92.59 | 87.26 | [refcoco config](configs/refcoco.yaml) | [weight](https://datarelease.blob.core.windows.net/fiber/fine_grained/fiber_refcoco.pth)|
 |FIBER-B | RefCOCO+ | 85.74 | 90.13 | 79.38 | [refcoco+ config](configs/refcocoplus.yaml) | [weight](https://datarelease.blob.core.windows.net/fiber/fine_grained/fiber_refcoco%2B.pth)|
-|FIBER-B | RefCOCOg | 87.11 | 87.32 | N/A | [refcocog_config](configs/refcocog.yaml) | TODO |
+|FIBER-B | RefCOCOg | 87.11 | 87.32 | N/A | [refcocog_config](configs/refcocog.yaml) | [weight](https://datarelease.blob.core.windows.net/fiber/fine_grained/fiber_refcocog.pth) |
 
 
 Command to run finetuning : 
