@@ -8,6 +8,7 @@ from . import heads, objectives, fiber_utils
 from .swin_helpers import swin_adapt_position_encoding
 from transformers import RobertaConfig
 from .roberta import RobertaModel, _prepare_decoder_attention_mask
+from torch.optim import Adam
 
 @torch.no_grad()
 def concat_all_gather(tensor):
@@ -519,8 +520,7 @@ class FIBERTransformerSS(pl.LightningModule):
         fiber_utils.epoch_wrapup(self)
 
     def configure_optimizers(self):
-        return fiber_utils.set_schedule(self)
-
+        return Adam(self.vqa_classifier.parameters(), lr=self.hparams.config["learning_rate"])
 
 def compute_caption_gold(pl_module, batch, update_freq=1000, min_prob=0.1):
     tokenizer = pl_module.trainer.datamodule.dms[0].tokenizer
