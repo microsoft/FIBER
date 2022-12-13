@@ -140,7 +140,7 @@ def task_finetune_vqa():
     max_epoch = 10
     max_steps = None
     warmup_steps = 0.1
-    learning_rate = 2e-5
+    learning_rate = 0.001
     lr_mult_cross_modal = 5
     lr_mult_head = 50
     max_text_len = 50
