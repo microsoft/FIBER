@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 
 from pytorch_lightning import LightningDataModule
@@ -68,6 +67,7 @@ class BaseDataModule(LightningDataModule):
             self.data_dir,
             self.train_transform_keys,
             split="train",
+            subset_ratio=self.train_subset_ratio,
             image_size=self.image_size,
             max_text_len=self.max_text_len,
             draw_false_image=self.draw_false_image,
@@ -75,10 +75,6 @@ class BaseDataModule(LightningDataModule):
             image_only=self.image_only,
             tokenizer=self.tokenizer,
         )
-        if self.train_subset_ratio < 1:
-            subset_size = int(self.train_subset_ratio * len(self.train_dataset))
-            idxs = np.random.choice(len(self.train_dataset), subset_size, replace=False)
-            self.train_dataset = self.train_dataset[[i for i in idxs]]
 
     def set_val_dataset(self):
         self.val_dataset = self.dataset_cls(

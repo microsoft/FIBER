@@ -1,8 +1,9 @@
+import numpy as np
 from .base_dataset import BaseDataset
 
 
 class VQAv2Dataset(BaseDataset):
-    def __init__(self, *args, split="", **kwargs):
+    def __init__(self, *args, split="", subset_ratio=1, **kwargs):
         assert split in ["train", "val", "test"]
         self.split = split
 
@@ -21,11 +22,22 @@ class VQAv2Dataset(BaseDataset):
             remove_duplicate=False,
         )
 
-    def __getitem__(self, index):
-        image_tensor = self.get_image(index)["image"]
-        text = self.get_text(index)["text"]
+        original_size = len(self.index_mapper)
+        if subset_ratio == 1:
+            self.original_idxs = np.arange(original_size)
+        else:
+            subset_size = int(subset_ratio * original_size)
+            self.original_idxs = np.random.choice(original_size, subset_size, replace=False)
 
-        index, question_index = self.index_mapper[index]
+    def __len__(self):
+        return len(self.original_idxs)
+
+    def __getitem__(self, idx):
+        original_idx = self.original_idxs[idx]
+        image_tensor = self.get_image(original_idx)["image"]
+        text = self.get_text(original_idx)["text"]
+
+        index, question_index = self.index_mapper[original_idx]
         qid = self.table["question_id"][index][question_index].as_py()
 
         if self.split != "test":
