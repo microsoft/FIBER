@@ -78,8 +78,7 @@ class BaseDataModule(LightningDataModule):
         if self.train_subset_ratio < 1:
             subset_size = int(self.train_subset_ratio * len(self.train_dataset))
             idxs = np.random.choice(len(self.train_dataset), subset_size, replace=False)
-            self.train_dataset = Subset(self.train_dataset, idxs)
-
+            self.train_dataset = self.train_dataset[idxs]
 
     def set_val_dataset(self):
         self.val_dataset = self.dataset_cls(
