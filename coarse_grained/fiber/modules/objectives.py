@@ -228,7 +228,7 @@ def compute_vae(pl_module, batch):
     infer = pl_module.infer(batch, mask_text=False, mask_image=False)
     x = infer["cls_feats"]
     y = make_vqa_targets(pl_module, batch)
-    mu_xy, logvar_xy = torch.split(pl_module.vqa_classifier.encoder_xy(torch.hstack((x, y))), 2, 1)
+    mu_xy, logvar_xy = torch.chunk(pl_module.vqa_classifier.encoder_xy(torch.hstack((x, y))), 2, 1)
     z = sample_z(mu_xy, logvar_xy)
     y_reconst = pl_module.vqa_classifier.decoder(torch.hstack((x, z)))
 

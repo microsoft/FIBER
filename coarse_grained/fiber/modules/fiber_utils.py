@@ -76,8 +76,12 @@ def epoch_wrapup(pl_module):
                 getattr(pl_module, f"{phase}_{loss_name}_loss").compute(),
             )
             getattr(pl_module, f"{phase}_{loss_name}_loss").reset()
-        elif loss_name == "vqa":
-            pass
+        elif loss_name == "vae":
+            pl_module.log(
+                f"{loss_name}/{phase}/loss_epoch",
+                getattr(pl_module, f"{phase}_{loss_name}_loss").compute(),
+            )
+            getattr(pl_module, f"{phase}_{loss_name}_loss").reset()
         elif loss_name == "nlvr2":
             if phase == "train":
                 value = getattr(pl_module, f"train_{loss_name}_accuracy").compute()
