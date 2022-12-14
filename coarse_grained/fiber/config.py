@@ -8,6 +8,7 @@ def _loss_names(d):
         "itm": 0,
         "itc": 0,
         "mlm": 0,
+        "vae": 0,
         "vqa": 0,
         "nlvr2": 0,
         "caption_mle": 0,
@@ -91,6 +92,9 @@ def config():
     num_workers = 8
     precision = 32
 
+    # VAE Setting
+    latent_size = 512
+
 
 @ex.named_config
 def task_pretrain_mlm_itm_itc():
@@ -127,6 +131,26 @@ def task_finetune_nlvr2():
     train_transform_keys = ["albef_randaug"]
     val_transform_keys = ["albef"]
     image_size = 384
+    pretrained_vit = False
+
+
+@ex.named_config
+def task_finetune_vae():
+    exp_name = "finetune_vae"
+    datasets = ["vqa"]
+    loss_names = _loss_names({"vae": 1})
+    val_check_interval = 1.0
+    batch_size = 512
+    max_epoch = 10
+    max_steps = None
+    warmup_steps = 0.1
+    learning_rate = 0.001
+    lr_mult_cross_modal = 5
+    lr_mult_head = 50
+    max_text_len = 50
+    train_transform_keys = ["albef_randaug"]
+    val_transform_keys = ["albef"]
+    image_size = 576
     pretrained_vit = False
 
 

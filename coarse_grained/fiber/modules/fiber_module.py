@@ -24,6 +24,35 @@ def concat_all_gather(tensor):
     output = torch.cat(tensors_gather, dim=0)
     return output
 
+class VQAClassifier(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        hidden_size = config["hidden_size"]
+        latent_size = config["latent_size"]
+        output_size = config["vqav2_label_size"]
+
+        self.encoder_xy = nn.Sequential(
+            nn.Linear(hidden_size * 2 + output_size, hidden_size * 2),
+            nn.LayerNorm(hidden_size * 2),
+            nn.GELU(),
+            nn.Linear(hidden_size * 2, latent_size * 2),
+        )
+        self.encoder_xy.apply(objectives.init_weights)
+        self.encoder_x = nn.Sequential(
+            nn.Linear(hidden_size * 2, hidden_size * 2),
+            nn.LayerNorm(hidden_size * 2),
+            nn.GELU(),
+            nn.Linear(hidden_size * 2, latent_size * 2),
+        )
+        self.encoder_x.apply(objectives.init_weights)
+        self.decoder = nn.Sequential(
+            nn.Linear(hidden_size * 2 + latent_size, hidden_size * 2),
+            nn.LayerNorm(hidden_size * 2),
+            nn.GELU(),
+            nn.Linear(hidden_size * 2, output_size),
+        )
+        self.decoder.apply(objectives.init_weights)
+
 class FIBERTransformerSS(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
@@ -155,6 +184,10 @@ class FIBERTransformerSS(pl.LightningModule):
                 nn.GELU(),
                 nn.Linear(hs * 2, vs),
             )
+            self.vqa_classifier.apply(objectives.init_weights)
+
+        if self.hparams.config["loss_names"]["vae"] > 0:
+            self.vqa_classifier = VQAClassifier(self.hparams.config)
             self.vqa_classifier.apply(objectives.init_weights)
 
         if self.hparams.config["loss_names"]["nlvr2"] > 0:
@@ -453,6 +486,10 @@ class FIBERTransformerSS(pl.LightningModule):
         # Visual Question Answering
         if "vqa" in self.current_tasks:
             ret.update(objectives.compute_vqa(self, batch))
+
+        # Estimate q(z | x, x', y)
+        if "vae" in self.current_tasks:
+            ret.update(objectives.compute_vae(self, batch))
 
         # Natural Language for Visual Reasoning 2
         if "nlvr2" in self.current_tasks:

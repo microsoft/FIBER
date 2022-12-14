@@ -7,6 +7,7 @@ import json
 import tqdm
 import functools
 
+from .stats import prior_kld
 from torch.utils.data.distributed import DistributedSampler
 from einops import rearrange
 
@@ -179,17 +180,21 @@ def compute_itc(pl_module, batch):
 
     return ret, image_neg, text_neg, text_mask_neg
 
-def compute_vqa(pl_module, batch):
-    infer = pl_module.infer(batch, mask_text=False, mask_image=False)
-    vqa_logits = pl_module.vqa_classifier(infer["cls_feats"])
-    vqa_targets = torch.zeros(len(vqa_logits), pl_module.hparams.config["vqav2_label_size"]).to(pl_module.device)
-
+def make_vqa_targets(pl_module, batch):
     vqa_labels = batch["vqa_labels"]
     vqa_scores = batch["vqa_scores"]
+    vqa_targets = torch.zeros(len(vqa_labels), pl_module.hparams.config["vqav2_label_size"]).to(pl_module.device)
 
     for i, (_label, _score) in enumerate(zip(vqa_labels, vqa_scores)):
         for l, s in zip(_label, _score):
             vqa_targets[i, l] = s
+
+    return vqa_targets
+
+def compute_vqa(pl_module, batch):
+    infer = pl_module.infer(batch, mask_text=False, mask_image=False)
+    vqa_logits = pl_module.vqa_classifier(infer["cls_feats"])
+    vqa_targets = make_vqa_targets(pl_module, batch)
 
     vqa_loss = (
         F.binary_cross_entropy_with_logits(vqa_logits, vqa_targets) * vqa_targets.shape[1]
@@ -199,8 +204,8 @@ def compute_vqa(pl_module, batch):
         "vqa_loss": vqa_loss,
         "vqa_logits": vqa_logits,
         "vqa_targets": vqa_targets,
-        "vqa_labels": vqa_labels,
-        "vqa_scores": vqa_scores,
+        "vqa_labels": batch["vqa_labels"],
+        "vqa_scores": batch["vqa_scores"],
     }
 
     phase = "train" if pl_module.training else "val"
@@ -211,6 +216,36 @@ def compute_vqa(pl_module, batch):
 
     return ret
 
+def compute_vae(pl_module, batch):
+    def sample_z(mu, logvar):
+        if pl_module.training:
+            sd = torch.exp(logvar / 2) # Same as sqrt(exp(logvar))
+            eps = torch.randn_like(sd)
+            return mu + eps * sd
+        else:
+            return mu
+
+    infer = pl_module.infer(batch, mask_text=False, mask_image=False)
+    x = infer["cls_feats"]
+    y = make_vqa_targets(pl_module, batch)
+    mu_xy, logvar_xy = torch.split(pl_module.vqa_classifier.encoder_xy(torch.hstack((x, y))), 2, 1)
+    z = sample_z(mu_xy, logvar_xy)
+    y_reconst = pl_module.vqa_classifier.decoder(torch.hstack((x, z)))
+
+    reconst_loss = (
+        F.binary_cross_entropy_with_logits(y_reconst, y) * y.shape[1]
+    )  # https://github.com/jnhwkim/ban-vqa/blob/master/train.py#L19
+
+    neg_elbo = reconst_loss + prior_kld(mu_xy, logvar_xy)
+
+    ret = {
+        "vae_loss": neg_elbo,
+    }
+
+    phase = "train" if pl_module.training else "val"
+    pl_module.log(f"vqa/{phase}/loss", neg_elbo)
+
+    return ret
 
 def compute_nlvr2(pl_module, batch):
     infer1 = pl_module.infer(batch, mask_text=False, mask_image=False, image_token_type_idx=1)

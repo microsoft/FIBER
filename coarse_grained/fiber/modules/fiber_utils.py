@@ -19,6 +19,8 @@ def set_metrics(pl_module):
             if k == "vqa":
                 setattr(pl_module, f"{split}_vqa_score", VQAScore())
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
+            elif k == "vae":
+                setattr(pl_module, f"{split}_{k}_loss", Scalar())
             elif k == "nlvr2":
                 if split == "train":
                     setattr(pl_module, f"train_{k}_accuracy", Accuracy())
@@ -74,6 +76,8 @@ def epoch_wrapup(pl_module):
                 getattr(pl_module, f"{phase}_{loss_name}_loss").compute(),
             )
             getattr(pl_module, f"{phase}_{loss_name}_loss").reset()
+        elif loss_name == "vqa":
+            pass
         elif loss_name == "nlvr2":
             if phase == "train":
                 value = getattr(pl_module, f"train_{loss_name}_accuracy").compute()
