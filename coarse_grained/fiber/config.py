@@ -29,7 +29,10 @@ def config():
         4096  # this is a desired batch size; pl trainer will accumulate gradients when per step batch is smaller.
     )
 
-    # Image setting
+    # Data settings
+    train_subset_ratio = 1
+
+    # Image settings
     train_transform_keys = ["albef"]
     val_transform_keys = ["albef"]
     image_size = 384
@@ -40,7 +43,7 @@ def config():
     resolution_before = 384
     pretrained_vit = True
 
-    # Text Setting
+    # Text settings
     vqav2_label_size = 3129
     max_text_len = 40
     tokenizer = "roberta-base"
@@ -50,7 +53,7 @@ def config():
     draw_false_text = 0
     input_text_embed_size = 768
 
-    # Transformer Setting
+    # Transformer settings
     hidden_size = 768
     num_heads = 12
     num_layers = 12
@@ -59,7 +62,7 @@ def config():
     num_fuse_block = 6
     itc_pooler = True  # does not make a difference
 
-    # Optimizer Setting
+    # Optimizer settings
     optim_type = "adamw"
     learning_rate = 1e-5
     weight_decay = 0.01
@@ -71,12 +74,12 @@ def config():
     lr_mult_head = 5  # multiply lr for downstream heads
     lr_mult_cross_modal = 5  # multiply lr for the cross-modal module
 
-    # Downstream Setting
+    # Downstream settings
     get_recall_metric = False
     get_recall_metric_itc = True
     cider_path = None
 
-    # PL Trainer Setting
+    # PL Trainer settings
     resume_from = None
     fast_dev_run = False
     val_check_interval = 1.0
@@ -92,7 +95,7 @@ def config():
     num_workers = 8
     precision = 32
 
-    # VAE Setting
+    # VAE settings
     latent_size = 512
 
 

@@ -1,7 +1,8 @@
+import numpy as np
 import torch
 
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from transformers import (
     DataCollatorForLanguageModeling,
     DataCollatorForWholeWordMask,
@@ -52,6 +53,8 @@ class BaseDataModule(LightningDataModule):
         self.mlm_collator = collator(tokenizer=self.tokenizer, mlm=True, mlm_probability=_config["mlm_prob"])
         self.setup_flag = False
 
+        self.train_subset_ratio = _config["train_subset_ratio"]
+
     @property
     def dataset_cls(self):
         raise NotImplementedError("return tuple of dataset class")
@@ -72,6 +75,11 @@ class BaseDataModule(LightningDataModule):
             image_only=self.image_only,
             tokenizer=self.tokenizer,
         )
+        if self.train_subset_ratio < 1:
+            subset_size = int(self.train_subset_ratio * len(self.train_dataset))
+            idxs = np.random.choice(len(self.train_dataset), subset_size, replace=False)
+            self.train_dataset = Subset(self.train_dataset, idxs)
+
 
     def set_val_dataset(self):
         self.val_dataset = self.dataset_cls(
