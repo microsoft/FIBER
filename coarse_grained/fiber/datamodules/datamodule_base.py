@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 from transformers import (
     DataCollatorForLanguageModeling,
     DataCollatorForWholeWordMask,
@@ -78,7 +78,7 @@ class BaseDataModule(LightningDataModule):
         if self.train_subset_ratio < 1:
             subset_size = int(self.train_subset_ratio * len(self.train_dataset))
             idxs = np.random.choice(len(self.train_dataset), subset_size, replace=False)
-            self.train_dataset = self.train_dataset[idxs]
+            self.train_dataset = self.train_dataset[[i for i in idxs]]
 
     def set_val_dataset(self):
         self.val_dataset = self.dataset_cls(
