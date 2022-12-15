@@ -144,7 +144,7 @@ def task_finetune_vae():
     loss_names = _loss_names({"vae": 1})
     val_check_interval = 1.0
     batch_size = 512
-    max_epoch = 10
+    max_epoch = 20
     max_steps = None
     warmup_steps = 0.1
     learning_rate = 0.001
@@ -164,7 +164,7 @@ def task_finetune_vqa():
     loss_names = _loss_names({"vqa": 1})
     val_check_interval = 1.0
     batch_size = 512
-    max_epoch = 10
+    max_epoch = 20
     max_steps = None
     warmup_steps = 0.1
     learning_rate = 0.001

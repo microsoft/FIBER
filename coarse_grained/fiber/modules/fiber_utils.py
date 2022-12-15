@@ -17,9 +17,10 @@ def set_metrics(pl_module):
             if v <= 0:
                 continue
             if k == "vqa":
-                setattr(pl_module, f"{split}_vqa_score", VQAScore())
+                setattr(pl_module, f"{split}_{k}_score", VQAScore())
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
             elif k == "vae":
+                setattr(pl_module, f"{split}_{k}_score", VQAScore())
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
             elif k == "nlvr2":
                 if split == "train":

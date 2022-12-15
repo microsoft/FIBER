@@ -227,23 +227,28 @@ def compute_vae(pl_module, batch):
 
     infer = pl_module.infer(batch, mask_text=False, mask_image=False)
     x = infer["cls_feats"]
-    y = make_vqa_targets(pl_module, batch)
-    mu_xy, logvar_xy = torch.chunk(pl_module.vqa_classifier.encoder_xy(torch.hstack((x, y))), 2, 1)
+    vae_targets = make_vqa_targets(pl_module, batch)
+    mu_xy, logvar_xy = torch.chunk(pl_module.vqa_classifier.encoder_xy(torch.hstack((x, vae_targets))), 2, 1)
     z = sample_z(mu_xy, logvar_xy)
-    y_reconst = pl_module.vqa_classifier.decoder(torch.hstack((x, z)))
+    vae_logits = pl_module.vqa_classifier.decoder(torch.hstack((x, z)))
 
     reconst_loss = (
-        F.binary_cross_entropy_with_logits(y_reconst, y) * y.shape[1]
+        F.binary_cross_entropy_with_logits(vae_logits, vae_targets) * vae_targets.shape[1]
     )  # https://github.com/jnhwkim/ban-vqa/blob/master/train.py#L19
 
-    neg_elbo = reconst_loss + prior_kld(mu_xy, logvar_xy)
+    vae_loss = reconst_loss + prior_kld(mu_xy, logvar_xy)
 
     ret = {
-        "vae_loss": neg_elbo,
+        "vae_loss": vae_loss,
+        "vae_logits": vae_logits,
+        "vae_targets": vae_targets,
     }
 
     phase = "train" if pl_module.training else "val"
-    pl_module.log(f"vqa/{phase}/loss", neg_elbo)
+    loss = getattr(pl_module, f"{phase}_vae_loss")(ret["vae_loss"])
+    score = getattr(pl_module, f"{phase}_vae_score")(ret["vae_logits"], ret["vae_targets"])
+    pl_module.log(f"vae/{phase}/loss", loss)
+    pl_module.log(f"vae/{phase}/score", score)
 
     return ret
 
