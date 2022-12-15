@@ -57,13 +57,13 @@ class VQAScore(Metric):
             logits.detach().float().to(self.score.device),
             target.detach().float().to(self.score.device),
         )
-        logits = torch.max(logits, 1)[1]
+        logits = torch.max(logits, 1)[1] # Column with max logit value
         one_hots = torch.zeros(*target.size()).to(target)
-        one_hots.scatter_(1, logits.view(-1, 1), 1)
-        scores = one_hots * target
+        one_hots.scatter_(1, logits.view(-1, 1), 1) # Array of zeros, except for one at the column with max logit value
+        scores = one_hots * target # Array of zeros, except for the target at the column with max logit value
 
         self.score += scores.sum()
         self.total += len(logits)
 
     def compute(self):
-        return self.score / self.total
+        return self.score / self.total # Average target at the column with max logit value
