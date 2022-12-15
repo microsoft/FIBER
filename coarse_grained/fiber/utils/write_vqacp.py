@@ -43,14 +43,14 @@ def path2rest(path, split, annotations, label2ans):
 
 def make_arrow(root, dataset_root):
     with open(f"{root}/vqacp_v2_train_questions.json", "r") as fp:
-        questions_train = json.load(fp)["questions"]
+        questions_train = json.load(fp)
     with open(f"{root}/vqacp_v2_test_questions.json", "r") as fp:
-        questions_test = json.load(fp)["questions"]
+        questions_test = json.load(fp)
 
     with open(f"{root}/vqacp_v2_train_annotations.json", "r") as fp:
-        annotations_train = json.load(fp)["annotations"]
+        annotations_train = json.load(fp)
     with open(f"{root}/vqacp_v2_test_annotations.json", "r") as fp:
-        annotations_test = json.load(fp)["annotations"]
+        annotations_test = json.load(fp)
 
     annotations = dict()
 
