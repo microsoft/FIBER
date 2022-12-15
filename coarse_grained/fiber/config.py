@@ -138,10 +138,10 @@ def task_finetune_nlvr2():
 
 
 @ex.named_config
-def task_finetune_vae():
-    exp_name = "finetune_vae"
+def task_finetune_vqa():
+    exp_name = "finetune_vqa"
     datasets = ["vqa"]
-    loss_names = _loss_names({"vae": 1})
+    loss_names = _loss_names({"vqa": 1})
     val_check_interval = 1.0
     batch_size = 512
     max_epoch = 20
@@ -158,10 +158,10 @@ def task_finetune_vae():
 
 
 @ex.named_config
-def task_finetune_vqa():
-    exp_name = "finetune_vqa"
+def task_finetune_vae():
+    exp_name = "finetune_vae"
     datasets = ["vqa"]
-    loss_names = _loss_names({"vqa": 1})
+    loss_names = _loss_names({"vae": 1})
     val_check_interval = 1.0
     batch_size = 512
     max_epoch = 20
