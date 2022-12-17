@@ -126,7 +126,9 @@ def make_arrow(root, dataset_root):
         "test"
     ]:
         annot = annotations[split]
-        paths = list(glob(f"{root}/{split}/*.jpg"))
+        paths = list(glob(f"{root}/train2014/*.jpg"))
+        paths += list(glob(f"{root}/val2014/*.jpg"))
+
         random.shuffle(paths)
         annot_paths = [path for path in paths if int(path.split("/")[-1].split("_")[-1][:-4]) in annot]
 
