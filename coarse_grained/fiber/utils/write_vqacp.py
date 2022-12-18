@@ -1,4 +1,5 @@
 import json
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 import random
@@ -41,7 +42,15 @@ def path2rest(path, split, annotations, label2ans):
     return [binary, questions, answers, answer_labels, answer_scores, iid, qids, split]
 
 
-def make_arrow(root, dataset_root):
+def write_table(dataset_root, df, split):
+    table = pa.Table.from_pandas(df)
+    os.makedirs(dataset_root, exist_ok=True)
+    with pa.OSFile(f"{dataset_root}/vqacpv2_{split}.arrow", "wb") as sink:
+        with pa.RecordBatchFileWriter(sink, table.schema) as writer:
+            writer.write_table(table)
+
+
+def make_arrow(root, dataset_root, train_ratio=0.8):
     with open(f"{root}/vqacp_v2_train_questions.json", "r") as fp:
         questions_train = json.load(fp)
     with open(f"{root}/vqacp_v2_test_questions.json", "r") as fp:
@@ -158,9 +167,15 @@ def make_arrow(root, dataset_root):
             ],
         )
 
-        table = pa.Table.from_pandas(dataframe)
-
-        os.makedirs(dataset_root, exist_ok=True)
-        with pa.OSFile(f"{dataset_root}/vqacpv2_{split}.arrow", "wb") as sink:
-            with pa.RecordBatchFileWriter(sink, table.schema) as writer:
-                writer.write_table(table)
+        if split == "train":
+            rng = np.random.RandomState(0)
+            n_trainval = len(dataframe)
+            n_train = int(train_ratio * n_trainval)
+            train_idxs = rng.choice(n_trainval, n_train, replace=False)
+            val_idxs = np.setdiff1d(np.arange(n_trainval), train_idxs)
+            train_df = dataframe.iloc[train_idxs]
+            val_df = dataframe.iloc[val_idxs]
+            write_table(dataset_root, train_df, "train")
+            write_table(dataset_root, val_df, "val")
+        else:
+            write_table(dataset_root, dataframe, "test")
