@@ -52,8 +52,6 @@ class BaseDataModule(LightningDataModule):
         self.mlm_collator = collator(tokenizer=self.tokenizer, mlm=True, mlm_probability=_config["mlm_prob"])
         self.setup_flag = False
 
-        self.train_subset_ratio = _config["train_subset_ratio"]
-
     @property
     def dataset_cls(self):
         raise NotImplementedError("return tuple of dataset class")
@@ -67,7 +65,6 @@ class BaseDataModule(LightningDataModule):
             self.data_dir,
             self.train_transform_keys,
             split="train",
-            subset_ratio=self.train_subset_ratio,
             image_size=self.image_size,
             max_text_len=self.max_text_len,
             draw_false_image=self.draw_false_image,

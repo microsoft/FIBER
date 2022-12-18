@@ -29,9 +29,6 @@ def config():
         4096  # this is a desired batch size; pl trainer will accumulate gradients when per step batch is smaller.
     )
 
-    # Data settings
-    train_subset_ratio = 1
-
     # Image settings
     train_transform_keys = ["albef"]
     val_transform_keys = ["albef"]
@@ -155,6 +152,8 @@ def task_finetune_vqa():
     val_transform_keys = ["albef"]
     image_size = 576
     pretrained_vit = False
+    is_cp = False
+    train_subset_ratio = 1
 
 
 @ex.named_config
@@ -175,6 +174,8 @@ def task_finetune_vae():
     val_transform_keys = ["albef"]
     image_size = 576
     pretrained_vit = False
+    is_cp = False
+    train_subset_ratio = 1
 
 
 @ex.named_config

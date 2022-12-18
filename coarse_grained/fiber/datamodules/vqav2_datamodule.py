@@ -4,8 +4,10 @@ from collections import defaultdict
 
 
 class VQAv2DataModule(BaseDataModule):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, _config):
+        super().__init__(_config)
+        self.is_cp = _config["is_cp"]
+        self.train_subset_ratio = _config["train_subset_ratio"]
 
     @property
     def dataset_cls(self):
@@ -35,3 +37,46 @@ class VQAv2DataModule(BaseDataModule):
         self.id2answer = defaultdict(lambda: "unknown")
         for k, v in sorted_a2i:
             self.id2answer[v] = k
+
+    def set_train_dataset(self):
+        self.train_dataset = self.dataset_cls(
+            self.data_dir,
+            self.train_transform_keys,
+            split="train",
+            is_cp=self.is_cp,
+            subset_ratio=self.train_subset_ratio,
+            image_size=self.image_size,
+            max_text_len=self.max_text_len,
+            draw_false_image=self.draw_false_image,
+            draw_false_text=self.draw_false_text,
+            image_only=self.image_only,
+            tokenizer=self.tokenizer,
+        )
+
+    def set_val_dataset(self):
+        self.val_dataset = self.dataset_cls(
+            self.data_dir,
+            self.val_transform_keys,
+            split="val",
+            is_cp=self.is_cp,
+            image_size=self.image_size,
+            max_text_len=self.max_text_len,
+            draw_false_image=self.draw_false_image,
+            draw_false_text=self.draw_false_text,
+            image_only=self.image_only,
+            tokenizer=self.tokenizer,
+        )
+
+    def set_test_dataset(self):
+        self.test_dataset = self.dataset_cls(
+            self.data_dir,
+            self.val_transform_keys,
+            split="test",
+            is_cp=self.is_cp,
+            image_size=self.image_size,
+            max_text_len=self.max_text_len,
+            draw_false_image=self.draw_false_image,
+            draw_false_text=self.draw_false_text,
+            image_only=self.image_only,
+            tokenizer=self.tokenizer,
+        )

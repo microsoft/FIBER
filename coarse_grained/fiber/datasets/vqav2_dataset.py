@@ -3,16 +3,17 @@ from .base_dataset import BaseDataset
 
 
 class VQAv2Dataset(BaseDataset):
-    def __init__(self, *args, split="", subset_ratio=1, **kwargs):
+    def __init__(self, *args, split="", is_cp=False, subset_ratio=1, **kwargs):
         assert split in ["train", "val", "test"]
         self.split = split
+        cp_str = "cp" if is_cp else ""
 
         if split == "train":
-            names = ["vqav2_train", "vqav2_val"]
+            names = [f"vqa{cp_str}v2_train", f"vqa{cp_str}v2_val"]
         elif split == "val":
-            names = ["vqav2_val"]
+            names = [f"vqa{cp_str}v2_val"]
         elif split == "test":
-            names = ["vqav2_test"]
+            names = [f"vqa{cp_str}v2_test"]
 
         super().__init__(
             *args,
