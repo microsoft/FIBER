@@ -7,9 +7,8 @@ import json
 import tqdm
 import functools
 
-from .stats import make_gaussian, prior_kld
+from .stats import gaussian_kld, prior_kld
 from torch.utils.data.distributed import DistributedSampler
-from einops import rearrange
 
 from .dist_utils import all_gather
 import torch.distributed as dist
@@ -262,9 +261,7 @@ def compute_encoder_kl(pl_module, batch):
     vae_targets = make_vqa_targets(pl_module, batch)
     mu_xy, logvar_xy = torch.chunk(pl_module.vqa_classifier.encoder_xy(torch.hstack((x, vae_targets))), 2, 1)
     mu_x, logvar_x = torch.chunk(pl_module.vqa_classifier.encoder_x(x), 2, 1)
-    posterior_xy_dist = make_gaussian(mu_xy, logvar_xy)
-    posterior_x_dist = make_gaussian(mu_x, logvar_x)
-    loss = torch.distributions.kl_divergence(posterior_xy_dist, posterior_x_dist)
+    loss = gaussian_kld(mu_xy, logvar_xy, mu_x, logvar_x)
 
     ret = {
         "encoder_kl_loss": loss,
