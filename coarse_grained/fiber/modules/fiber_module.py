@@ -192,27 +192,16 @@ class FIBERTransformerSS(pl.LightningModule):
 
         exclude_list = ['image_queue', 'text_queue', 'queue_ptr', 'queue_total', 'image_input_queue', 'text_input_queue',
             'text_input_mask_queue']
-
-        # ===================== Downstream ===================== #
-        if self.hparams.config["load_path"] != "" and not self.hparams.config["test_only"]:
+        if self.hparams.config["load_path"]:
             ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
             state_dict = ckpt["state_dict"]
             for key in exclude_list:
                 if key in state_dict:
                     state_dict.pop(key)
-            state_dict = swin_adapt_position_encoding(
-                state_dict, before=config["resolution_before"], after=resolution_after
-            )
-            self.load_state_dict(state_dict, strict=False)
-
-        # ===================== load downstream (test_only) ======================
-
-        if self.hparams.config["load_path"] != "" and self.hparams.config["test_only"]:
-            ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
-            state_dict = ckpt["state_dict"]
-            for key in exclude_list:
-                if key in state_dict:
-                    state_dict.pop(key)
+            # if not self.hparams.config["test_only"]:
+            #     state_dict = swin_adapt_position_encoding(
+            #         state_dict, before=config["resolution_before"], after=resolution_after
+            #     )
             self.load_state_dict(state_dict, strict=False)
 
     @torch.no_grad()
