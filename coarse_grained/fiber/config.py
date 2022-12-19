@@ -26,6 +26,7 @@ def config():
     seed = 0
     datasets = ["coco", "vg", "sbu", "gcc"]
     loss_names = _loss_names({"itm": 1, "mlm": 1, "itc": 1})
+    val_mode = "max"
     batch_size = (
         4096  # this is a desired batch size; pl trainer will accumulate gradients when per step batch is smaller.
     )
@@ -78,6 +79,7 @@ def config():
     cider_path = None
 
     # PL Trainer settings
+    ckpt_fpath = None
     resume_from = None
     fast_dev_run = False
     val_check_interval = 1.0
@@ -184,6 +186,7 @@ def task_encoder_kl():
     exp_name = "encoder_kl"
     datasets = ["vqa"]
     loss_names = _loss_names({"encoder_kl": 1})
+    val_mode = "min"
     val_check_interval = 1.0
     batch_size = 512
     max_epoch = 10

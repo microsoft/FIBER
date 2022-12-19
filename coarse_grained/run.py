@@ -22,13 +22,15 @@ def main(_config):
 
     dm = MTDataModule(_config, dist=True)
     model = FIBERTransformerSS(_config)
+    if _config["ckpt_fpath"]:
+        model.load_from_checkpoint(_config["ckpt_fpath"]) # Load model weights
 
     os.makedirs(_config["log_dir"], exist_ok=True)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         save_top_k=1,
         verbose=True,
         monitor="val/the_metric",
-        mode="max",
+        mode=_config["val_mode"],
         save_last=True,
     )
     callbacks = [checkpoint_callback]
@@ -59,7 +61,7 @@ def main(_config):
         accumulate_grad_batches=grad_steps,
         log_every_n_steps=10,
         flush_logs_every_n_steps=10,
-        resume_from_checkpoint=_config["resume_from"],
+        resume_from_checkpoint=_config["resume_from"], # Load everything (model weights, optimizer, lr scheduler, etc)
         weights_summary="top",
         fast_dev_run=_config["fast_dev_run"],
         val_check_interval=_config["val_check_interval"],
