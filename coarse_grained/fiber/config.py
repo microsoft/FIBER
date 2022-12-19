@@ -9,6 +9,7 @@ def _loss_names(d):
         "itc": 0,
         "mlm": 0,
         "vae": 0,
+        "encoder_kl": 0,
         "vqa": 0,
         "nlvr2": 0,
         "caption_mle": 0,
