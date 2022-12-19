@@ -22,8 +22,6 @@ def main(_config):
 
     dm = MTDataModule(_config, dist=True)
     model = FIBERTransformerSS(_config)
-    if _config["ckpt_fpath"]:
-        model.load_from_checkpoint(_config["ckpt_fpath"]) # Load model weights
 
     os.makedirs(_config["log_dir"], exist_ok=True)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(

@@ -79,7 +79,6 @@ def config():
     cider_path = None
 
     # PL Trainer settings
-    ckpt_fpath = None
     resume_from = None
     fast_dev_run = False
     val_check_interval = 1.0
