@@ -145,7 +145,7 @@ def task_finetune_vqa():
     loss_names = _loss_names({"vqa": 1})
     val_check_interval = 1.0
     batch_size = 512
-    max_epoch = 20
+    max_epoch = 10
     max_steps = None
     warmup_steps = 0.1
     learning_rate = 0.001
@@ -165,7 +165,27 @@ def task_finetune_vae():
     loss_names = _loss_names({"vae": 1})
     val_check_interval = 1.0
     batch_size = 512
-    max_epoch = 20
+    max_epoch = 10
+    max_steps = None
+    warmup_steps = 0.1
+    learning_rate = 0.001
+    lr_mult_cross_modal = 5
+    lr_mult_head = 50
+    max_text_len = 50
+    train_transform_keys = ["albef_randaug"]
+    val_transform_keys = ["albef"]
+    image_size = 576
+    pretrained_vit = False
+
+
+@ex.named_config
+def task_encoder_kl():
+    exp_name = "encoder_kl"
+    datasets = ["vqa"]
+    loss_names = _loss_names({"encoder_kl": 1})
+    val_check_interval = 1.0
+    batch_size = 512
+    max_epoch = 10
     max_steps = None
     warmup_steps = 0.1
     learning_rate = 0.001

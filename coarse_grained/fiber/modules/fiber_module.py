@@ -186,7 +186,7 @@ class FIBERTransformerSS(pl.LightningModule):
             )
             self.vqa_classifier.apply(objectives.init_weights)
 
-        if self.hparams.config["loss_names"]["vae"] > 0:
+        if (self.hparams.config["loss_names"]["vae"] > 0) or (self.hparams.config["loss_names"]["encoder_kl"] > 0):
             self.vqa_classifier = VQAClassifier(self.hparams.config)
             self.vqa_classifier.apply(objectives.init_weights)
 
@@ -491,6 +491,9 @@ class FIBERTransformerSS(pl.LightningModule):
         if "vae" in self.current_tasks:
             ret.update(objectives.compute_vae(self, batch))
 
+        if "encoder_kl" in self.current_tasks:
+            ret.update(objectives.compute_encoder_kl(self, batch))
+
         # Natural Language for Visual Reasoning 2
         if "nlvr2" in self.current_tasks:
             ret.update(objectives.compute_nlvr2(self, batch))
@@ -557,7 +560,7 @@ class FIBERTransformerSS(pl.LightningModule):
         fiber_utils.epoch_wrapup(self)
 
     def configure_optimizers(self):
-        return Adam(self.vqa_classifier.parameters(), lr=self.hparams.config["learning_rate"])
+        return fiber_utils.set_schedule(self)
 
 def compute_caption_gold(pl_module, batch, update_freq=1000, min_prob=0.1):
     tokenizer = pl_module.trainer.datamodule.dms[0].tokenizer

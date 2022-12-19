@@ -21,12 +21,7 @@ def main(_config):
     pl.seed_everything(_config["seed"])
 
     dm = MTDataModule(_config, dist=True)
-
     model = FIBERTransformerSS(_config)
-    model.freeze()
-    model.vqa_classifier.requires_grad_(True)
-
-    exp_name = f'{_config["exp_name"]}'
 
     os.makedirs(_config["log_dir"], exist_ok=True)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
@@ -36,17 +31,16 @@ def main(_config):
         mode="max",
         save_last=True,
     )
+    callbacks = [checkpoint_callback]
+
+    exp_name = f'{_config["exp_name"]}'
     logger = pl.loggers.TensorBoardLogger(
         _config["log_dir"],
         name=f'{exp_name}_seed{_config["seed"]}_from_{_config["load_path"].split("/")[-1][:-5]}',
     )
 
-    callbacks = [checkpoint_callback]
-
     num_gpus = _config["num_gpus"] if isinstance(_config["num_gpus"], int) else len(_config["num_gpus"])
-
     grad_steps = max(_config["batch_size"] // (_config["per_gpu_batchsize"] * num_gpus * _config["num_nodes"]), 1)
-
     max_steps = _config["max_steps"] if _config["max_steps"] is not None else None
 
     trainer = pl.Trainer(

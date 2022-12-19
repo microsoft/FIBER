@@ -7,7 +7,7 @@ import json
 import tqdm
 import functools
 
-from .stats import prior_kld
+from .stats import make_gaussian, prior_kld
 from torch.utils.data.distributed import DistributedSampler
 from einops import rearrange
 
@@ -180,6 +180,7 @@ def compute_itc(pl_module, batch):
 
     return ret, image_neg, text_neg, text_mask_neg
 
+
 def make_vqa_targets(pl_module, batch):
     vqa_labels = batch["vqa_labels"]
     vqa_scores = batch["vqa_scores"]
@@ -190,6 +191,7 @@ def make_vqa_targets(pl_module, batch):
             vqa_targets[i, l] = s
 
     return vqa_targets
+
 
 def compute_vqa(pl_module, batch):
     infer = pl_module.infer(batch, mask_text=False, mask_image=False)
@@ -215,6 +217,7 @@ def compute_vqa(pl_module, batch):
     pl_module.log(f"vqa/{phase}/score", score)
 
     return ret
+
 
 def compute_vae(pl_module, batch):
     def sample_z(mu, logvar):
@@ -251,6 +254,28 @@ def compute_vae(pl_module, batch):
     pl_module.log(f"vae/{phase}/score", score)
 
     return ret
+
+
+def compute_encoder_kl(pl_module, batch):
+    infer = pl_module.infer(batch, mask_text=False, mask_image=False)
+    x = infer["cls_feats"]
+    vae_targets = make_vqa_targets(pl_module, batch)
+    mu_xy, logvar_xy = torch.chunk(pl_module.vqa_classifier.encoder_xy(torch.hstack((x, vae_targets))), 2, 1)
+    mu_x, logvar_x = torch.chunk(pl_module.vqa_classifier.encoder_x(x), 2, 1)
+    posterior_xy_dist = make_gaussian(mu_xy, logvar_xy)
+    posterior_x_dist = make_gaussian(mu_x, logvar_x)
+    loss = torch.distributions.kl_divergence(posterior_xy_dist, posterior_x_dist)
+
+    ret = {
+        "encoder_kl_loss": loss,
+    }
+
+    phase = "train" if pl_module.training else "val"
+    loss = getattr(pl_module, f"{phase}_encoder_kl_loss")(ret["encoder_kl_loss"])
+    pl_module.log(f"encoder_kl_loss/{phase}/loss", loss)
+
+    return ret
+
 
 def compute_nlvr2(pl_module, batch):
     infer1 = pl_module.infer(batch, mask_text=False, mask_image=False, image_token_type_idx=1)

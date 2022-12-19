@@ -22,6 +22,8 @@ def set_metrics(pl_module):
             elif k == "vae":
                 setattr(pl_module, f"{split}_{k}_score", VQAScore())
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
+            elif k == "encoder_kl":
+                setattr(pl_module, f"{split}_{k}_loss", Scalar())
             elif k == "nlvr2":
                 if split == "train":
                     setattr(pl_module, f"train_{k}_accuracy", Accuracy())
@@ -81,6 +83,12 @@ def epoch_wrapup(pl_module):
             value = getattr(pl_module, f"{phase}_{loss_name}_score").compute()
             pl_module.log(f"{loss_name}/{phase}/score_epoch", value)
             getattr(pl_module, f"{phase}_{loss_name}_score").reset()
+            pl_module.log(
+                f"{loss_name}/{phase}/loss_epoch",
+                getattr(pl_module, f"{phase}_{loss_name}_loss").compute(),
+            )
+            getattr(pl_module, f"{phase}_{loss_name}_loss").reset()
+        elif loss_name == "encoder_kl":
             pl_module.log(
                 f"{loss_name}/{phase}/loss_epoch",
                 getattr(pl_module, f"{phase}_{loss_name}_loss").compute(),
@@ -169,131 +177,140 @@ def set_schedule(pl_module):
     lr = pl_module.hparams.config["learning_rate"]
     wd = pl_module.hparams.config["weight_decay"]
 
-    no_decay = [
-        "bias",
-        "LayerNorm.bias",
-        "LayerNorm.weight",
-        "norm.bias",
-        "norm.weight",
-        "norm1.bias",
-        "norm1.weight",
-        "norm2.bias",
-        "norm2.weight",
-    ]
-    head_names = ["vqa_classifier", "nlvr2_classifier", "mlm_score", "itm_score", "snli_classifier"]
-    cross_modal_names = ["cross_modal", "i2t", "t2i"]
-    lr_mult_head = pl_module.hparams.config["lr_mult_head"]
-    lr_mult_cross_modal = pl_module.hparams.config["lr_mult_cross_modal"]
-    end_lr = pl_module.hparams.config["end_lr"]
-    decay_power = pl_module.hparams.config["decay_power"]
-    optim_type = pl_module.hparams.config["optim_type"]
-    optimizer_grouped_parameters = [
-        {
-            "params": [
-                p
-                for n, p in pl_module.named_parameters()
-                if not any(nd in n for nd in no_decay)
-                and not any(bb in n for bb in head_names)
-                and not any(ht in n for ht in cross_modal_names)
-            ],
-            "weight_decay": wd,
-            "lr": lr,
-        },
-        {
-            "params": [
-                p
-                for n, p in pl_module.named_parameters()
-                if any(nd in n for nd in no_decay)
-                and not any(bb in n for bb in head_names)
-                and not any(ht in n for ht in cross_modal_names)
-            ],
-            "weight_decay": 0.0,
-            "lr": lr,
-        },
-        {
-            "params": [
-                p
-                for n, p in pl_module.named_parameters()
-                if not any(nd in n for nd in no_decay)
-                and any(bb in n for bb in head_names)
-                and not any(ht in n for ht in cross_modal_names)
-            ],
-            "weight_decay": wd,
-            "lr": lr * lr_mult_head,
-        },
-        {
-            "params": [
-                p
-                for n, p in pl_module.named_parameters()
-                if any(nd in n for nd in no_decay)
-                and any(bb in n for bb in head_names)
-                and not any(ht in n for ht in cross_modal_names)
-            ],
-            "weight_decay": 0.0,
-            "lr": lr * lr_mult_head,
-        },
-        {
-            "params": [
-                p
-                for n, p in pl_module.named_parameters()
-                if not any(nd in n for nd in no_decay)
-                and not any(bb in n for bb in head_names)
-                and any(ht in n for ht in cross_modal_names)
-            ],
-            "weight_decay": wd,
-            "lr": lr * lr_mult_cross_modal,
-        },
-        {
-            "params": [
-                p
-                for n, p in pl_module.named_parameters()
-                if any(nd in n for nd in no_decay)
-                and not any(bb in n for bb in head_names)
-                and any(ht in n for ht in cross_modal_names)
-            ],
-            "weight_decay": 0.0,
-            "lr": lr * lr_mult_cross_modal,
-        },
-    ]
-
-    if optim_type == "adamw":
-        optimizer = AdamW(optimizer_grouped_parameters, lr=lr, eps=1e-8, betas=(0.9, 0.98))
-    elif optim_type == "adam":
-        optimizer = torch.optim.Adam(optimizer_grouped_parameters, lr=lr)
-    elif optim_type == "sgd":
-        optimizer = torch.optim.SGD(optimizer_grouped_parameters, lr=lr, momentum=0.9)
-
-    if pl_module.trainer.max_steps is None:
-        max_steps = (
-            len(pl_module.trainer.datamodule.train_dataloader())
-            * pl_module.trainer.max_epochs
-            // pl_module.trainer.accumulate_grad_batches
-        )
+    if pl_module.hparams.config["exp_name"] in ["finetune_vqa", "finetune_vae"]:
+        pl_module.freeze()
+        pl_module.vqa_classifier.requires_grad_(True)
+        return torch.optim.Adam(pl_module.vqa_classifier.parameters(), lr=lr)
+    elif pl_module.hparams.config["exp_name"] == "posterior_kl":
+        pl_module.freeze()
+        pl_module.vqa_classifier.encoder_x.requires_grad_(True)
+        return torch.optim.Adam(pl_module.vqa_classifier.encoder_x.parameters(), lr=lr)
     else:
-        max_steps = pl_module.trainer.max_steps
+        no_decay = [
+            "bias",
+            "LayerNorm.bias",
+            "LayerNorm.weight",
+            "norm.bias",
+            "norm.weight",
+            "norm1.bias",
+            "norm1.weight",
+            "norm2.bias",
+            "norm2.weight",
+        ]
+        head_names = ["vqa_classifier", "nlvr2_classifier", "mlm_score", "itm_score", "snli_classifier"]
+        cross_modal_names = ["cross_modal", "i2t", "t2i"]
+        lr_mult_head = pl_module.hparams.config["lr_mult_head"]
+        lr_mult_cross_modal = pl_module.hparams.config["lr_mult_cross_modal"]
+        end_lr = pl_module.hparams.config["end_lr"]
+        decay_power = pl_module.hparams.config["decay_power"]
+        optim_type = pl_module.hparams.config["optim_type"]
+        optimizer_grouped_parameters = [
+            {
+                "params": [
+                    p
+                    for n, p in pl_module.named_parameters()
+                    if not any(nd in n for nd in no_decay)
+                    and not any(bb in n for bb in head_names)
+                    and not any(ht in n for ht in cross_modal_names)
+                ],
+                "weight_decay": wd,
+                "lr": lr,
+            },
+            {
+                "params": [
+                    p
+                    for n, p in pl_module.named_parameters()
+                    if any(nd in n for nd in no_decay)
+                    and not any(bb in n for bb in head_names)
+                    and not any(ht in n for ht in cross_modal_names)
+                ],
+                "weight_decay": 0.0,
+                "lr": lr,
+            },
+            {
+                "params": [
+                    p
+                    for n, p in pl_module.named_parameters()
+                    if not any(nd in n for nd in no_decay)
+                    and any(bb in n for bb in head_names)
+                    and not any(ht in n for ht in cross_modal_names)
+                ],
+                "weight_decay": wd,
+                "lr": lr * lr_mult_head,
+            },
+            {
+                "params": [
+                    p
+                    for n, p in pl_module.named_parameters()
+                    if any(nd in n for nd in no_decay)
+                    and any(bb in n for bb in head_names)
+                    and not any(ht in n for ht in cross_modal_names)
+                ],
+                "weight_decay": 0.0,
+                "lr": lr * lr_mult_head,
+            },
+            {
+                "params": [
+                    p
+                    for n, p in pl_module.named_parameters()
+                    if not any(nd in n for nd in no_decay)
+                    and not any(bb in n for bb in head_names)
+                    and any(ht in n for ht in cross_modal_names)
+                ],
+                "weight_decay": wd,
+                "lr": lr * lr_mult_cross_modal,
+            },
+            {
+                "params": [
+                    p
+                    for n, p in pl_module.named_parameters()
+                    if any(nd in n for nd in no_decay)
+                    and not any(bb in n for bb in head_names)
+                    and any(ht in n for ht in cross_modal_names)
+                ],
+                "weight_decay": 0.0,
+                "lr": lr * lr_mult_cross_modal,
+            },
+        ]
 
-    warmup_steps = pl_module.hparams.config["warmup_steps"]
-    if isinstance(pl_module.hparams.config["warmup_steps"], float):
-        warmup_steps = int(max_steps * warmup_steps)
+        if optim_type == "adamw":
+            optimizer = AdamW(optimizer_grouped_parameters, lr=lr, eps=1e-8, betas=(0.9, 0.98))
+        elif optim_type == "adam":
+            optimizer = torch.optim.Adam(optimizer_grouped_parameters, lr=lr)
+        elif optim_type == "sgd":
+            optimizer = torch.optim.SGD(optimizer_grouped_parameters, lr=lr, momentum=0.9)
 
-    if decay_power == "cosine":
-        scheduler = get_cosine_schedule_with_warmup(
-            optimizer,
-            num_warmup_steps=warmup_steps,
-            num_training_steps=max_steps,
+        if pl_module.trainer.max_steps is None:
+            max_steps = (
+                len(pl_module.trainer.datamodule.train_dataloader())
+                * pl_module.trainer.max_epochs
+                // pl_module.trainer.accumulate_grad_batches
+            )
+        else:
+            max_steps = pl_module.trainer.max_steps
+
+        warmup_steps = pl_module.hparams.config["warmup_steps"]
+        if isinstance(pl_module.hparams.config["warmup_steps"], float):
+            warmup_steps = int(max_steps * warmup_steps)
+
+        if decay_power == "cosine":
+            scheduler = get_cosine_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=warmup_steps,
+                num_training_steps=max_steps,
+            )
+        else:
+            scheduler = get_polynomial_decay_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=warmup_steps,
+                num_training_steps=max_steps,
+                lr_end=end_lr,
+                power=decay_power,
+            )
+
+        sched = {"scheduler": scheduler, "interval": "step"}
+
+        return (
+            [optimizer],
+            [sched],
         )
-    else:
-        scheduler = get_polynomial_decay_schedule_with_warmup(
-            optimizer,
-            num_warmup_steps=warmup_steps,
-            num_training_steps=max_steps,
-            lr_end=end_lr,
-            power=decay_power,
-        )
-
-    sched = {"scheduler": scheduler, "interval": "step"}
-
-    return (
-        [optimizer],
-        [sched],
-    )
