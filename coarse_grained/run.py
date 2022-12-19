@@ -42,7 +42,7 @@ def main(_config):
     if exp_name in ["finetune_vqa", "finetune_vae"]:
         model.freeze()
         model.vqa_classifier.requires_grad_(True)
-    elif exp_name == "posterior_kl":
+    elif exp_name == "encoder_kl":
         model.freeze()
         model.vqa_classifier.encoder_x.requires_grad_(True)
 
