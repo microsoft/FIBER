@@ -1,7 +1,7 @@
-import os
 import copy
-import pytorch_lightning as pl
 import os
+import pytorch_lightning as pl
+import torch
 
 os.environ["NCCL_DEBUG"] = "INFO"
 
@@ -38,6 +38,9 @@ def main(_config):
         _config["log_dir"],
         name=f'{exp_name}_seed{_config["seed"]}_from_{_config["load_path"].split("/")[-1][:-5]}',
     )
+
+    if _config["load_path"]:
+        model.load_from_checkpoint(torch.load(_config["load_path"])) # Load model weights
 
     if exp_name in ["finetune_vqa", "finetune_vae"]:
         model.freeze()

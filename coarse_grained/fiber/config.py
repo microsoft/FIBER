@@ -90,7 +90,7 @@ def config():
     per_gpu_batchsize = 0  # you should define this manually with per_gpu_batch_size=#
     num_gpus = 8
     num_nodes = 1
-    load_path = ""
+    load_path = None
     num_workers = 8
     precision = 32
 
