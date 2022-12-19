@@ -178,12 +178,8 @@ def set_schedule(pl_module):
     wd = pl_module.hparams.config["weight_decay"]
 
     if pl_module.hparams.config["exp_name"] in ["finetune_vqa", "finetune_vae"]:
-        pl_module.freeze()
-        pl_module.vqa_classifier.requires_grad_(True)
         return torch.optim.Adam(pl_module.vqa_classifier.parameters(), lr=lr)
     elif pl_module.hparams.config["exp_name"] == "posterior_kl":
-        pl_module.freeze()
-        pl_module.vqa_classifier.encoder_x.requires_grad_(True)
         return torch.optim.Adam(pl_module.vqa_classifier.encoder_x.parameters(), lr=lr)
     else:
         no_decay = [

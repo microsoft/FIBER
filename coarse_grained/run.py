@@ -39,6 +39,13 @@ def main(_config):
         name=f'{exp_name}_seed{_config["seed"]}_from_{_config["load_path"].split("/")[-1][:-5]}',
     )
 
+    if exp_name in ["finetune_vqa", "finetune_vae"]:
+        model.freeze()
+        model.vqa_classifier.requires_grad_(True)
+    elif exp_name == "posterior_kl":
+        model.freeze()
+        model.vqa_classifier.encoder_x.requires_grad_(True)
+
     num_gpus = _config["num_gpus"] if isinstance(_config["num_gpus"], int) else len(_config["num_gpus"])
     grad_steps = max(_config["batch_size"] // (_config["per_gpu_batchsize"] * num_gpus * _config["num_nodes"]), 1)
     max_steps = _config["max_steps"] if _config["max_steps"] is not None else None
