@@ -39,9 +39,6 @@ def main(_config):
         name=f'{exp_name}_seed{_config["seed"]}_from_{_config["load_path"].split("/")[-1][:-5]}',
     )
 
-    if _config["load_path"]:
-        model.load_from_checkpoint(torch.load(_config["load_path"])) # Load model weights
-
     if exp_name in ["finetune_vqa", "finetune_vae"]:
         model.freeze()
         model.vqa_classifier.requires_grad_(True)

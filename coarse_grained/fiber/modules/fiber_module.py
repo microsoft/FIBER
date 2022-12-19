@@ -190,6 +190,20 @@ class FIBERTransformerSS(pl.LightningModule):
         fiber_utils.set_metrics(self)
         self.current_tasks = list()
 
+        exclude_list = ['image_queue', 'text_queue', 'queue_ptr', 'queue_total', 'image_input_queue', 'text_input_queue',
+            'text_input_mask_queue']
+        if self.hparams.config["load_path"]:
+            ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
+            state_dict = ckpt["state_dict"]
+            for key in exclude_list:
+                if key in state_dict:
+                    state_dict.pop(key)
+            # if not self.hparams.config["test_only"]:
+            #     state_dict = swin_adapt_position_encoding(
+            #         state_dict, before=config["resolution_before"], after=resolution_after
+            #     )
+            self.load_state_dict(state_dict, strict=False)
+
     @torch.no_grad()
     def _dequeue_and_enqueue(self, image_feat, text_feat, image_input, text_input, text_input_mask):
         # gather keys before updating queue
