@@ -95,6 +95,10 @@ def config():
     # VAE settings
     latent_size = 512
 
+    # VQA settings
+    is_cp = False
+    train_subset_ratio = 1
+
 
 @ex.named_config
 def task_pretrain_mlm_itm_itc():
@@ -152,8 +156,6 @@ def task_finetune_vqa():
     val_transform_keys = ["albef"]
     image_size = 576
     pretrained_vit = False
-    is_cp = False
-    train_subset_ratio = 1
 
 
 @ex.named_config
@@ -174,8 +176,6 @@ def task_finetune_vae():
     val_transform_keys = ["albef"]
     image_size = 576
     pretrained_vit = False
-    is_cp = False
-    train_subset_ratio = 1
 
 
 @ex.named_config
