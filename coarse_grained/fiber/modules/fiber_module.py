@@ -24,6 +24,7 @@ def concat_all_gather(tensor):
     output = torch.cat(tensors_gather, dim=0)
     return output
 
+
 class VQAClassifier(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -177,6 +178,9 @@ class FIBERTransformerSS(pl.LightningModule):
         if (self.hparams.config["loss_names"]["vae"] > 0) or (self.hparams.config["loss_names"]["encoder_kl"] > 0):
             self.vqa_classifier = VQAClassifier(self.hparams.config)
             self.vqa_classifier.apply(objectives.init_weights)
+
+        if self.hparams.config["loss_names"]["encoder_kl"] > 0:
+            self.test_posteriors = []
 
         if self.hparams.config["loss_names"]["nlvr2"] > 0:
             self.nlvr2_classifier = nn.Sequential(
@@ -527,6 +531,9 @@ class FIBERTransformerSS(pl.LightningModule):
         if self.hparams.config["loss_names"]["vqa"] > 0:
             ret.update(objectives.vqa_test_step(self, batch, output))
 
+        if self.hparams.config["loss_names"]["encoder_kl"] > 0:
+            self.test_posteriors.extend(output["posterior_x"])
+
         if (
             self.hparams.config["loss_names"]["caption_mle"] > 0
             or self.hparams.config["loss_names"]["caption_gold"] > 0
@@ -541,6 +548,9 @@ class FIBERTransformerSS(pl.LightningModule):
 
         if self.hparams.config["loss_names"]["vqa"] > 0:
             objectives.vqa_test_wrapup(outs, model_name)
+
+        if self.hparams.config["loss_names"]["encoder_kl"] > 0:
+            torch.save(self.test_posteriors, self.hparams.config["test_posteriors_path"])
 
         if (
             self.hparams.config["loss_names"]["caption_mle"] > 0

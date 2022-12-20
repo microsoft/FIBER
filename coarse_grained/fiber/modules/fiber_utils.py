@@ -89,10 +89,8 @@ def epoch_wrapup(pl_module):
             )
             getattr(pl_module, f"{phase}_{loss_name}_loss").reset()
         elif loss_name == "encoder_kl":
-            pl_module.log(
-                f"{loss_name}/{phase}/loss_epoch",
-                getattr(pl_module, f"{phase}_{loss_name}_loss").compute(),
-            )
+            value = getattr(pl_module, f"{phase}_{loss_name}_loss").compute()
+            pl_module.log(f"{loss_name}/{phase}/loss_epoch", value)
             getattr(pl_module, f"{phase}_{loss_name}_loss").reset()
         elif loss_name == "nlvr2":
             if phase == "train":

@@ -7,7 +7,7 @@ import json
 import tqdm
 import functools
 
-from .stats import gaussian_kld, prior_kld
+from .stats import log_avg_prob, make_gaussian, prior_kld
 from torch.utils.data.distributed import DistributedSampler
 
 from .dist_utils import all_gather
@@ -229,13 +229,13 @@ def compute_vae(pl_module, batch):
 
     infer = pl_module.infer(batch, mask_text=False, mask_image=False)
     x = infer["cls_feats"]
-    vae_targets = make_vqa_targets(pl_module, batch)
-    mu_xy, logvar_xy = torch.chunk(pl_module.vqa_classifier.encoder_xy(torch.hstack((x, vae_targets))), 2, 1)
+    y = make_vqa_targets(pl_module, batch)
+    mu_xy, logvar_xy = torch.chunk(pl_module.vqa_classifier.encoder_xy(torch.hstack((x, y))), 2, 1)
     z = sample_z(mu_xy, logvar_xy)
     vae_logits = pl_module.vqa_classifier.decoder(torch.hstack((x, z)))
 
     reconst_loss = (
-        F.binary_cross_entropy_with_logits(vae_logits, vae_targets) * vae_targets.shape[1]
+        F.binary_cross_entropy_with_logits(vae_logits, y) * y.shape[1]
     )  # https://github.com/jnhwkim/ban-vqa/blob/master/train.py#L19
 
     vae_loss = reconst_loss + prior_kld(mu_xy, logvar_xy)
@@ -243,7 +243,7 @@ def compute_vae(pl_module, batch):
     ret = {
         "vae_loss": vae_loss,
         "vae_logits": vae_logits,
-        "vae_targets": vae_targets,
+        "vae_targets": y,
     }
 
     phase = "train" if pl_module.training else "val"
@@ -258,18 +258,52 @@ def compute_vae(pl_module, batch):
 def compute_encoder_kl(pl_module, batch):
     infer = pl_module.infer(batch, mask_text=False, mask_image=False)
     x = infer["cls_feats"]
-    vae_targets = make_vqa_targets(pl_module, batch)
-    mu_xy, logvar_xy = torch.chunk(pl_module.vqa_classifier.encoder_xy(torch.hstack((x, vae_targets))), 2, 1)
+    y = make_vqa_targets(pl_module, batch)
+    mu_xy, logvar_xy = torch.chunk(pl_module.vqa_classifier.encoder_xy(torch.hstack((x, y))), 2, 1)
     mu_x, logvar_x = torch.chunk(pl_module.vqa_classifier.encoder_x(x), 2, 1)
-    loss = gaussian_kld(mu_xy, logvar_xy, mu_x, logvar_x)
+    posterior_xy = make_gaussian(mu_xy, logvar_xy)
+    posterior_x = make_gaussian(mu_x, logvar_x)
+    loss = torch.distributions.kl_divergence(posterior_xy, posterior_x).mean()
 
     ret = {
         "encoder_kl_loss": loss,
+        "posterior_x": posterior_x,
     }
 
     phase = "train" if pl_module.training else "val"
     loss = getattr(pl_module, f"{phase}_encoder_kl_loss")(ret["encoder_kl_loss"])
     pl_module.log(f"encoder_kl_loss/{phase}/loss", loss)
+
+    return ret
+
+
+def compute_inference_vae(pl_module, batch):
+    n_samples = pl_module.hparams.config["n_samples"]
+    infer = pl_module.infer(batch, mask_text=False, mask_image=False)
+    x = infer["cls_feats"]
+    y = make_vqa_targets(pl_module, batch)
+    x_rep = torch.repeat_interleave(x, repeats=n_samples, dim=0)
+    mu_x, logvar_x = torch.chunk(pl_module.vqa_classifier.encoder_x(x), 2, 1)
+    posterior_x = make_gaussian(mu_x, logvar_x)
+    z = posterior_x.sample((n_samples,))
+    vae_logits = pl_module.vqa_classifier.decoder(torch.hstack((x, z)))
+
+    logp_y_xz = (
+        F.binary_cross_entropy_with_logits(vae_logits, y) * y.shape[1]
+    )  # https://github.com/jnhwkim/ban-vqa/blob/master/train.py#L19
+
+    log_agg_posterior = []
+    for test_posterior in pl_module.test_posteriors:
+        log_agg_posterior.append(test_posterior.log_prob(z))
+    log_agg_posterior = log_avg_prob(torch.stack(log_agg_posterior))
+
+    conditional_logp = log_avg_prob(logp_y_xz)
+    interventional_logp = log_avg_prob(log_agg_posterior - posterior_x.log_prob(z) + logp_y_xz)
+
+    ret = {
+        "conditional_logp": conditional_logp,
+        "interventional_logp": interventional_logp,
+    }
 
     return ret
 
