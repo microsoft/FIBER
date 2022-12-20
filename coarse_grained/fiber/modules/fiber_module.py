@@ -192,7 +192,7 @@ class FIBERTransformerSS(pl.LightningModule):
 
         exclude_list = ['image_queue', 'text_queue', 'queue_ptr', 'queue_total', 'image_input_queue', 'text_input_queue',
             'text_input_mask_queue']
-        if self.hparams.config["load_path"]:
+        if self.hparams.config["load_path"] != "":
             ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
             state_dict = ckpt["state_dict"]
             for key in exclude_list:
