@@ -164,10 +164,12 @@ class FIBERTransformerSS(pl.LightningModule):
         hs = self.hparams.config["hidden_size"]
 
         # ===================== Downstream ===================== #
+        exclude_keys = ["image_queue", "text_queue", "queue_ptr", "queue_total", "image_input_queue", "text_input_queue",
+            "text_input_mask_queue"]
         if self.hparams.config["load_path"] != "" and not self.hparams.config["test_only"]:
             ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
             state_dict = ckpt["state_dict"]
-            for key in ['image_queue', 'text_queue', 'queue_ptr', 'queue_total', 'image_input_queue', 'text_input_queue', 'text_input_mask_queue']:
+            for key in exclude_keys:
                 if key in state_dict:
                     state_dict.pop(key)
             state_dict = swin_adapt_position_encoding(
@@ -209,7 +211,7 @@ class FIBERTransformerSS(pl.LightningModule):
         if self.hparams.config["load_path"] != "" and self.hparams.config["test_only"]:
             ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
             state_dict = ckpt["state_dict"]
-            for key in ['image_queue', 'text_queue', 'queue_ptr', 'queue_total', 'image_input_queue', 'text_input_queue', 'text_input_mask_queue']:
+            for key in exclude_keys:
                 if key in state_dict:
                     state_dict.pop(key)
             self.load_state_dict(state_dict, strict=False)

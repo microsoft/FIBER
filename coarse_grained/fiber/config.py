@@ -222,6 +222,8 @@ def task_inference_vae():
     val_transform_keys = ["albef"]
     image_size = 576
     pretrained_vit = False
+    per_gpu_batchsize = 1
+    test_only = True
 
 
 @ex.named_config
