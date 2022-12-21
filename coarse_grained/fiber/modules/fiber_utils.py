@@ -24,6 +24,9 @@ def set_metrics(pl_module):
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
             elif k == "encoder_kl":
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
+            elif k == "inference_vae":
+                setattr(pl_module, f"conditional_logp", Scalar())
+                setattr(pl_module, f"interventional_logp", Scalar())
             elif k == "nlvr2":
                 if split == "train":
                     setattr(pl_module, f"train_{k}_accuracy", Accuracy())
@@ -92,6 +95,13 @@ def epoch_wrapup(pl_module):
             value = getattr(pl_module, f"{phase}_{loss_name}_loss").compute()
             pl_module.log(f"{loss_name}/{phase}/loss_epoch", value)
             getattr(pl_module, f"{phase}_{loss_name}_loss").reset()
+        elif loss_name == "inference_vae":
+            conditional_logp_metric = getattr(pl_module, f"conditional_logp")
+            pl_module.log(f"{loss_name}/{phase}/conditional_logp", conditional_logp_metric.compute())
+            conditional_logp_metric.reset()
+            interventional_logp_metric = getattr(pl_module, f"interventional_logp")
+            pl_module.log(f"{loss_name}/{phase}/interventional_logp", interventional_logp_metric.compute())
+            interventional_logp_metric.reset()
         elif loss_name == "nlvr2":
             if phase == "train":
                 value = getattr(pl_module, f"train_{loss_name}_accuracy").compute()

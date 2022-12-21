@@ -8,6 +8,8 @@ class VQAv2DataModule(BaseDataModule):
         super().__init__(_config)
         self.is_cp = _config["is_cp"]
         self.train_subset_ratio = _config["train_subset_ratio"]
+        self.val_subset_ratio = _config["val_subset_ratio"]
+        self.test_subset_ratio = _config["test_subset_ratio"]
 
     @property
     def dataset_cls(self):
@@ -59,6 +61,7 @@ class VQAv2DataModule(BaseDataModule):
             self.val_transform_keys,
             split="val",
             is_cp=self.is_cp,
+            subset_ratio=self.val_subset_ratio,
             image_size=self.image_size,
             max_text_len=self.max_text_len,
             draw_false_image=self.draw_false_image,
@@ -73,6 +76,7 @@ class VQAv2DataModule(BaseDataModule):
             self.val_transform_keys,
             split="test",
             is_cp=self.is_cp,
+            subset_ratio=self.test_subset_ratio,
             image_size=self.image_size,
             max_text_len=self.max_text_len,
             draw_false_image=self.draw_false_image,

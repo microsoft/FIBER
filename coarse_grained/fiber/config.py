@@ -101,6 +101,8 @@ def config():
     # VQA settings
     is_cp = False
     train_subset_ratio = 1
+    val_subset_ratio = 1
+    test_subset_ratio = 1
 
 
 @ex.named_config

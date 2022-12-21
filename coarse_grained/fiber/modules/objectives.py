@@ -279,6 +279,8 @@ def compute_encoder_kl(pl_module, batch):
 
 def compute_inference_vae(pl_module, batch):
     n_samples = pl_module.hparams.config["n_samples"]
+    n_test = len(pl_module.test_posteriors)
+
     infer = pl_module.infer(batch, mask_text=False, mask_image=False)
     x = infer["cls_feats"]
     y = make_vqa_targets(pl_module, batch)
@@ -286,16 +288,16 @@ def compute_inference_vae(pl_module, batch):
     mu_x, logvar_x = torch.chunk(pl_module.vqa_classifier.encoder_x(x), 2, 1)
     posterior_x = make_gaussian(mu_x, logvar_x)
     z = posterior_x.sample((n_samples,))
-    vae_logits = pl_module.vqa_classifier.decoder(torch.hstack((x, z)))
+    vae_logits = pl_module.vqa_classifier.decoder(torch.hstack((x_rep, z)))
 
-    logp_y_xz = (
-        F.binary_cross_entropy_with_logits(vae_logits, y) * y.shape[1]
-    )  # https://github.com/jnhwkim/ban-vqa/blob/master/train.py#L19
+    logp_y_xz = F.binary_cross_entropy_with_logits(vae_logits, y, reduction="none").sum(dim=1)
+    assert logp_y_xz.shape == torch.Size([n_samples]) # (n_samples,)
 
     log_agg_posterior = []
     for test_posterior in pl_module.test_posteriors:
         log_agg_posterior.append(test_posterior.log_prob(z))
     log_agg_posterior = log_avg_prob(torch.stack(log_agg_posterior))
+    assert log_agg_posterior.shape == torch.Size([n_samples]) # (n_samples,)
 
     conditional_logp = log_avg_prob(logp_y_xz)
     interventional_logp = log_avg_prob(log_agg_posterior - posterior_x.log_prob(z) + logp_y_xz)
