@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
@@ -193,6 +194,9 @@ class FIBERTransformerSS(pl.LightningModule):
 
         if self.hparams.config["loss_names"]["encoder_kl"] > 0:
             self.test_posteriors = []
+
+        if self.hparams.config["loss_names"]["inferencce_vae"] > 0:
+            self.test_posteriors = torch.load(self.hparams.config["test_posteriors_path"])
 
         if self.hparams.config["loss_names"]["nlvr2"] > 0:
             self.nlvr2_classifier = nn.Sequential(
@@ -561,7 +565,7 @@ class FIBERTransformerSS(pl.LightningModule):
             objectives.vqa_test_wrapup(outs, model_name)
 
         if self.hparams.config["loss_names"]["encoder_kl"] > 0:
-            torch.save(self.test_posteriors, self.hparams.config["test_posteriors_path"])
+            torch.save(self.test_posteriors, os.path.join(self.logger().log_dir, self.hparams.config["test_posteriors_path"]))
 
         if (
             self.hparams.config["loss_names"]["caption_mle"] > 0

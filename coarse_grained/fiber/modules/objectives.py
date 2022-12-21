@@ -283,7 +283,6 @@ def compute_encoder_kl(pl_module, batch):
 
 def compute_inference_vae(pl_module, batch):
     n_samples = pl_module.hparams.config["n_samples"]
-    n_test = len(pl_module.test_posteriors)
 
     infer = pl_module.infer(batch, mask_text=False, mask_image=False)
     x = infer["cls_feats"]
