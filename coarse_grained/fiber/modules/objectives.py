@@ -271,7 +271,7 @@ def compute_encoder_kl(pl_module, batch):
 
     ret = {
         "encoder_kl_loss": loss,
-        "posterior_x": posterior_x,
+        "posterior_x": make_gaussian(mu_x.detach().cpu(), logvar_x.detach().cpu()),
     }
 
     phase = "train" if pl_module.training else "val"

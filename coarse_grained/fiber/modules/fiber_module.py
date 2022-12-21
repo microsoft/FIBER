@@ -544,7 +544,7 @@ class FIBERTransformerSS(pl.LightningModule):
             ret.update(objectives.vqa_test_step(self, batch, output))
 
         if self.hparams.config["loss_names"]["encoder_kl"] > 0:
-            self.test_posteriors.append(output["posterior_x"].detach().cpu())
+            self.test_posteriors.append(output["posterior_x"])
 
         if self.hparams.config["loss_names"]["inference_vae"] > 0:
             ret.update(output)
