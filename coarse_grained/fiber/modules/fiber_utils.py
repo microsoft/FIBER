@@ -22,6 +22,7 @@ def set_metrics(pl_module):
             elif k == "vae":
                 setattr(pl_module, f"{split}_{k}_score", VQAScore())
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
+                setattr(pl_module, f"{split}_kld_loss", Scalar())
             elif k == "encoder_kl":
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
             elif k == "inference_vae":
@@ -74,31 +75,36 @@ def epoch_wrapup(pl_module):
         value = 0
 
         if loss_name == "vqa":
-            value = getattr(pl_module, f"{phase}_{loss_name}_score").compute()
+            score_metric = getattr(pl_module, f"{phase}_{loss_name}_score")
+            value = score_metric.compute()
             pl_module.log(f"{loss_name}/{phase}/score_epoch", value)
-            getattr(pl_module, f"{phase}_{loss_name}_score").reset()
-            pl_module.log(
-                f"{loss_name}/{phase}/loss_epoch",
-                getattr(pl_module, f"{phase}_{loss_name}_loss").compute(),
-            )
-            getattr(pl_module, f"{phase}_{loss_name}_loss").reset()
+            score_metric.reset()
+
+            loss_metric = getattr(pl_module, f"{phase}_{loss_name}_loss")
+            pl_module.log(f"{loss_name}/{phase}/loss_epoch", loss_metric.compute())
+            loss_metric.reset()
         elif loss_name == "vae":
-            value = getattr(pl_module, f"{phase}_{loss_name}_score").compute()
+            score_metric = getattr(pl_module, f"{phase}_{loss_name}_score")
+            value = score_metric.compute()
             pl_module.log(f"{loss_name}/{phase}/score_epoch", value)
-            getattr(pl_module, f"{phase}_{loss_name}_score").reset()
-            pl_module.log(
-                f"{loss_name}/{phase}/loss_epoch",
-                getattr(pl_module, f"{phase}_{loss_name}_loss").compute(),
-            )
-            getattr(pl_module, f"{phase}_{loss_name}_loss").reset()
+            score_metric.reset()
+
+            loss_metric = getattr(pl_module, f"{phase}_{loss_name}_loss")
+            pl_module.log(f"{loss_name}/{phase}/loss_epoch", loss_metric.compute())
+            loss_metric.reset()
+
+            kld_loss_metric = getattr(pl_module, f"{phase}_kld_loss")
+            pl_module.log(f"{loss_name}/{phase}/kld_loss_epoch", kld_loss_metric.compute())
+            kld_loss_metric.reset()
         elif loss_name == "encoder_kl":
-            value = getattr(pl_module, f"{phase}_{loss_name}_loss").compute()
-            pl_module.log(f"{loss_name}/{phase}/loss_epoch", value)
-            getattr(pl_module, f"{phase}_{loss_name}_loss").reset()
+            score_metric = getattr(pl_module, f"{phase}_{loss_name}_loss")
+            pl_module.log(f"{loss_name}/{phase}/loss_epoch", score_metric.compute())
+            score_metric.reset()
         elif loss_name == "inference_vae":
             conditional_logp_metric = getattr(pl_module, f"conditional_logp")
             pl_module.log(f"{loss_name}/{phase}/conditional_logp", conditional_logp_metric.compute())
             conditional_logp_metric.reset()
+
             interventional_logp_metric = getattr(pl_module, f"interventional_logp")
             pl_module.log(f"{loss_name}/{phase}/interventional_logp", interventional_logp_metric.compute())
             interventional_logp_metric.reset()
