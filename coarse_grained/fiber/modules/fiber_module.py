@@ -8,7 +8,6 @@ from . import heads, objectives, fiber_utils
 from .swin_helpers import swin_adapt_position_encoding
 from transformers import RobertaConfig
 from .roberta import RobertaModel, _prepare_decoder_attention_mask
-from torch.optim import Adam
 
 @torch.no_grad()
 def concat_all_gather(tensor):
@@ -165,6 +164,18 @@ class FIBERTransformerSS(pl.LightningModule):
 
         hs = self.hparams.config["hidden_size"]
 
+        # ===================== Downstream ===================== #
+        if self.hparams.config["load_path"] != "" and not self.hparams.config["test_only"]:
+            ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
+            state_dict = ckpt["state_dict"]
+            for key in ['image_queue', 'text_queue', 'queue_ptr', 'queue_total', 'image_input_queue', 'text_input_queue', 'text_input_mask_queue']:
+                if key in state_dict:
+                    state_dict.pop(key)
+            state_dict = swin_adapt_position_encoding(
+                state_dict, before=config["resolution_before"], after=resolution_after
+            )
+            self.load_state_dict(state_dict, strict=False)
+
         if self.hparams.config["loss_names"]["vqa"] > 0:
             vs = self.hparams.config["vqav2_label_size"]
             self.vqa_classifier = nn.Sequential(
@@ -194,18 +205,14 @@ class FIBERTransformerSS(pl.LightningModule):
         fiber_utils.set_metrics(self)
         self.current_tasks = list()
 
-        exclude_list = ['image_queue', 'text_queue', 'queue_ptr', 'queue_total', 'image_input_queue', 'text_input_queue',
-            'text_input_mask_queue']
-        if self.hparams.config["load_path"] != "":
+        # ===================== load downstream (test_only) ======================
+
+        if self.hparams.config["load_path"] != "" and self.hparams.config["test_only"]:
             ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
             state_dict = ckpt["state_dict"]
-            for key in exclude_list:
+            for key in ['image_queue', 'text_queue', 'queue_ptr', 'queue_total', 'image_input_queue', 'text_input_queue', 'text_input_mask_queue']:
                 if key in state_dict:
                     state_dict.pop(key)
-            # if not self.hparams.config["test_only"]:
-            #     state_dict = swin_adapt_position_encoding(
-            #         state_dict, before=config["resolution_before"], after=resolution_after
-            #     )
             self.load_state_dict(state_dict, strict=False)
 
     @torch.no_grad()
