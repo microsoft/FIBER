@@ -195,7 +195,7 @@ class FIBERTransformerSS(pl.LightningModule):
         if self.hparams.config["loss_names"]["encoder_kl"] > 0:
             self.test_posteriors = []
 
-        if self.hparams.config["loss_names"]["inferencce_vae"] > 0:
+        if self.hparams.config["loss_names"]["inference_vae"] > 0:
             self.test_posteriors = torch.load(self.hparams.config["test_posteriors_path"])
 
         if self.hparams.config["loss_names"]["nlvr2"] > 0:
