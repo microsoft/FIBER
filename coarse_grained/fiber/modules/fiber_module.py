@@ -193,10 +193,11 @@ class FIBERTransformerSS(pl.LightningModule):
             self.vqa_classifier.apply(objectives.init_weights)
 
         if self.hparams.config["loss_names"]["encoder_kl"] > 0:
-            self.test_posteriors = []
+            self.test_mu_x = []
+            self.test_logvar_x = []
 
         if self.hparams.config["loss_names"]["inference_vae"] > 0:
-            self.test_posteriors = torch.load(self.hparams.config["test_posteriors_path"])
+            self.test_mu_x, self.test_logvar_x = torch.load(self.hparams.config["test_posteriors_path"])
 
         if self.hparams.config["loss_names"]["nlvr2"] > 0:
             self.nlvr2_classifier = nn.Sequential(
@@ -530,7 +531,7 @@ class FIBERTransformerSS(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         fiber_utils.set_task(self)
-        output = self(batch)
+        self(batch)
 
     def validation_epoch_end(self, outs):
         fiber_utils.epoch_wrapup(self)
@@ -544,7 +545,8 @@ class FIBERTransformerSS(pl.LightningModule):
             ret.update(objectives.vqa_test_step(self, batch, output))
 
         if self.hparams.config["loss_names"]["encoder_kl"] > 0:
-            self.test_posteriors.append(output["posterior_x"])
+            self.test_mu_x.append(output["mu_x"])
+            self.test_logvar_x.append(output["logvar_x"])
 
         if self.hparams.config["loss_names"]["inference_vae"] > 0:
             ret.update(output)
@@ -565,7 +567,10 @@ class FIBERTransformerSS(pl.LightningModule):
             objectives.vqa_test_wrapup(outs, model_name)
 
         if self.hparams.config["loss_names"]["encoder_kl"] > 0:
-            torch.save(self.test_posteriors, os.path.join(self.logger().log_dir, self.hparams.config["test_posteriors_path"]))
+            self.test_mu_x = torch.vstack(self.test_mu_x)
+            self.test_logvar_x = torch.vstack(self.test_logvar_x)
+            torch.save((self.test_mu_x, self.test_logvar_x), os.path.join(self.logger().log_dir,
+                self.hparams.config["test_posteriors_path"]))
 
         if (
             self.hparams.config["loss_names"]["caption_mle"] > 0
