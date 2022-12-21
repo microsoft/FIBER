@@ -34,7 +34,7 @@ def main(_config):
     callbacks = [checkpoint_callback]
 
     exp_name = f'{_config["exp_name"]}'
-    logger = pl.loggers.TensorBoardLogger(
+    logger = pl.loggers.CSVLogger(
         _config["log_dir"],
         name=f'{exp_name}_seed{_config["seed"]}_from_{_config["load_path"].split("/")[-1][:-5]}',
     )

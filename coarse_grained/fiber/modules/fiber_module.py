@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
-import numpy as np
 
 from . import swin_transformer, roberta
 from . import heads, objectives, fiber_utils
