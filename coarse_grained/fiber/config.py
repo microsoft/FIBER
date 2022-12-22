@@ -23,7 +23,6 @@ def _loss_names(d):
 
 @ex.config
 def config():
-    save_path = None
     exp_name = "fiber"
     seed = 0
     datasets = ["coco", "vg", "sbu", "gcc"]
