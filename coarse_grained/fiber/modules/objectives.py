@@ -315,6 +315,10 @@ def compute_inference_vae(pl_module, batch):
         "interventional_logp": interventional_logp,
     }
 
+    cuml_conditional_logp = getattr(pl_module, "conditional_logp")(ret["conditional_logp"])
+    pl_module.log(f"encoder_kl_loss/conditional_logp", cuml_conditional_logp)
+    cuml_interventional_logp = getattr(pl_module, "interventional_logp")(ret["interventional_logp"])
+    pl_module.log(f"encoder_kl_loss/interventional_logp", cuml_interventional_logp)
     return ret
 
 
