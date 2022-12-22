@@ -105,6 +105,7 @@ def config():
     val_subset_ratio = 1
     test_subset_ratio = 1
     test_posteriors_path = None
+    n_posteriors = 500
 
 
 @ex.named_config

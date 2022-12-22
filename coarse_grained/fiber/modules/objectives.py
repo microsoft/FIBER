@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -298,7 +299,10 @@ def compute_inference_vae(pl_module, batch):
     assert logp_y_xz.shape == torch.Size([n_samples]) # (n_samples,)
 
     log_agg_posterior = []
-    for test_posterior in pl_module.test_posteriors:
+    n_test = len(pl_module.test_mu_x)
+    idxs = np.random.choice(n_test, pl_module.hparams.config["n_posteriors"], replace=False)
+    for idx in idxs:
+        test_posterior = make_gaussian(pl_module.test_mu_x[idx][None], pl_module.test_logvar_x[idx][None])
         log_agg_posterior.append(test_posterior.log_prob(z))
     log_agg_posterior = log_avg_prob(torch.stack(log_agg_posterior))
     assert log_agg_posterior.shape == torch.Size([n_samples]) # (n_samples,)
