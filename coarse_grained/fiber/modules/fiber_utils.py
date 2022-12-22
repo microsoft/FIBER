@@ -93,7 +93,7 @@ def epoch_wrapup(pl_module):
             pl_module.log(f"{loss_name}/{phase}/loss_epoch", loss_metric.compute())
             loss_metric.reset()
 
-            kld_loss_metric = getattr(pl_module, f"{phase}_kld_loss")
+            kld_loss_metric = getattr(pl_module, f"{phase}_{loss_name}_kld_loss")
             pl_module.log(f"{loss_name}/{phase}/kld_loss_epoch", kld_loss_metric.compute())
             kld_loss_metric.reset()
         elif loss_name == "encoder_kl":
