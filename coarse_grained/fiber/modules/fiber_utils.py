@@ -97,9 +97,10 @@ def epoch_wrapup(pl_module):
             pl_module.log(f"{loss_name}/{phase}/kld_loss_epoch", kld_loss_metric.compute())
             kld_loss_metric.reset()
         elif loss_name == "encoder_kl":
-            score_metric = getattr(pl_module, f"{phase}_{loss_name}_loss")
-            pl_module.log(f"{loss_name}/{phase}/loss_epoch", score_metric.compute())
-            score_metric.reset()
+            loss_metric = getattr(pl_module, f"{phase}_{loss_name}_loss")
+            value = loss_metric.compute()
+            pl_module.log(f"{loss_name}/{phase}/loss_epoch", value)
+            loss_metric.reset()
         elif loss_name == "inference_vae":
             conditional_logp_metric = getattr(pl_module, "conditional_logp")
             pl_module.log(f"{loss_name}/conditional_logp", conditional_logp_metric.compute())
