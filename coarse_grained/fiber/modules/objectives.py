@@ -290,12 +290,13 @@ def compute_inference_vae(pl_module, batch):
     x = infer["cls_feats"]
     y = make_vqa_targets(pl_module, batch)
     x_rep = torch.repeat_interleave(x, repeats=n_samples, dim=0)
+    y_rep = torch.repeat_interleave(y, repeats=n_samples, dim=0)
     mu_x, logvar_x = torch.chunk(pl_module.vqa_classifier.encoder_x(x), 2, 1)
     posterior_x = make_gaussian(mu_x, logvar_x)
     z = posterior_x.sample((n_samples,))
     vae_logits = pl_module.vqa_classifier.decoder(torch.hstack((x_rep, z)))
 
-    logp_y_xz = F.binary_cross_entropy_with_logits(vae_logits, y, reduction="none").sum(dim=1)
+    logp_y_xz = F.binary_cross_entropy_with_logits(vae_logits, y_rep, reduction="none").sum(dim=1)
     assert logp_y_xz.shape == torch.Size([n_samples]) # (n_samples,)
 
     log_agg_posterior = []
