@@ -101,12 +101,12 @@ def epoch_wrapup(pl_module):
             pl_module.log(f"{loss_name}/{phase}/loss_epoch", score_metric.compute())
             score_metric.reset()
         elif loss_name == "inference_vae":
-            conditional_logp_metric = getattr(pl_module, f"conditional_logp")
-            pl_module.log(f"{loss_name}/{phase}/conditional_logp", conditional_logp_metric.compute())
+            conditional_logp_metric = getattr(pl_module, "conditional_logp")
+            pl_module.log(f"{loss_name}/conditional_logp", conditional_logp_metric.compute())
             conditional_logp_metric.reset()
 
-            interventional_logp_metric = getattr(pl_module, f"interventional_logp")
-            pl_module.log(f"{loss_name}/{phase}/interventional_logp", interventional_logp_metric.compute())
+            interventional_logp_metric = getattr(pl_module, "interventional_logp")
+            pl_module.log(f"{loss_name}/interventional_logp", interventional_logp_metric.compute())
             interventional_logp_metric.reset()
         elif loss_name == "nlvr2":
             if phase == "train":

@@ -503,6 +503,9 @@ class FIBERTransformerSS(pl.LightningModule):
         if "encoder_kl" in self.current_tasks:
             ret.update(objectives.compute_encoder_kl(self, batch))
 
+        if "inference_vae" in self.current_tasks:
+            ret.update(objectives.compute_inference_vae(self, batch))
+
         # Natural Language for Visual Reasoning 2
         if "nlvr2" in self.current_tasks:
             ret.update(objectives.compute_nlvr2(self, batch))
