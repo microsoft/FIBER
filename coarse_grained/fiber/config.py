@@ -98,14 +98,14 @@ def config():
     # VAE settings
     latent_size = 512
     n_samples = 500
+    n_posteriors = 500
+    test_posteriors_path = None
 
     # VQA settings
     is_cp = False
     train_subset_ratio = 1
     val_subset_ratio = 1
     test_subset_ratio = 1
-    test_posteriors_path = None
-    n_posteriors = 500
 
 
 @ex.named_config
