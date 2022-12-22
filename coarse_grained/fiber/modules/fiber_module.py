@@ -569,8 +569,8 @@ class FIBERTransformerSS(pl.LightningModule):
         if self.hparams.config["loss_names"]["encoder_kl"] > 0:
             self.test_mu_x = torch.vstack(self.test_mu_x)
             self.test_logvar_x = torch.vstack(self.test_logvar_x)
-            torch.save((self.test_mu_x, self.test_logvar_x), os.path.join(self.logger().log_dir,
-                self.hparams.config["test_posteriors_path"]))
+            torch.save((self.test_mu_x, self.test_logvar_x), os.path.join(self.hparams.config["save_path"],
+                "test_posteriors.pt"))
 
         if (
             self.hparams.config["loss_names"]["caption_mle"] > 0

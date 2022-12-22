@@ -36,7 +36,7 @@ def main(_config):
     exp_name = f'{_config["exp_name"]}'
     logger = pl.loggers.CSVLogger(
         _config["log_dir"],
-        name=f'{exp_name}_seed{_config["seed"]}_from_{_config["load_path"].split("/")[-1][:-5]}',
+        name=_config["save_path"],
     )
 
     if exp_name in ["finetune_vqa", "finetune_vae"]:
