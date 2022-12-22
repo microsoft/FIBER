@@ -188,7 +188,9 @@ class FIBERTransformerSS(pl.LightningModule):
             )
             self.vqa_classifier.apply(objectives.init_weights)
 
-        if (self.hparams.config["loss_names"]["vae"] > 0) or (self.hparams.config["loss_names"]["encoder_kl"] > 0):
+        if (self.hparams.config["loss_names"]["vae"] > 0) or \
+                (self.hparams.config["loss_names"]["encoder_kl"] > 0) or \
+                (self.hparams.config["loss_names"]["inference_vae"] > 0):
             self.vqa_classifier = VQAClassifier(self.hparams.config)
             self.vqa_classifier.apply(objectives.init_weights)
 
