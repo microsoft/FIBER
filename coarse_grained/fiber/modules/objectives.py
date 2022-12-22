@@ -250,7 +250,7 @@ def compute_vae(pl_module, batch):
 
     phase = "train" if pl_module.training else "val"
     cuml_vae_loss = getattr(pl_module, f"{phase}_vae_loss")(ret["vae_loss"])
-    cuml_kld_loss = getattr(pl_module, f"{phase}_kld_loss")(ret["kld_loss"])
+    cuml_kld_loss = getattr(pl_module, f"{phase}_vae_kld_loss")(ret["vae_kld_loss"])
     cuml_score = getattr(pl_module, f"{phase}_vae_score")(ret["vae_logits"], ret["vae_targets"])
     pl_module.log(f"vae/{phase}/loss", cuml_vae_loss)
     pl_module.log(f"vae/{phase}/kld_loss", cuml_kld_loss)

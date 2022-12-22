@@ -22,7 +22,7 @@ def set_metrics(pl_module):
             elif k == "vae":
                 setattr(pl_module, f"{split}_{k}_score", VQAScore())
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
-                setattr(pl_module, f"{split}_kld_loss", Scalar())
+                setattr(pl_module, f"{split}_{k}_kld_loss", Scalar())
             elif k == "encoder_kl":
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
             elif k == "inference_vae":
