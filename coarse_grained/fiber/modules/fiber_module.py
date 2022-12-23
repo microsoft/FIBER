@@ -173,9 +173,9 @@ class FIBERTransformerSS(pl.LightningModule):
             for key in exclude_keys:
                 if key in state_dict:
                     state_dict.pop(key)
-            # state_dict = swin_adapt_position_encoding(
-            #     state_dict, before=config["resolution_before"], after=resolution_after
-            # )
+            state_dict = swin_adapt_position_encoding(
+                state_dict, before=config["resolution_before"], after=resolution_after
+            )
             self.load_state_dict(state_dict, strict=False)
 
         if self.hparams.config["loss_names"]["vqa"] > 0:
