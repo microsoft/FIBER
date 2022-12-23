@@ -207,7 +207,8 @@ class FIBERTransformerSS(pl.LightningModule):
             for key in exclude_keys:
                 if key in state_dict:
                     state_dict.pop(key)
-            if not self.hparams.config["test_only"]:
+            if os.path.basename(self.hparams.config["load_path"]) == "fiber_pretrain.ckpt" and not \
+                    self.hparams.config["test_only"]:
                 state_dict = swin_adapt_position_encoding(
                     state_dict, before=config["resolution_before"], after=resolution_after
                 )
