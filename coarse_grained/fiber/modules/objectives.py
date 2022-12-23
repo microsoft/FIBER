@@ -239,23 +239,20 @@ def compute_vae(pl_module, batch):
         F.binary_cross_entropy_with_logits(vae_logits, y) * y.shape[1]
     )  # https://github.com/jnhwkim/ban-vqa/blob/master/train.py#L19
 
-    kld_loss = prior_kld(mu_xy, logvar_xy)
-    vae_loss = reconst_loss + kld_loss
+    kld = prior_kld(mu_xy, logvar_xy)
+    vae_loss = reconst_loss + kld
 
     ret = {
         "vae_loss": vae_loss,
-        "vae_kld_loss": kld_loss,
+        "vae_kld": kld,
         "vae_logits": vae_logits,
         "vae_targets": y,
     }
 
     phase = "train" if pl_module.training else "val"
-    cuml_vae_loss = getattr(pl_module, f"{phase}_vae_loss")(ret["vae_loss"])
-    cuml_kld_loss = getattr(pl_module, f"{phase}_vae_kld_loss")(ret["vae_kld_loss"])
-    cuml_score = getattr(pl_module, f"{phase}_vae_score")(ret["vae_logits"], ret["vae_targets"])
-    pl_module.log(f"vae/{phase}/loss", cuml_vae_loss)
-    pl_module.log(f"vae/{phase}/kld_loss", cuml_kld_loss)
-    pl_module.log(f"vae/{phase}/score", cuml_score)
+    getattr(pl_module, f"{phase}_vae_loss")(ret["vae_loss"])
+    getattr(pl_module, f"{phase}_vae_kld")(ret["vae_kld"])
+    getattr(pl_module, f"{phase}_vae_score")(ret["vae_logits"], ret["vae_targets"])
 
     return ret
 
@@ -272,13 +269,16 @@ def compute_encoder_kl(pl_module, batch):
 
     ret = {
         "encoder_kl_loss": loss,
+        "kld_x": prior_kld(mu_x, logvar_x),
+        "kld_xy": prior_kld(mu_xy, logvar_xy),
         "mu_x": mu_x.detach().cpu(),
         "logvar_x": logvar_x.detach().cpu(),
     }
 
     phase = "train" if pl_module.training else "val"
-    loss = getattr(pl_module, f"{phase}_encoder_kl_loss")(ret["encoder_kl_loss"])
-    pl_module.log(f"encoder_kl_loss/{phase}/loss", loss)
+    getattr(pl_module, f"{phase}_encoder_kl_loss")(ret["encoder_kl_loss"])
+    getattr(pl_module, f"{phase}_encoder_kl_kld_x")(ret["kld_x"])
+    getattr(pl_module, f"{phase}_encoder_kl_kld_xy")(ret["kld_xy"])
 
     return ret
 

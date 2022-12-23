@@ -22,9 +22,11 @@ def set_metrics(pl_module):
             elif k == "vae":
                 setattr(pl_module, f"{split}_{k}_score", VQAScore())
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
-                setattr(pl_module, f"{split}_{k}_kld_loss", Scalar())
+                setattr(pl_module, f"{split}_{k}_kld", Scalar())
             elif k == "encoder_kl":
                 setattr(pl_module, f"{split}_{k}_loss", Scalar())
+                setattr(pl_module, f"{split}_{k}_kld_x", Scalar())
+                setattr(pl_module, f"{split}_{k}_kld_xy", Scalar())
             elif k == "inference_vae":
                 setattr(pl_module, f"conditional_logp", Scalar())
                 setattr(pl_module, f"interventional_logp", Scalar())
@@ -93,14 +95,22 @@ def epoch_wrapup(pl_module):
             pl_module.log(f"{loss_name}/{phase}/loss_epoch", loss_metric.compute())
             loss_metric.reset()
 
-            kld_loss_metric = getattr(pl_module, f"{phase}_{loss_name}_kld_loss")
-            pl_module.log(f"{loss_name}/{phase}/kld_loss_epoch", kld_loss_metric.compute())
-            kld_loss_metric.reset()
+            kld_metric = getattr(pl_module, f"{phase}_{loss_name}_kld")
+            pl_module.log(f"{loss_name}/{phase}/kld_epoch", kld_metric.compute())
+            kld_metric.reset()
         elif loss_name == "encoder_kl":
             loss_metric = getattr(pl_module, f"{phase}_{loss_name}_loss")
             value = loss_metric.compute()
             pl_module.log(f"{loss_name}/{phase}/loss_epoch", value)
             loss_metric.reset()
+
+            kld_x_metric = getattr(pl_module, f"{phase}_{loss_name}_kld_x")
+            pl_module.log(f"{loss_name}/{phase}/kld_x_epoch", kld_x_metric.compute())
+            kld_x_metric.reset()
+
+            kld_xy_metric = getattr(pl_module, f"{phase}_{loss_name}_kld_xy")
+            pl_module.log(f"{loss_name}/{phase}/kld_xy_epoch", kld_xy_metric.compute())
+            kld_xy_metric.reset()
         elif loss_name == "inference_vae":
             conditional_logp_metric = getattr(pl_module, "conditional_logp")
             pl_module.log(f"{loss_name}/conditional_logp", conditional_logp_metric.compute())
