@@ -37,7 +37,7 @@ def main(_config):
     logger = pl.loggers.CSVLogger(
         _config["log_dir"],
         name="",
-        version="",
+        version=_config["seed"],
     )
 
     if exp_name in ["finetune_vqa", "finetune_vae"]:

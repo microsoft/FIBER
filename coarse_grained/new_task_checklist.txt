@@ -1,4 +1,4 @@
-1. Add task to utils.config.py
+1. Add task to config.py
 2. Add metrics in fiber_utils.set_metrics()
 3. Log metrics in fiber_utils.epoch_wrapup(), remember to set `value` to val metric
 2. Implement objectives.compute_task()
