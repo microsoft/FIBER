@@ -231,7 +231,7 @@ def compute_vae(pl_module, batch):
     infer = pl_module.infer(batch, mask_text=False, mask_image=False)
     x = infer["cls_feats"]
     y = make_vqa_targets(pl_module, batch)
-    mu_xy, logvar_xy = torch.chunk(pl_module.vqa_classifier.encoder_xy(torch.hstack((x, y))), 2, 1)
+    mu_xy, logvar_xy = pl_module.vqa_classifier.encoder_xy(torch.hstack((x, y)))
     z = sample_z(mu_xy, logvar_xy)
     vae_logits = pl_module.vqa_classifier.decoder(torch.hstack((x, z)))
 
@@ -261,8 +261,8 @@ def compute_encoder_kl(pl_module, batch):
     infer = pl_module.infer(batch, mask_text=False, mask_image=False)
     x = infer["cls_feats"]
     y = make_vqa_targets(pl_module, batch)
-    mu_xy, logvar_xy = torch.chunk(pl_module.vqa_classifier.encoder_xy(torch.hstack((x, y))), 2, 1)
-    mu_x, logvar_x = torch.chunk(pl_module.vqa_classifier.encoder_x(x), 2, 1)
+    mu_xy, logvar_xy = pl_module.vqa_classifier.encoder_xy(torch.hstack((x, y)))
+    mu_x, logvar_x = pl_module.vqa_classifier.encoder_x(x)
     posterior_xy = make_gaussian(mu_xy, logvar_xy)
     posterior_x = make_gaussian(mu_x, logvar_x)
     loss = torch.distributions.kl_divergence(posterior_xy, posterior_x).mean()
@@ -291,7 +291,7 @@ def compute_inference_vae(pl_module, batch):
     y = make_vqa_targets(pl_module, batch)
     x_rep = torch.repeat_interleave(x, repeats=n_samples, dim=0)
     y_rep = torch.repeat_interleave(y, repeats=n_samples, dim=0)
-    mu_x, logvar_x = torch.chunk(pl_module.vqa_classifier.encoder_x(x), 2, 1)
+    mu_x, logvar_x = pl_module.vqa_classifier.encoder_x(x)
     posterior_x = make_gaussian(mu_x, logvar_x)
     z = posterior_x.sample((n_samples,))
     vae_logits = pl_module.vqa_classifier.decoder(torch.hstack((x_rep, z)))

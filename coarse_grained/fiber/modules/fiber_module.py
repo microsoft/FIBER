@@ -24,6 +24,32 @@ def concat_all_gather(tensor):
     return output
 
 
+class MLP(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        super().__init__()
+        module_list = []
+        module_list.append(nn.Linear(input_dim, hidden_dim))
+        module_list.append(nn.LayerNorm(hidden_dim))
+        module_list.append(nn.GELU())
+        module_list.append(nn.Linear(hidden_dim, output_dim))
+        self.module_list = nn.Sequential(*module_list)
+
+    def forward(self, *args):
+        return self.module_list(torch.hstack(args))
+
+
+class GaussianNetwork(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        super().__init__()
+        self.mu_net = MLP(input_dim, hidden_dim, output_dim)
+        self.logvar_net = MLP(input_dim, hidden_dim, output_dim)
+
+    def forward(self, *args):
+        mu = self.mu_net(*args)
+        logvar = self.logvar_net(*args)
+        return mu, logvar
+
+
 class VQAClassifier(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -31,25 +57,24 @@ class VQAClassifier(nn.Module):
         latent_size = config["latent_size"]
         output_size = config["vqav2_label_size"]
 
-        self.encoder_xy = nn.Sequential(
-            nn.Linear(hidden_size * 2 + output_size, hidden_size * 2),
-            nn.LayerNorm(hidden_size * 2),
-            nn.GELU(),
-            nn.Linear(hidden_size * 2, latent_size * 2),
+        self.encoder_xy = GaussianNetwork(
+            hidden_size * 2 + output_size,
+            hidden_size * 2,
+            latent_size
         )
         self.encoder_xy.apply(objectives.init_weights)
-        self.encoder_x = nn.Sequential(
-            nn.Linear(hidden_size * 2, hidden_size * 2),
-            nn.LayerNorm(hidden_size * 2),
-            nn.GELU(),
-            nn.Linear(hidden_size * 2, latent_size * 2),
+
+        self.encoder_x = GaussianNetwork(
+            hidden_size * 2,
+            hidden_size * 2,
+            latent_size
         )
         self.encoder_x.apply(objectives.init_weights)
-        self.decoder = nn.Sequential(
-            nn.Linear(hidden_size * 2 + latent_size, hidden_size * 2),
-            nn.LayerNorm(hidden_size * 2),
-            nn.GELU(),
-            nn.Linear(hidden_size * 2, output_size),
+
+        self.decoder = MLP(
+            hidden_size * 2 + latent_size,
+            hidden_size * 2,
+            output_size
         )
         self.decoder.apply(objectives.init_weights)
 
