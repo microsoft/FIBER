@@ -30,6 +30,7 @@ def main(_config):
         monitor="val/the_metric",
         mode=_config["val_mode"],
         save_last=True,
+        filename="best",
     )
     callbacks = [checkpoint_callback]
 
