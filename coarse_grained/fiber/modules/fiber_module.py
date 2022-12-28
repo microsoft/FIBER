@@ -81,14 +81,14 @@ class VQAClassifier(nn.Module):
         latent_size = config["latent_size"]
         output_size = config["vqav2_label_size"]
 
-        self.encoder_xy = GaussianNetwork(
+        self.encoder_xy = GaussianMLP(
             hidden_size * 2 + output_size,
             [hidden_size * 2],
             latent_size
         )
         self.encoder_xy.apply(objectives.init_weights)
 
-        self.encoder_x = GaussianNetwork(
+        self.encoder_x = GaussianMLP(
             hidden_size * 2,
             [hidden_size * 2],
             latent_size
