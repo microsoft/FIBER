@@ -95,12 +95,7 @@ class VQAClassifier(nn.Module):
         )
         self.encoder_x.apply(objectives.init_weights)
 
-        self.decoder = SkipMLP(
-            hidden_size * 2,
-            latent_size,
-            [hidden_size * 2],
-            output_size
-        )
+        self.decoder = MLP(hidden_size * 2 + latent_size, [], output_size)
         self.decoder.apply(objectives.init_weights)
 
 class FIBERTransformerSS(pl.LightningModule):
@@ -616,7 +611,7 @@ class FIBERTransformerSS(pl.LightningModule):
             self.test_mu_x = torch.vstack(self.test_mu_x)
             self.test_logvar_x = torch.vstack(self.test_logvar_x)
             torch.save((self.test_mu_x, self.test_logvar_x), os.path.join(self.hparams.config["log_dir"],
-                "test_posteriors.pt"))
+                f"version_{self.hparams.config['seed']}", "test_posteriors.pt"))
 
         if (
             self.hparams.config["loss_names"]["caption_mle"] > 0

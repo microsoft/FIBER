@@ -231,9 +231,9 @@ def compute_vae(pl_module, batch):
     infer = pl_module.infer(batch, mask_text=False, mask_image=False)
     x = infer["cls_feats"]
     y = make_vqa_targets(pl_module, batch)
-    mu_xy, logvar_xy = pl_module.vqa_classifier.encoder_xy(torch.hstack((x, y)))
+    mu_xy, logvar_xy = pl_module.vqa_classifier.encoder_xy(x, y)
     z = sample_z(mu_xy, logvar_xy)
-    vae_logits = pl_module.vqa_classifier.decoder(torch.hstack((x, z)))
+    vae_logits = pl_module.vqa_classifier.decoder(x, z)
 
     reconst_loss = (
         F.binary_cross_entropy_with_logits(vae_logits, y) * y.shape[1]
@@ -261,7 +261,7 @@ def compute_encoder_kl(pl_module, batch):
     infer = pl_module.infer(batch, mask_text=False, mask_image=False)
     x = infer["cls_feats"]
     y = make_vqa_targets(pl_module, batch)
-    mu_xy, logvar_xy = pl_module.vqa_classifier.encoder_xy(torch.hstack((x, y)))
+    mu_xy, logvar_xy = pl_module.vqa_classifier.encoder_xy(x, y)
     mu_x, logvar_x = pl_module.vqa_classifier.encoder_x(x)
     posterior_xy = make_gaussian(mu_xy, logvar_xy)
     posterior_x = make_gaussian(mu_x, logvar_x)
@@ -294,7 +294,7 @@ def compute_inference_vae(pl_module, batch):
     mu_x, logvar_x = pl_module.vqa_classifier.encoder_x(x)
     posterior_x = make_gaussian(mu_x, logvar_x)
     z = posterior_x.sample((n_samples,))
-    vae_logits = pl_module.vqa_classifier.decoder(torch.hstack((x_rep, z)))
+    vae_logits = pl_module.vqa_classifier.decoder(x_rep, z)
 
     logp_y_xz = F.binary_cross_entropy_with_logits(vae_logits, y_rep, reduction="none").sum(dim=1)
     assert logp_y_xz.shape == torch.Size([n_samples]) # (n_samples,)
