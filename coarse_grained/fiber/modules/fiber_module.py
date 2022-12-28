@@ -25,29 +25,53 @@ def concat_all_gather(tensor):
 
 
 class MLP(nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim):
+    def __init__(self, input_dim, hidden_dims, output_dim):
         super().__init__()
         module_list = []
-        module_list.append(nn.Linear(input_dim, hidden_dim))
-        module_list.append(nn.LayerNorm(hidden_dim))
-        module_list.append(nn.GELU())
-        module_list.append(nn.Linear(hidden_dim, output_dim))
+        last_in_dim = input_dim
+        for hidden_dim in hidden_dims:
+            module_list.append(nn.Linear(last_in_dim, hidden_dim))
+            module_list.append(nn.SiLU())
+            last_in_dim = hidden_dim
+        module_list.append(nn.Linear(last_in_dim, output_dim))
         self.module_list = nn.Sequential(*module_list)
 
     def forward(self, *args):
         return self.module_list(torch.hstack(args))
 
 
-class GaussianNetwork(nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim):
+class GaussianMLP(nn.Module):
+    def __init__(self, input_dim, hidden_dims, output_dim):
         super().__init__()
-        self.mu_net = MLP(input_dim, hidden_dim, output_dim)
-        self.logvar_net = MLP(input_dim, hidden_dim, output_dim)
+        self.mu_net = MLP(input_dim, hidden_dims, output_dim)
+        self.logvar_net = MLP(input_dim, hidden_dims, output_dim)
 
     def forward(self, *args):
-        mu = self.mu_net(*args)
-        logvar = self.logvar_net(*args)
-        return mu, logvar
+        return self.mu_net(*args), self.logvar_net(*args)
+
+class SkipMLP(nn.Module):
+    def __init__(self, input_dim, latent_dim, hidden_dims, output_dim):
+        super().__init__()
+        self.in_layer = nn.Linear(input_dim + latent_dim, hidden_dims[0])
+        self.inner_linear_h = nn.ModuleList()
+        self.outer_linear_h = nn.ModuleList()
+        self.linear_z = nn.ModuleList()
+        for i in range(len(hidden_dims) - 1):
+            self.inner_linear_h.append(nn.Linear(hidden_dims[i], hidden_dims[i + 1]))
+            self.outer_linear_h.append(nn.Linear(hidden_dims[i + 1], hidden_dims[i + 1]))
+            self.linear_z.append(nn.Linear(latent_dim, hidden_dims[i + 1]))
+        self.inner_linear_h.append(nn.Linear(hidden_dims[-1], output_dim))
+        self.outer_linear_h.append(nn.Linear(output_dim, output_dim))
+        self.linear_z.append(nn.Linear(latent_dim, output_dim))
+
+    def forward(self, x, z):
+        h = F.silu(self.in_layer(torch.hstack((x, z))))
+        for i, (inner_linear_h, outer_linear_h, linear_z) in enumerate(zip(self.inner_linear_h, self.outer_linear_h,
+                self.linear_z)):
+            h = outer_linear_h(F.silu(inner_linear_h(h))) + linear_z(z)
+            if i < len(self.inner_linear_h) - 1:
+                h = F.silu(h)
+        return h
 
 
 class VQAClassifier(nn.Module):
@@ -59,21 +83,22 @@ class VQAClassifier(nn.Module):
 
         self.encoder_xy = GaussianNetwork(
             hidden_size * 2 + output_size,
-            hidden_size * 2,
+            [hidden_size * 2],
             latent_size
         )
         self.encoder_xy.apply(objectives.init_weights)
 
         self.encoder_x = GaussianNetwork(
             hidden_size * 2,
-            hidden_size * 2,
+            [hidden_size * 2],
             latent_size
         )
         self.encoder_x.apply(objectives.init_weights)
 
-        self.decoder = MLP(
-            hidden_size * 2 + latent_size,
+        self.decoder = SkipMLP(
             hidden_size * 2,
+            latent_size,
+            [hidden_size * 2],
             output_size
         )
         self.decoder.apply(objectives.init_weights)
