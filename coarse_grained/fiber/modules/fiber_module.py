@@ -49,6 +49,7 @@ class GaussianMLP(nn.Module):
     def forward(self, *args):
         return self.mu_net(*args), self.logvar_net(*args)
 
+
 class SkipMLP(nn.Module):
     def __init__(self, input_dim, latent_dim, hidden_dims, output_dim):
         super().__init__()

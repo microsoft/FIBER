@@ -296,7 +296,7 @@ def compute_inference_vae(pl_module, batch):
     z = posterior_x.sample((n_samples,))
     vae_logits = pl_module.vqa_classifier.decoder(x_rep, z)
 
-    logp_y_xz = F.binary_cross_entropy_with_logits(vae_logits, y_rep, reduction="none").sum(dim=1)
+    logp_y_xz = -F.binary_cross_entropy_with_logits(vae_logits, y_rep, reduction="none").sum(dim=1)
     assert logp_y_xz.shape == torch.Size([n_samples]) # (n_samples,)
 
     log_agg_posterior = []
