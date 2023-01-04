@@ -85,14 +85,14 @@ class VQAClassifier(nn.Module):
 
         self.encoder_xy = GaussianMLP(
             hidden_size * 2 + output_size,
-            [hidden_size * 2],
+            [hidden_size * 2, hidden_size * 2],
             latent_size
         )
         self.encoder_xy.apply(objectives.init_weights)
 
         self.encoder_x = GaussianMLP(
             hidden_size * 2,
-            [hidden_size * 2],
+            [hidden_size * 2, hidden_size * 2],
             latent_size
         )
         self.encoder_x.apply(objectives.init_weights)
