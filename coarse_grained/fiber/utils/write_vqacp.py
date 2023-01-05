@@ -50,7 +50,7 @@ def write_table(dataset_root, df, split):
             writer.write_table(table)
 
 
-def make_arrow(root, dataset_root, train_ratio=0.8):
+def make_arrow(root, dataset_root, seed, mixing_ratio=0.3, train_ratio=0.8):
     with open(f"{root}/vqacp_v2_train_questions.json", "r") as fp:
         questions_train = json.load(fp)
     with open(f"{root}/vqacp_v2_test_questions.json", "r") as fp:
@@ -167,15 +167,22 @@ def make_arrow(root, dataset_root, train_ratio=0.8):
             ],
         )
 
+        dpath = os.path.join(dataset_root, f"s={seed},m={mixing_ratio},t={train_ratio}")
         if split == "train":
-            rng = np.random.RandomState(0)
-            n_trainval = len(dataframe)
-            n_train = int(train_ratio * n_trainval)
-            train_idxs = rng.choice(n_trainval, n_train, replace=False)
-            val_idxs = np.setdiff1d(np.arange(n_trainval), train_idxs)
+            rng = np.random.RandomState(seed)
+            # Move trainval examples to test
+            n_total = len(dataframe)
+            n_mixing = int(mixing_ratio * n_total)
+            mixing_idxs = rng.choice(n_total, n_mixing, replace=False)
+            mixing_df = dataframe.iloc[mixing_idxs]
+            # Split train and val
+            trainval_idxs = np.setdiff1d(np.arange(n_total), mixing_idxs)
+            n_train = int(train_ratio * len(trainval_idxs))
+            train_idxs = rng.choice(trainval_idxs, n_train, replace=False)
+            val_idxs = np.setdiff1d(trainval_idxs, train_idxs)
             train_df = dataframe.iloc[train_idxs]
             val_df = dataframe.iloc[val_idxs]
-            write_table(dataset_root, train_df, "train")
-            write_table(dataset_root, val_df, "val")
+            write_table(dpath, train_df, "train")
+            write_table(dpath, val_df, "val")
         else:
-            write_table(dataset_root, dataframe, "test")
+            write_table(dpath, pd.concat([mixing_df, dataframe]), "test")
