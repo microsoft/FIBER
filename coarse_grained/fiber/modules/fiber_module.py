@@ -440,7 +440,8 @@ class FIBERTransformerSS(pl.LightningModule):
 
         # Image Text Contrastive Loss
         if "itc" in self.current_tasks:
-            ret.update(objectives.compute_itc(self, batch))
+            ret_itc, image_neg, text_neg, text_mask_neg = objectives.compute_itc(self, batch)
+            ret.update(ret_itc)
 
         # Image Text Matching
         if "itm" in self.current_tasks:
