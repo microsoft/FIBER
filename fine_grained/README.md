@@ -26,6 +26,7 @@ pip install einops shapely timm yacs tensorboardX ftfy prettytable pymongo pytor
 pip install transformers 
 python setup.py build develop --user
 ```
+If needing to support different GPU architectures, specify `TORCH_CUDA_ARCH_LIST="*.* ..."` before `python setup.py ...` (e.g., `TORCH_CUDA_ARCH_LIST="8.0 8.6 7.0 7.2 6.0 6.1 6.2"` for Ampere, Volta, and Pascal).
 
 ## Pre-Training
 
